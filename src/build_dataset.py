@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import pandas as pd
 
+import derivadas
 import fetch_bcb
 import fetch_fred
 from comum import (
@@ -49,6 +50,7 @@ from comum import (
     DATA,
     DOCS,
     PAUSA,
+    agora_brasilia,
     agora_iso,
     carrega_blocos,
     carrega_catalogo,
@@ -60,6 +62,9 @@ from comum import (
 )
 
 CATALOGOS = {"bcb": "series_bcb.yaml", "fred": "series_fred.yaml"}
+
+# Catálogo das séries calculadas a partir das coletadas. Não vai à rede.
+CATALOGO_DERIVADAS = "derivadas.yaml"
 
 
 # ---------------------------------------------------------------- coleta
@@ -158,6 +163,55 @@ def coleta_tudo(fontes: list[str]) -> tuple[dict[str, dict], list[dict], dict[st
     return payloads, manifesto, catalogo
 
 
+# ---------------------------------------------------------------- derivação
+
+
+def deriva_tudo(
+    payloads: dict[str, dict],
+    catalogo: dict[str, dict],
+    manifesto: list[dict],
+) -> str | None:
+    """
+    Calcula as séries derivadas e as insere nos payloads, no catálogo e no manifesto.
+
+    Muta os três, na ordem em que `main` os usa. Devolve o mês-base do deflator, que a
+    unidade dos gráficos precisa. Uma série derivada é indistinguível de uma coletada
+    daqui para a frente — mesma estrutura, mesmo formato longo, mesma linha na planilha —,
+    e o que a identifica como calculada é o campo `calculo` do catálogo, exibido no lugar
+    da procedência de fonte na página.
+    """
+    config = carrega_catalogo(CATALOGO_DERIVADAS)
+    novos, entradas, data_base = derivadas.constroi(config, payloads, catalogo)
+    if not novos:
+        return data_base
+
+    print(f"\n=== Derivadas — {len(novos)} série(s) ===\n")
+    for serie_id, payload in novos.items():
+        obs = payload["obs"]
+        payloads[serie_id] = payload
+        catalogo[serie_id] = entradas[serie_id]
+        manifesto.append(
+            {
+                "serie_id": serie_id,
+                "fonte": payload["fonte"],
+                "codigo_fonte": payload["codigo_fonte"],
+                "unidade": payload["unidade"],
+                "periodicidade": payload["periodicidade"],
+                "status": "ok",
+                "motivo": None,
+                "ultima_coleta_ok": payload["coletado_em"],
+                "coletado_em": payload["coletado_em"],
+                "inicio": obs[0][0],
+                "ultima_data": obs[-1][0],
+                "ultimo_valor": obs[-1][1],
+                "n_obs": len(obs),
+            }
+        )
+        print(f"[CALC ] {serie_id:<38} {len(obs):>5} obs  até {obs[-1][0]}")
+
+    return data_base
+
+
 # ---------------------------------------------------------------- consolidação
 
 
@@ -213,6 +267,7 @@ def monta_payload(
     payloads: dict[str, dict],
     manifesto: list[dict],
     catalogo: dict[str, dict],
+    base_deflator: str | None = None,
 ) -> dict:
     """Monta o payload que a página consome: blocos, gráficos, séries e procedência."""
     estados = {m["serie_id"]: m for m in manifesto}
@@ -231,6 +286,9 @@ def monta_payload(
             "unidade": payload["unidade"],
             "periodicidade": payload["periodicidade"],
             "nota": cfg.get("nota"),
+            # Só séries derivadas têm `calculo`: a página mostra a regra de cálculo no
+            # lugar da linha de procedência de fonte.
+            "calculo": cfg.get("calculo"),
             "status": entrada["status"],
             "coletado_em": entrada["coletado_em"],
             "inicio": entrada["inicio"],
@@ -246,7 +304,15 @@ def monta_payload(
             presentes = [s for s in grafico["series"] if s in series]
             if not presentes:
                 continue
-            graficos.append({**grafico, "series": presentes})
+            graficos.append(
+                {
+                    **grafico,
+                    "series": presentes,
+                    # A unidade dos gráficos a preços constantes carrega o mês-base, que
+                    # só se conhece depois de coletado o deflator.
+                    "unidade": derivadas.aplica_marcador(grafico["unidade"], base_deflator),
+                }
+            )
         blocos.append(
             {
                 "id": bloco["id"],
@@ -260,6 +326,8 @@ def monta_payload(
     desatualizadas = [m["serie_id"] for m in manifesto if m["status"] == "stale"]
     return {
         "gerado_em": agora_iso(),
+        # Mesma geração, já formatada no horário de Brasília: é o que a página mostra.
+        "atualizado_em": agora_brasilia(),
         "desatualizadas": desatualizadas,
         # Recorte de exibição. As séries abaixo vão inteiras; quem corta é o front.
         "recorte": config.get("recorte", {}),
@@ -326,7 +394,7 @@ def catalogo_completo() -> dict[str, dict]:
     séries do FRED citadas em blocos.yaml inexistentes.
     """
     series: dict[str, dict] = {}
-    for arquivo in CATALOGOS.values():
+    for arquivo in list(CATALOGOS.values()) + [CATALOGO_DERIVADAS]:
         for serie in carrega_catalogo(arquivo)["series"]:
             series[serie["serie_id"]] = serie
     return series
@@ -385,6 +453,7 @@ def main() -> int:
 
     anterior = le_manifesto_anterior()  # lido antes de sobrescrever
     payloads, manifesto, catalogo = coleta_tudo(fontes)
+    base_deflator = deriva_tudo(payloads, catalogo, manifesto)
 
     completo = catalogo_completo()
 
@@ -409,7 +478,7 @@ def main() -> int:
     DATA.mkdir(parents=True, exist_ok=True)
     df.to_parquet(DATA / "series.parquet", index=False)
 
-    payload = monta_payload(payloads, manifesto, catalogo)
+    payload = monta_payload(payloads, manifesto, catalogo, base_deflator)
     grava_json(DATA / "series.json", formato_longo_json(df, payload["gerado_em"]))
     grava_json(
         DATA / "manifest.json",

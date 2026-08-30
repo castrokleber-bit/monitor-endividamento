@@ -78,17 +78,29 @@ def valida_bcb(serie: dict) -> dict:
 
     ultima = dados[-1]
     res.update({"ok": True, "ultima_data": ultima.get("data"), "ultimo_valor": ultima.get("valor")})
-
-    # nome oficial, via portal de dados abertos (CKAN). Best effort.
-    try:
-        meta = _get(SGS_META, params={"q": str(codigo), "rows": 5}).json()
-        titulos = [r.get("title", "") for r in meta.get("result", {}).get("results", [])]
-        casado = next((t for t in titulos if str(codigo) in json.dumps(titulos) and t), None)
-        res["nome_oficial"] = casado or (titulos[0] if titulos else None)
-    except Exception:
-        res["nome_oficial"] = None
-
+    res["nome_oficial"] = nome_oficial_bcb(codigo, serie.get("descricao_esperada"))
     return res
+
+
+def nome_oficial_bcb(codigo: int | str, esperado: str | None) -> str | None:
+    """
+    Título da série no portal de dados abertos do BCB (CKAN). Best effort.
+
+    A busca é por texto livre e devolve pacotes de outros assuntos com frequência — o
+    código 433 traz "Ouvidorias dos bancos" na primeira posição. Por isso o título só é
+    aceito quando corresponde à `descricao_esperada` do catálogo; sem correspondência,
+    devolve None e a planilha cai para a descrição do YAML. Um nome vindo do YAML é
+    preferível a um nome errado apresentado como oficial.
+    """
+    if not esperado:
+        return None
+    try:
+        meta = _get(SGS_META, params={"q": str(codigo), "rows": 10}).json()
+        titulos = [r.get("title", "") for r in meta.get("result", {}).get("results", [])]
+    except Exception:
+        return None
+    chave = esperado.lower()[:30]
+    return next((t for t in titulos if t and chave in t.lower()), None)
 
 
 # ---------------------------------------------------------------- FRED
@@ -136,7 +148,18 @@ def imprime(res: dict, esperado: str | None) -> None:
         print(f"         última observação: {res['ultima_data']} = {res.get('ultimo_valor', '')}")
 
 
-def relatorio_mesclado(anterior: list[dict], novos: list[dict]) -> list[dict]:
+def series_do_catalogo() -> set[str]:
+    """Todo `serie_id` declarado nos catálogos de coleta, independentemente da execução."""
+    ids: set[str] = set()
+    for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+        cat = yaml.safe_load((CONFIG / arquivo).read_text(encoding="utf-8"))
+        ids.update(s["serie_id"] for s in cat["series"])
+    return ids
+
+
+def relatorio_mesclado(
+    anterior: list[dict], novos: list[dict], conhecidas: set[str] | None = None
+) -> list[dict]:
     """
     Mescla os resultados desta execução com o relatório já existente.
 
@@ -144,10 +167,16 @@ def relatorio_mesclado(anterior: list[dict], novos: list[dict]) -> list[dict]:
     das séries que ela nem tentou verificar: o relatório é a evidência de conferência
     manual dos nomes oficiais, e `build_xlsx.py` tira dele a coluna `nome_oficial` do
     Dicionário. Entrada nova substitui a antiga de mesmo `serie_id`; o resto permanece.
+
+    `conhecidas` é o catálogo inteiro, não o que rodou agora: série retirada do catálogo
+    sai também do relatório. Sem isso o arquivo acumularia evidência de séries que não
+    existem mais, e a planilha continuaria com o nome oficial de uma delas.
     """
     por_id = {r["serie_id"]: r for r in anterior}
     for res in novos:
         por_id[res["serie_id"]] = res
+    if conhecidas is not None:
+        por_id = {k: v for k, v in por_id.items() if k in conhecidas}
     return list(por_id.values())
 
 
@@ -204,7 +233,11 @@ def main() -> int:
             anterior = []
 
     caminho_relatorio.write_text(
-        json.dumps(relatorio_mesclado(anterior, resultados), ensure_ascii=False, indent=2),
+        json.dumps(
+            relatorio_mesclado(anterior, resultados, series_do_catalogo()),
+            ensure_ascii=False,
+            indent=2,
+        ),
         encoding="utf-8",
     )
 

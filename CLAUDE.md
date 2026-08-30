@@ -42,7 +42,7 @@ resolva.
 ## Arquitetura
 
 ```
-config/     catálogo de séries (YAML) — fonte única da verdade
+config/     catálogo de séries e de séries derivadas (YAML) — fonte única da verdade
 src/        ETL determinístico em Python
 data/       artefatos gerados e versionados (parquet, json, xlsx, manifest)
 content/    textos humanos (notas metodológicas)
@@ -50,7 +50,12 @@ docs/       GitHub Pages (index.html, app.js, style.css)
 tests/      testes das transformações
 ```
 
-Fluxo: `validate_series.py` → `fetch_*.py` → `build_dataset.py` → `build_xlsx.py` → commit.
+Fluxo: `validate_series.py` → `fetch_*.py` → `build_dataset.py` (coleta, deriva,
+consolida) → `build_xlsx.py` → commit.
+
+Série calculada não é coletada: a regra vive em `config/derivadas.yaml`, a implementação
+em `src/derivadas.py`, e a nota correspondente em `content/metodologia.md`. Nenhuma das
+três pode faltar.
 
 ### Formato canônico
 
@@ -97,8 +102,21 @@ não cobrir a série desejada.
 | `--fundo` | `#FFFFFF` | fundo da página |
 
 Tipografia: **Arial** em toda a página (`font-family: Arial, Helvetica, sans-serif`).
-Para gráficos com mais de duas séries, derivar a paleta dos dois azuis institucionais
-antes de introduzir qualquer cor nova; vermelho fica reservado para alertas.
+
+Paleta das linhas dos gráficos, na ordem de uso obrigatória (Brasil sempre na primeira):
+
+| token | valor | |
+|---|---|---|
+| `--serie-1` | `#164194` | azul institucional |
+| `--serie-2` | `#008BD2` | ciano institucional |
+| `--serie-3` | `#00785F` | verde-petróleo |
+| `--serie-4` | `#C77F00` | ocre |
+| `--serie-5` | `#595959` | cinza |
+
+> **Decisão de 30/08/2026.** Da terceira série em diante a paleta sai da família azul.
+> A regra anterior — derivar tudo dos dois azuis — produzia curvas indistinguíveis nos
+> gráficos de três e quatro séries e ilegíveis em preto e branco. Não voltar a tons de
+> azul nas posições 3 e 4 sem decisão humana. Vermelho segue reservado a alertas.
 
 Cada gráfico traz: título, subtítulo com unidade e período, fonte explícita, data da
 última observação e botão de download. Sem sombras, sem gradientes, sem arredondamento

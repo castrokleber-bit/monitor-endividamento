@@ -1,0 +1,47 @@
+# Catálogo de séries DERIVADAS — calculadas a partir de séries já coletadas.
+#
+# Nada aqui vai à rede. Cada série deste arquivo é uma função determinística de séries
+# do catálogo de coleta, aplicada em `src/derivadas.py` e descrita em
+# `content/metodologia.md`. Nenhuma série derivada entra no painel sem esse par:
+# a regra no YAML e a nota metodológica escrita.
+
+fonte: Derivado
+
+# ---------------------------------------------------------------------------
+# Deflacionamento pelo IPCA
+#
+# `deflator` é a série de variação mensal do IPCA (SGS 433). O índice de preços é
+# construído por encadeamento — I(t) = I(t-1) x (1 + variação/100) —, e o valor real é
+#
+#     real(t) = nominal(t) x I(base) / I(t)
+#
+# `base: ultima_do_deflator` fixa a base no mês mais recente do IPCA. É uma base móvel:
+# a cada atualização os valores passam a estar a preços do último mês divulgado, e a
+# unidade da série diz qual é esse mês. Meses do saldo sem IPCA correspondente ficam de
+# fora da série real — nada é extrapolado.
+# ---------------------------------------------------------------------------
+deflacionamento:
+  deflator: ipca_variacao_mensal
+  base: ultima_do_deflator
+
+series:
+  - serie_id: saldo_credito_total_real
+    origem: saldo_credito_total
+    operacao: deflaciona_ipca
+    rotulo: "Total"
+    descricao_esperada: "Saldo da carteira de crédito - Total, deflacionado pelo IPCA"
+    bloco: mercado_credito
+
+  - serie_id: saldo_credito_pj_real
+    origem: saldo_credito_pj
+    operacao: deflaciona_ipca
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total, deflacionado pelo IPCA"
+    bloco: mercado_credito
+
+  - serie_id: saldo_credito_pf_real
+    origem: saldo_credito_pf
+    operacao: deflaciona_ipca
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total, deflacionado pelo IPCA"
+    bloco: mercado_credito

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +51,16 @@ def carrega_env() -> None:
 def agora_iso() -> str:
     """Timestamp UTC em ISO-8601, com segundos."""
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+# O Brasil não adota horário de verão desde 2019, então o offset é fixo. Depender do
+# banco de fusos do sistema quebraria no Windows sem o pacote tzdata instalado.
+BRASILIA = timezone(timedelta(hours=-3))
+
+
+def agora_brasilia() -> str:
+    """Data e hora da geração no horário de Brasília, já formatada para a página."""
+    return datetime.now(BRASILIA).strftime("%d/%m/%Y às %H:%M")
 
 
 # ---------------------------------------------------------------- HTTP

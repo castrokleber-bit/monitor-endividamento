@@ -7,7 +7,9 @@
 # Endpoint: https://api.stlouisfed.org/fred/series/observations?series_id={id}&api_key=...
 # Chave: variável de ambiente FRED_API_KEY (em CI, GitHub Secret; local, arquivo .env).
 #
-# Códigos conferidos contra a API em 2026-08-29 — 13/13 responderam com observações.
+# Códigos conferidos contra a API em 2026-08-29 — todos responderam com observações.
+# O catálogo tinha 13 séries até 30/08/2026; as quatro só dos EUA foram retiradas (ver
+# o bloco no fim do arquivo).
 
 fonte: FRED
 
@@ -114,48 +116,21 @@ series:
     bloco: internacional
     validar: false
 
-  # ---------------------------------------------------------------
-  # EUA — serviço da dívida e inadimplência (referência de método)
-  # Útil como espelho conceitual do comprometimento de renda do BCB.
-  # ---------------------------------------------------------------
-  - serie_id: us_debt_service_ratio
-    codigo: TDSP
-    rotulo: "EUA — serviço da dívida"
-    descricao_esperada: "Household Debt Service Payments as a Percent of Disposable Personal Income"
-    unidade: "%"
-    periodicidade: T
-    bloco: internacional
-    validar: false
-
-  # DESCONTINUADA na fonte: última observação em 2023-07-01. Mantida no catálogo pelo
-  # histórico; não deve entrar em gráfico sem a ressalva de série encerrada.
-  - serie_id: us_financial_obligations_ratio
-    codigo: FODSP
-    rotulo: "EUA — obrigações financeiras"
-    descricao_esperada: "Household Financial Obligations as a Percent of Disposable Personal Income"
-    unidade: "%"
-    periodicidade: T
-    bloco: internacional
-    nota: "Série descontinuada pela fonte; última observação em 2023."
-    validar: false
-
-  - serie_id: us_inadimplencia_cartao
-    codigo: DRCCLACBS
-    rotulo: "EUA — cartão de crédito"
-    descricao_esperada: "Delinquency Rate on Credit Card Loans, All Commercial Banks"
-    unidade: "%"
-    periodicidade: T
-    bloco: internacional
-    validar: false
-
-  - serie_id: us_inadimplencia_empresas
-    codigo: DRBLACBS
-    rotulo: "EUA — empresas"
-    descricao_esperada: "Delinquency Rate on Business Loans, All Commercial Banks"
-    unidade: "%"
-    periodicidade: T
-    bloco: internacional
-    validar: false
+# ---------------------------------------------------------------
+# RETIRADAS DO CATÁLOGO EM 30/08/2026
+#
+# Quatro séries que só descreviam os Estados Unidos, sem contraparte brasileira, saíram
+# junto com os dois gráficos que as exibiam. Não são mais coletadas nem publicadas:
+#
+#   TDSP       Household Debt Service Payments as a Percent of Disposable Personal Income
+#   FODSP      Household Financial Obligations as a Percent of Disposable Personal Income
+#              (descontinuada na fonte, última observação em 2023-07-01)
+#   DRCCLACBS  Delinquency Rate on Credit Card Loans, All Commercial Banks
+#   DRBLACBS   Delinquency Rate on Business Loans, All Commercial Banks
+#
+# Os códigos ficam registrados aqui porque foram conferidos contra a API e voltariam
+# a funcionar se um dia houver decisão de reincluí-las.
+# ---------------------------------------------------------------
 
 # ---------------------------------------------------------------
 # NOTA METODOLÓGICA OBRIGATÓRIA

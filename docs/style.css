@@ -11,13 +11,18 @@
   --alerta:          #C0392B;   /* reservado a avisos de dado desatualizado */
   --fundo:           #FFFFFF;
 
-  /* paleta de séries: derivada dos dois azuis institucionais antes de qualquer cor nova.
-     Ordem de uso obrigatória — Brasil sempre na primeira posição. */
-  --serie-1: #164194;
-  --serie-2: #008BD2;
-  --serie-3: #6B8CC7;
-  --serie-4: #7FC4E8;
-  --serie-5: #595959;
+  /* Paleta de séries. Ordem de uso obrigatória — Brasil sempre na primeira posição.
+
+     As duas primeiras são os azuis institucionais. Da terceira em diante a paleta sai
+     da família azul, por decisão de 30/08/2026: com três e quatro séries no mesmo
+     gráfico, as variações de azul ficavam indistinguíveis entre si e na impressão em
+     preto e branco. Verde-petróleo e ocre são escuros o bastante para manter contraste
+     com o fundo branco. Vermelho segue reservado a alertas. */
+  --serie-1: #164194;   /* azul institucional */
+  --serie-2: #008BD2;   /* ciano institucional */
+  --serie-3: #00785F;   /* verde-petróleo */
+  --serie-4: #C77F00;   /* ocre */
+  --serie-5: #595959;   /* cinza */
 
   --escala-1: 0.75rem;   /* rótulos, fonte, data de atualização */
   --escala-2: 0.875rem;  /* subtítulo de gráfico */
@@ -78,6 +83,14 @@ h2 { font-size: var(--escala-4); }
 .metodologia h3 { font-size: var(--escala-4); margin-top: var(--gap); }
 .metodologia h4 { font-size: var(--escala-3); margin-top: var(--gap); }
 .metodologia__p { max-width: 70ch; }
+
+/* Código de série e caminho de arquivo dentro do texto corrido. */
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.9em;
+  background: var(--cinza-fundo);
+  padding: 0 0.2em;
+}
 
 /* Botões e links de download de um mesmo gráfico. */
 .grafico__acoes {

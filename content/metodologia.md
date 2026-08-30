@@ -14,23 +14,62 @@ do SFN e **não são comparáveis** com o bloco Brasil.
 
 ## Definições
 
-**Endividamento das famílias.** Relação entre o saldo das dívidas das famílias com o SFN e
-a renda acumulada nos últimos doze meses.
+**Endividamento das famílias** (SGS 29037). Relação entre o saldo das dívidas das famílias
+com o SFN e a renda acumulada nos últimos doze meses.
 
-**Comprometimento de renda.** Relação entre os pagamentos esperados para o serviço da
-dívida com o SFN e a renda mensal das famílias, em média móvel trimestral. A série
-principal é ajustada sazonalmente.
+**Endividamento exceto crédito habitacional** (SGS 29038). Mesma razão, com o mesmo
+denominador de renda, retirando o crédito habitacional do numerador. A distância entre as
+duas curvas é, por construção, a parcela habitacional do endividamento. O painel exibe as
+duas porque o crédito habitacional tem prazo e garantia distintos do restante da carteira;
+nenhuma das duas é derivada da outra pelo pipeline — as duas vêm prontas da fonte.
 
-**Inadimplência.** Percentual da carteira com atraso superior a 90 dias. O total do SFN
+**Comprometimento de renda** (SGS 29034, com ajuste sazonal; 29265, sem ajuste). Relação
+entre os pagamentos esperados para o serviço da dívida com o SFN e a renda mensal das
+famílias, em média móvel trimestral. As duas séries medem o mesmo conceito e são divulgadas
+separadamente pela fonte: a série com ajuste sazonal é a principal do painel, e a sem
+ajuste aparece ao lado para tornar visível o componente sazonal. O pipeline não aplica nem
+remove ajuste sazonal em série nenhuma.
+
+**Inadimplência.** Percentual da carteira com atraso superior a 90 dias, para pessoas
+físicas (SGS 21084) e pessoas jurídicas (SGS 21083). O total do SFN
 (SGS 21082) não é a média simples de pessoas físicas e jurídicas: é ponderado pelo peso
 de cada carteira, e por isso fica entre as duas curvas, mais próximo daquela que tem
 maior saldo.
 
+**Aberturas da inadimplência de pessoas físicas** (SGS 21112 e 21113). A série 21112 cobre
+apenas as operações com **recursos livres** — não inclui o crédito direcionado (habitacional,
+rural e demais linhas com destinação e taxa reguladas), que está dentro do total de pessoas
+físicas (21084). Os dois recortes têm carteiras diferentes, então os níveis não são
+comparáveis entre si. A série 21113 é uma modalidade dentro de 21112, o cheque especial.
+
 **Saldo da carteira de crédito.** Estoque de operações de crédito do SFN, em R$ milhões
 correntes, como divulgado pela fonte — sem deflacionamento e sem ajuste sazonal. O total
-(SGS 20539) é a soma exata de pessoas jurídicas (20540) e pessoas físicas (20541). Parte
-do crescimento nominal do saldo é inflação; para leitura de alavancagem, usar as séries
-em proporção do PIB (20622, 20623, 20624).
+(SGS 20539) corresponde à soma de pessoas jurídicas (20540) e pessoas físicas (20541); as
+três séries são arredondadas de forma independente na fonte, então a soma das aberturas
+pode divergir do total em até R$ 2 milhões em um mês — diferença de arredondamento, não de
+conceito. O total começa em junho de 1988 e as aberturas por tomador, em março de 2007.
+Parte do crescimento nominal do saldo é inflação; para leitura de alavancagem, usar as
+séries em proporção do PIB (20622, 20623, 20624).
+
+**Saldo a preços constantes** (séries `saldo_credito_total_real`, `saldo_credito_pj_real`
+e `saldo_credito_pf_real`). Não vêm da fonte: são calculadas no pipeline, e é a única
+operação de cálculo do monitor. O saldo nominal de cada mês é deflacionado pelo IPCA e
+expresso a preços do mês mais recente do índice. O deflator é a variação mensal do IPCA
+(SGS 433), encadeada em um índice de preços — `I(t) = I(t-1) × (1 + variação/100)` —, e o
+valor real é `nominal(t) × I(base) / I(t)`, com a base no último mês de IPCA divulgado.
+A base é móvel: a cada atualização os valores passam a estar a preços do mês mais recente,
+e a unidade da série registra qual é esse mês. Mês de saldo sem IPCA correspondente fica
+de fora da série real — nada é extrapolado. Como o índice é encadeado a partir das
+variações mensais publicadas, que a fonte arredonda em duas casas, o nível pode diferir
+marginalmente do número-índice do IPCA calculado pelo IBGE. As séries nominais originais
+seguem inteiras em `data/` e na planilha.
+
+**Crédito em proporção do PIB** (SGS 20622 total, 20623 pessoas jurídicas, 20624 pessoas
+físicas). Razão entre o saldo da carteira e o PIB, calculada e divulgada pela própria
+fonte. O pipeline não a recalcula nem escolhe o denominador: coleta a série pronta, como
+qualquer outra. Vale aqui a mesma ressalva do saldo — arredondamento independente faz a
+soma das aberturas divergir do total em até 0,01 ponto percentual —, e também o descompasso
+de início: o total começa em julho de 1995 e as aberturas, em março de 2007.
 
 **Composição do comprometimento.** As séries de juros (SGS 29033) e de amortização
 (SGS 29036), ambas com ajuste sazonal, somam exatamente o comprometimento com o serviço
@@ -54,15 +93,12 @@ arredondadas de forma independente, então a soma das componentes pode divergir 
 em até 0,5 ponto percentual em um trimestre — diferença de arredondamento na fonte, não
 de conceito.
 
-**Household Debt Service Ratio** (`TDSP`) e **Financial Obligations Ratio** (`FODSP`),
-do Federal Reserve. Pagamentos do serviço da dívida das famílias americanas como
-percentual da renda pessoal disponível — o espelho conceitual mais próximo do
-comprometimento de renda do BCB, ainda que com metodologias distintas. `FODSP` foi
-**descontinuada pela fonte**, com última observação em julho de 2023.
-
-**Delinquency rates** (`DRCCLACBS`, cartão de crédito; `DRBLACBS`, empresas), do Federal
-Reserve. Percentual da carteira em atraso nos bancos comerciais americanos. O critério de
-atraso não é o mesmo do BCB — comparar trajetória, não nível.
+Em 30/08/2026 saíram do monitor quatro séries do Federal Reserve que descreviam apenas os
+Estados Unidos, sem contraparte brasileira: serviço da dívida e obrigações financeiras das
+famílias (`TDSP` e `FODSP`) e inadimplência de cartão e de empresas nos bancos comerciais
+(`DRCCLACBS` e `DRBLACBS`). Os dois gráficos que as exibiam foram retirados e as séries
+deixaram de ser coletadas — não estão mais em `data/` nem na planilha. O bloco
+internacional ficou restrito ao que é comparável com o Brasil, nas séries do BIS.
 
 ## Tratamento dos valores na coleta
 
@@ -80,8 +116,13 @@ valor da fonte segue íntegro no parquet, no JSON, na planilha e no CSV de cada 
 
 ## Indicadores derivados
 
-*(Preencher quando o proxy de alavancagem das empresas for construído. Nenhum indicador
-derivado entra no painel sem esta seção escrita e revisada.)*
+O monitor tem uma única operação de cálculo: o deflacionamento do saldo da carteira de
+crédito pelo IPCA, descrito acima em *Saldo a preços constantes*. A regra vive em
+`config/derivadas.yaml` e a implementação, em `src/derivadas.py`. Toda série calculada
+aparece na página com a linha de procedência trocada — em vez do código na fonte, a
+descrição do cálculo — para que não seja confundida com valor divulgado pelo BCB.
+
+Nenhum outro indicador derivado entra no painel sem regra em `config/` e parágrafo aqui.
 
 ## Defasagem de divulgação
 

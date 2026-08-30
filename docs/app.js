@@ -87,7 +87,10 @@
   function enfase(texto) {
     return texto
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      // Códigos de série e caminhos de arquivo vêm entre crases no markdown; sem esta
+      // regra as crases apareciam cruas na página.
+      .replace(/`(.+?)`/g, '<code>$1</code>');
   }
 
   function markdown(destino, texto, classeParagrafo, nivelBase) {
@@ -319,10 +322,15 @@
     }
 
     series.forEach(function (s) {
+      /* Série derivada traz `calculo` e não vem pronta de fonte nenhuma: a linha de
+         procedência diz como foi calculada, para o leitor não tomar valor computado
+         aqui por valor divulgado pelo BCB. */
+      var origem = s.calculo
+        ? s.rotulo + ' — ' + s.calculo + '. '
+        : s.rotulo + ' — código ' + s.codigo_fonte + ' (' + s.fonte + '), série da fonte com ';
       meta.appendChild(elemento(
         'div', null,
-        s.rotulo + ' — código ' + s.codigo_fonte + ' (' + s.fonte + '), ' +
-        'série da fonte com ' + s.n_obs + ' observações desde ' +
+        origem + s.n_obs + ' observações desde ' +
         rotuloData(s.inicio, s.periodicidade) + ', última em ' +
         rotuloData(s.ultima_data, s.periodicidade) + '.'
       ));
@@ -413,9 +421,13 @@
       return;
     }
 
+    /* `atualizado_em` vem pronto de build_dataset.py, no horário de Brasília. Formatar
+       aqui exigiria converter fuso no navegador, e a data da atualização passaria a
+       depender do relógio de quem lê. */
     document.getElementById('atualizacao').textContent =
-      'Dados coletados em ' + dados.gerado_em.slice(0, 10).split('-').reverse().join('/') +
-      ' · ' + Object.keys(dados.series).length + ' séries.';
+      'Página atualizada em ' +
+      (dados.atualizado_em || dados.gerado_em.slice(0, 10).split('-').reverse().join('/')) +
+      ' (horário de Brasília) · ' + Object.keys(dados.series).length + ' séries.';
 
     if (dados.desatualizadas.length) {
       var aviso = document.getElementById('aviso-global');

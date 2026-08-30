@@ -52,26 +52,32 @@ blocos:
           o que puxa a curva agregada para baixo. O nível do cheque especial é uma ordem
           de grandeza maior que o das demais e ocupa parcela pequena da carteira.
 
-  - id: empresas
-    titulo: "Empresas não financeiras"
-    subtitulo: "Alavancagem e qualidade do crédito no setor produtivo"
+  - id: mercado_credito
+    titulo: "Mercado de crédito"
+    aba: "Mercado de crédito"
+    subtitulo: "Estoque, alavancagem e qualidade da carteira do Sistema Financeiro Nacional"
     graficos:
-      - titulo: "Crédito às empresas em relação ao PIB"
+      - titulo: "Saldo da carteira de crédito em relação ao PIB"
         series: [credito_pib_pj, credito_pib_pf, credito_pib_total]
         unidade: "% do PIB"
         fonte: "Banco Central do Brasil"
-      - titulo: "Saldo da carteira de crédito"
-        series: [saldo_credito_total, saldo_credito_pj, saldo_credito_pf]
+
+      # `{base_ipca}` é substituído no build pelo mês-base do deflator — a base é móvel,
+      # acompanha o último IPCA divulgado. Ver config/derivadas.yaml.
+      - titulo: "Saldo da carteira de crédito, a preços constantes"
+        series: [saldo_credito_total_real, saldo_credito_pj_real, saldo_credito_pf_real]
         rotulos:
-          saldo_credito_total: "Total"
-          saldo_credito_pj: "Pessoas jurídicas"
-          saldo_credito_pf: "Pessoas físicas"
-        unidade: "R$ milhões"
+          saldo_credito_total_real: "Total"
+          saldo_credito_pj_real: "Pessoas jurídicas"
+          saldo_credito_pf_real: "Pessoas físicas"
+        unidade: "R$ milhões de {base_ipca}"
         fonte: "Banco Central do Brasil"
         nota: >-
-          Valores nominais, como divulgados pela fonte, sem deflacionamento. Parte do
-          crescimento do saldo é inflação e não expansão real do crédito. Para a leitura
-          de alavancagem, usar o gráfico anterior, em proporção do PIB.
+          Saldo deflacionado pelo IPCA e expresso a preços do mês mais recente do índice,
+          para separar expansão real do crédito de variação de preços. A fonte divulga o
+          saldo em valores nominais; o deflacionamento é calculado no pipeline, pela regra
+          descrita na nota metodológica. A planilha traz as duas versões, nominal e a
+          preços constantes.
 
       - titulo: "Inadimplência da carteira de crédito"
         series: [inadimplencia_total_sfn, inadimplencia_pj_total, inadimplencia_pf_total]
@@ -116,26 +122,11 @@ blocos:
           0,5 ponto percentual em um trimestre. Mesma abrangência ampla do bloco: inclui
           crédito bancário, mercado de capitais e credores externos.
 
-      - titulo: "Serviço da dívida das famílias — Estados Unidos"
-        series: [us_debt_service_ratio, us_financial_obligations_ratio]
-        rotulos:
-          us_debt_service_ratio: "Serviço da dívida"
-          us_financial_obligations_ratio: "Obrigações financeiras totais"
-        unidade: "% da renda pessoal disponível"
-        fonte: "Federal Reserve, via FRED"
-        nota: >-
-          Espelho conceitual do comprometimento de renda do BCB, não equivalente: o
-          denominador é a renda pessoal disponível americana e o indicador de obrigações
-          financeiras inclui aluguel, leasing e seguros, além do serviço da dívida.
-          Comparar trajetória, não nível.
-
-      - titulo: "Inadimplência nos bancos comerciais — Estados Unidos"
-        series: [us_inadimplencia_cartao, us_inadimplencia_empresas]
-        rotulos:
-          us_inadimplencia_cartao: "Cartão de crédito"
-          us_inadimplencia_empresas: "Empresas"
-        unidade: "% da carteira"
-        fonte: "Federal Reserve, via FRED"
-        nota: >-
-          O critério de atraso do Federal Reserve não é o mesmo do BCB, que usa atraso
-          superior a 90 dias. Comparar trajetória, não nível.
+# ---------------------------------------------------------------------------
+# Retirados do painel em 30/08/2026, a pedido: os dois gráficos que só traziam dados
+# dos Estados Unidos, sem contraparte brasileira —
+#   "Serviço da dívida das famílias — Estados Unidos"    (TDSP, FODSP)
+#   "Inadimplência nos bancos comerciais — Estados Unidos" (DRCCLACBS, DRBLACBS)
+# As quatro séries seguem no catálogo, coletadas e publicadas na planilha e em data/.
+# Só deixaram de ter gráfico.
+# ---------------------------------------------------------------------------

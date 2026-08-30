@@ -35,7 +35,7 @@ AZUL = "164194"
 
 LEIA_ME = [
     ("Monitor de Endividamento", ""),
-    ("Kleber Pacheco de Castro", ""),
+    ("Desenvolvido por Kleber Pacheco de Castro", ""),
     ("", ""),
     (
         "Painel técnico de acompanhamento de dados públicos. Não constitui posição "
@@ -62,12 +62,21 @@ LEIA_ME = [
         "Nenhum valor é interpolado, arredondado ou estimado. Observação sem valor "
         "divulgado na fonte é omitida. Cada série mantém a unidade original da fonte.",
     ),
+    (
+        "Séries calculadas",
+        "As séries terminadas em _real não vêm da fonte: são o saldo nominal deflacionado "
+        "pelo IPCA (SGS 433), a preços do mês mais recente do índice, conforme a regra em "
+        "config/derivadas.yaml. A unidade de cada uma diz qual é o mês-base. As séries "
+        "nominais correspondentes seguem na planilha, sem alteração.",
+    ),
 ]
 
 
 def _catalogo_completo() -> dict[str, dict]:
+    # `derivadas.yaml` entra aqui para que as séries calculadas apareçam na aba do bloco
+    # e no Dicionário, ao lado das coletadas.
     series = {}
-    for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+    for arquivo in ("series_bcb.yaml", "series_fred.yaml", "derivadas.yaml"):
         for serie in carrega_catalogo(arquivo)["series"]:
             series[serie["serie_id"]] = serie
     return series

@@ -243,43 +243,12 @@
     "ultima_data": "2025-10-01"
   },
   {
-    "serie_id": "us_debt_service_ratio",
-    "fonte": "FRED",
-    "codigo": "TDSP",
+    "serie_id": "ipca_variacao_mensal",
+    "fonte": "BCB/SGS",
+    "codigo": 433,
     "ok": true,
-    "nome_oficial": "Household Debt Service Payments as a Percent of Disposable Personal Income",
-    "unidade_oficial": "Percent",
-    "frequencia_oficial": "Q",
-    "ultima_data": "2026-01-01"
-  },
-  {
-    "serie_id": "us_financial_obligations_ratio",
-    "fonte": "FRED",
-    "codigo": "FODSP",
-    "ok": true,
-    "nome_oficial": "Household Financial Obligations as a Percent of Disposable Personal Income (DISCONTINUED)",
-    "unidade_oficial": "Percent",
-    "frequencia_oficial": "Q",
-    "ultima_data": "2023-07-01"
-  },
-  {
-    "serie_id": "us_inadimplencia_cartao",
-    "fonte": "FRED",
-    "codigo": "DRCCLACBS",
-    "ok": true,
-    "nome_oficial": "Delinquency Rate on Credit Card Loans, All Commercial Banks",
-    "unidade_oficial": "Percent",
-    "frequencia_oficial": "Q",
-    "ultima_data": "2026-04-01"
-  },
-  {
-    "serie_id": "us_inadimplencia_empresas",
-    "fonte": "FRED",
-    "codigo": "DRBLACBS",
-    "ok": true,
-    "nome_oficial": "Delinquency Rate on Business Loans, All Commercial Banks",
-    "unidade_oficial": "Percent",
-    "frequencia_oficial": "Q",
-    "ultima_data": "2026-04-01"
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "0.07",
+    "nome_oficial": null
   }
 ]

@@ -106,7 +106,7 @@ series:
     validar: false
 
   # ---------------------------------------------------------------
-  # BLOCO 3 — Empresas não financeiras
+  # BLOCO 3 — Mercado de crédito
   # ---------------------------------------------------------------
   - serie_id: inadimplencia_pj_total
     codigo: 21083
@@ -114,7 +114,7 @@ series:
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
     unidade: "%"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: inadimplencia_total_sfn
@@ -123,7 +123,7 @@ series:
     descricao_esperada: "Inadimplência da carteira de crédito - Total"
     unidade: "%"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: saldo_credito_total
@@ -132,7 +132,7 @@ series:
     descricao_esperada: "Saldo da carteira de crédito - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: saldo_credito_pj
@@ -141,7 +141,7 @@ series:
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: saldo_credito_pf
@@ -150,7 +150,7 @@ series:
     descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: credito_pib_pj
@@ -159,7 +159,7 @@ series:
     descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas em relação ao PIB"
     unidade: "% do PIB"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: credito_pib_pf
@@ -168,7 +168,7 @@ series:
     descricao_esperada: "Saldo da carteira de crédito a pessoas físicas em relação ao PIB"
     unidade: "% do PIB"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
     validar: false
 
   - serie_id: credito_pib_total
@@ -177,7 +177,27 @@ series:
     descricao_esperada: "Saldo da carteira de crédito em relação ao PIB"
     unidade: "% do PIB"
     periodicidade: M
-    bloco: empresas
+    bloco: mercado_credito
+    validar: false
+
+  # ---------------------------------------------------------------
+  # DEFLATOR — não vai a gráfico nenhum
+  #
+  # Existe para converter o saldo nominal em valores a preços do último mês, na regra
+  # declarada em config/derivadas.yaml. O SGS publica a variação mensal; o índice de
+  # preços é encadeado no pipeline. Não há série de número-índice do IPCA no SGS: o
+  # código 1737 responde HTML com status 200, exatamente a armadilha do CLAUDE.md.
+  # ---------------------------------------------------------------
+  - serie_id: ipca_variacao_mensal
+    codigo: 433
+    rotulo: "IPCA — variação mensal"
+    descricao_esperada: "Índice nacional de preços ao consumidor-amplo (IPCA)"
+    unidade: "% ao mês"
+    periodicidade: M
+    bloco: mercado_credito
+    # Código conferido pelos dados (07/2026 = 0,07%, o IPCA do mês). O portal de dados
+    # abertos não devolve o pacote desta série na busca por código, então `nome_oficial`
+    # fica nulo em _validacao.json e a planilha usa a descrição acima.
     validar: false
 
 # ---------------------------------------------------------------

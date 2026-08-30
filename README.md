@@ -12,10 +12,13 @@ Kleber Pacheco de Castro
 
 ## Estado do projeto
 
-ETL e front construídos e rodando ponta a ponta: 30 séries (17 do BCB/SGS, 13 do
-FRED/BIS), 12 gráficos em 4 blocos. **Catálogo fechado**: toda série coletada aparece em
-pelo menos um gráfico do painel, e `build_dataset.py` falha se `blocos.yaml` citar série
-inexistente. Pendente antes de qualquer publicação: os itens da lista mais abaixo.
+ETL e front construídos e rodando ponta a ponta: 30 séries (18 do BCB/SGS, 9 do FRED/BIS,
+3 calculadas), 10 gráficos em 4 blocos. `build_dataset.py` falha se `blocos.yaml` citar
+série inexistente.
+
+Em 30/08/2026 saíram do catálogo as quatro séries do FRED que só descreviam os Estados
+Unidos (`TDSP`, `FODSP`, `DRCCLACBS`, `DRBLACBS`), junto com os dois gráficos que as
+exibiam. A única série coletada sem gráfico é o IPCA (SGS 433), que entra como deflator.
 
 Séries ainda não incluídas no catálogo estão listadas ao final de `config/series_bcb.yaml`
 (custo médio do crédito PJ, concessões, prazo médio). Cada uma exige localizar o código no
@@ -23,6 +26,20 @@ SGS e escrever a nota metodológica antes de entrar.
 
 Os gráficos são recortados a partir de 2005 (`recorte.inicio` em `config/blocos.yaml`).
 O recorte é só de exibição — `data/` e a planilha mantêm cada série inteira.
+
+## Séries calculadas
+
+`config/derivadas.yaml` declara as séries que não vêm da fonte, e `src/derivadas.py` as
+calcula dentro do `build_dataset.py`, depois da coleta. Hoje há uma só operação: o saldo
+da carteira de crédito deflacionado pelo IPCA (SGS 433), a preços do mês mais recente do
+índice. A base é móvel — acompanha o último IPCA divulgado — e a unidade de cada série
+diz qual é o mês (`R$ milhões de jul/2026`). Nos gráficos, `{base_ipca}` na unidade
+declarada em `blocos.yaml` é substituído por esse mês no build.
+
+As séries nominais continuam publicadas ao lado das calculadas. Na página, série
+calculada troca a linha de procedência pela descrição do cálculo, para não ser confundida
+com valor divulgado pela fonte. A regra está escrita em `content/metodologia.md`; nenhuma
+outra série derivada entra sem esse par de YAML e nota.
 
 ## Ordem de execução
 
@@ -93,7 +110,8 @@ Ligar a publicação é, por construção, um ato explícito nas configurações
 ## Antes de publicar
 
 - [ ] `config/_validacao.json` sem falhas e com os nomes oficiais conferidos manualmente
-- [ ] `content/metodologia.md` com um parágrafo por série incluída
+- [x] `content/metodologia.md` com um parágrafo por série incluída — as 30 séries do
+      catálogo aparecem citadas pelo código na fonte
 - [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório)
 - [ ] Rotacionar a chave do FRED antes de tornar o repositório público
 - [ ] Se a atribuição institucional for retomada, validá-la com quem de direito antes de
