@@ -177,8 +177,15 @@ def main() -> int:
         print(f"\n=== {cat['fonte']} — {len(series)} série(s) ===\n")
 
         if nome_fonte == "fred" and not fred_key:
-            print("FRED_API_KEY não definida. Pulando validação do FRED.")
-            print("Obtenha a chave em https://fredaccount.stlouisfed.org/apikeys\n")
+            # Pular em silêncio faria o gate aprovar um estado que o princípio 3 proíbe:
+            # série entrando no pipeline sem validação. O erro só apareceria na coleta,
+            # minutos depois. Falha aqui, alto e cedo.
+            print("FALHA — FRED_API_KEY não definida; as séries do FRED não foram validadas.")
+            print("  Em CI: cadastre o Secret de repositório FRED_API_KEY")
+            print("         (Settings > Secrets and variables > Actions > aba Secrets).")
+            print("  Local: exporte a variável ou grave em .env na raiz.")
+            print("  Para validar só o BCB de propósito, use --fonte bcb.\n")
+            falhas += len(series)
             continue
 
         for s in series:
