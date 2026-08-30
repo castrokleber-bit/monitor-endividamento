@@ -57,8 +57,10 @@ blocos:
     aba: "Mercado de crédito"
     subtitulo: "Estoque, alavancagem e qualidade da carteira do Sistema Financeiro Nacional"
     graficos:
+      # O total vem primeiro para receber o azul institucional, como nos demais gráficos
+      # do bloco: agregado na primeira cor, aberturas depois.
       - titulo: "Saldo da carteira de crédito em relação ao PIB"
-        series: [credito_pib_pj, credito_pib_pf, credito_pib_total]
+        series: [credito_pib_total, credito_pib_pj, credito_pib_pf]
         unidade: "% do PIB"
         fonte: "Banco Central do Brasil"
 
