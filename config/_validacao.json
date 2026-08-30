@@ -1,0 +1,285 @@
+[
+  {
+    "serie_id": "endividamento_familias_total",
+    "fonte": "BCB/SGS",
+    "codigo": 29037,
+    "ok": true,
+    "ultima_data": "01/06/2026",
+    "ultimo_valor": "49.75",
+    "nome_oficial": "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses (RNDBF)"
+  },
+  {
+    "serie_id": "endividamento_familias_ex_habitacional",
+    "fonte": "BCB/SGS",
+    "codigo": 29038,
+    "ok": true,
+    "ultima_data": "01/06/2026",
+    "ultimo_valor": "30.83",
+    "nome_oficial": "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses (RNDBF)"
+  },
+  {
+    "serie_id": "comprometimento_renda_sa",
+    "fonte": "BCB/SGS",
+    "codigo": 29034,
+    "ok": true,
+    "ultima_data": "01/06/2026",
+    "ultimo_valor": "28.85",
+    "nome_oficial": "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal (RNDBF)"
+  },
+  {
+    "serie_id": "comprometimento_renda_nsa",
+    "fonte": "BCB/SGS",
+    "codigo": 29265,
+    "ok": true,
+    "ultima_data": "01/06/2026",
+    "ultimo_valor": "28.52",
+    "nome_oficial": "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal (RNDBF)"
+  },
+  {
+    "serie_id": "comprometimento_juros",
+    "fonte": "BCB/SGS",
+    "codigo": 29033,
+    "ok": true,
+    "ultima_data": "01/06/2026",
+    "ultimo_valor": "10.86",
+    "nome_oficial": "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal (RNDBF)"
+  },
+  {
+    "serie_id": "comprometimento_amortizacao",
+    "fonte": "BCB/SGS",
+    "codigo": 29036,
+    "ok": true,
+    "ultima_data": "01/06/2026",
+    "ultimo_valor": "17.99",
+    "nome_oficial": "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal (RNDBF)"
+  },
+  {
+    "serie_id": "inadimplencia_pf_total",
+    "fonte": "BCB/SGS",
+    "codigo": 21084,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "5.81",
+    "nome_oficial": "Inadimplência da carteira de crédito - Pessoas físicas - Total"
+  },
+  {
+    "serie_id": "inadimplencia_pf_abertura_1",
+    "fonte": "BCB/SGS",
+    "codigo": 21112,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "7.79",
+    "nome_oficial": "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Total"
+  },
+  {
+    "serie_id": "inadimplencia_pf_abertura_2",
+    "fonte": "BCB/SGS",
+    "codigo": 21113,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "16.26",
+    "nome_oficial": "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cheque especial"
+  },
+  {
+    "serie_id": "inadimplencia_pj_total",
+    "fonte": "BCB/SGS",
+    "codigo": 21083,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "3.31",
+    "nome_oficial": "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
+  },
+  {
+    "serie_id": "inadimplencia_total_sfn",
+    "fonte": "BCB/SGS",
+    "codigo": 21082,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "4.88",
+    "nome_oficial": "Inadimplência da carteira de crédito - Total"
+  },
+  {
+    "serie_id": "saldo_credito_total",
+    "fonte": "BCB/SGS",
+    "codigo": 20539,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "7372243",
+    "nome_oficial": "Saldo da carteira de crédito - Total"
+  },
+  {
+    "serie_id": "saldo_credito_pj",
+    "fonte": "BCB/SGS",
+    "codigo": 20540,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "2731513",
+    "nome_oficial": "Saldo da carteira de crédito - Pessoas jurídicas - Total"
+  },
+  {
+    "serie_id": "saldo_credito_pf",
+    "fonte": "BCB/SGS",
+    "codigo": 20541,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "4640730",
+    "nome_oficial": "Saldo da carteira de crédito - Pessoas físicas - Total"
+  },
+  {
+    "serie_id": "credito_pib_pj",
+    "fonte": "BCB/SGS",
+    "codigo": 20623,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "20.59",
+    "nome_oficial": "Saldo da carteira de crédito a pessoas jurídicas em relação ao PIB"
+  },
+  {
+    "serie_id": "credito_pib_pf",
+    "fonte": "BCB/SGS",
+    "codigo": 20624,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "34.98",
+    "nome_oficial": "Saldo da carteira de crédito a pessoas físicas em relação ao PIB"
+  },
+  {
+    "serie_id": "credito_pib_total",
+    "fonte": "BCB/SGS",
+    "codigo": 20622,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "55.57",
+    "nome_oficial": "Saldo da carteira de crédito em relação ao PIB"
+  },
+  {
+    "serie_id": "bis_familias_br",
+    "fonte": "FRED",
+    "codigo": "QBRHAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Households and NPISHs, Adjusted for Breaks, for Brazil",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_empresas_br",
+    "fonte": "FRED",
+    "codigo": "QBRNAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Non-Financial Corporations, Adjusted for Breaks, for Brazil",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_privado_br",
+    "fonte": "FRED",
+    "codigo": "QBRPAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Private Non-Financial Sector, Adjusted for Breaks, for Brazil",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_familias_us",
+    "fonte": "FRED",
+    "codigo": "QUSHAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Households and Non-Profit Institutions Serving Households, Adjusted for Breaks, for United States",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_empresas_us",
+    "fonte": "FRED",
+    "codigo": "QUSNAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Non-Financial Corporations, Adjusted for Breaks, for United States",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_familias_mx",
+    "fonte": "FRED",
+    "codigo": "QMXHAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Households and NPISHs, Adjusted for Breaks, for Mexico",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_empresas_mx",
+    "fonte": "FRED",
+    "codigo": "QMXNAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Non-Financial Corporations, Adjusted for Breaks, for Mexico",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_familias_cl",
+    "fonte": "FRED",
+    "codigo": "QCLHAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Households and NPISHs, Adjusted for Breaks, for Chile",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "bis_empresas_cl",
+    "fonte": "FRED",
+    "codigo": "QCLNAM770A",
+    "ok": true,
+    "nome_oficial": "Total Credit to Non-Financial Corporations, Adjusted for Breaks, for Chile",
+    "unidade_oficial": "Percentage of GDP",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2025-10-01"
+  },
+  {
+    "serie_id": "us_debt_service_ratio",
+    "fonte": "FRED",
+    "codigo": "TDSP",
+    "ok": true,
+    "nome_oficial": "Household Debt Service Payments as a Percent of Disposable Personal Income",
+    "unidade_oficial": "Percent",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2026-01-01"
+  },
+  {
+    "serie_id": "us_financial_obligations_ratio",
+    "fonte": "FRED",
+    "codigo": "FODSP",
+    "ok": true,
+    "nome_oficial": "Household Financial Obligations as a Percent of Disposable Personal Income (DISCONTINUED)",
+    "unidade_oficial": "Percent",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2023-07-01"
+  },
+  {
+    "serie_id": "us_inadimplencia_cartao",
+    "fonte": "FRED",
+    "codigo": "DRCCLACBS",
+    "ok": true,
+    "nome_oficial": "Delinquency Rate on Credit Card Loans, All Commercial Banks",
+    "unidade_oficial": "Percent",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2026-04-01"
+  },
+  {
+    "serie_id": "us_inadimplencia_empresas",
+    "fonte": "FRED",
+    "codigo": "DRBLACBS",
+    "ok": true,
+    "nome_oficial": "Delinquency Rate on Business Loans, All Commercial Banks",
+    "unidade_oficial": "Percent",
+    "frequencia_oficial": "Q",
+    "ultima_data": "2026-04-01"
+  }
+]

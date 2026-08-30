@@ -1,0 +1,141 @@
+# Organização temática da página. Define ordem, títulos e agrupamento dos gráficos.
+# O front lê este arquivo (via data/series.json) para montar a página.
+
+# Recorte temporal da EXIBIÇÃO. Vale para todos os gráficos; um gráfico pode
+# sobrescrever com seu próprio `inicio`.
+#
+# Não afeta a camada de dados: data/series.parquet, data/series.json e a planilha
+# seguem com a série inteira, desde a primeira observação da fonte. O recorte existe
+# porque as séries do BIS para os EUA começam em 1947 e as do Brasil em 1994 — sem ele,
+# a trajetória brasileira fica espremida no canto direito do gráfico.
+recorte:
+  inicio: "2005-01-01"
+
+blocos:
+  # `aba` é o nome da aba na planilha. O Excel limita a 31 caracteres, e sem um nome
+  # explícito o título longo sairia cortado no meio da palavra.
+  - id: familias_estoque
+    titulo: "Famílias — estoque de dívida"
+    aba: "Famílias — estoque"
+    subtitulo: "Quanto as famílias devem em relação à renda que recebem"
+    graficos:
+      - titulo: "Endividamento das famílias"
+        series: [endividamento_familias_total, endividamento_familias_ex_habitacional]
+        unidade: "% da renda acumulada em 12 meses"
+        fonte: "Banco Central do Brasil"
+
+  - id: familias_capacidade
+    titulo: "Famílias — capacidade de pagamento"
+    aba: "Famílias — capacidade"
+    subtitulo: "Quanto da renda mensal vai para o serviço da dívida e quanto disso vira atraso"
+    graficos:
+      - titulo: "Comprometimento de renda com o serviço da dívida"
+        series: [comprometimento_renda_sa, comprometimento_renda_nsa]
+        unidade: "% da renda mensal"
+        fonte: "Banco Central do Brasil"
+      - titulo: "Composição do comprometimento: juros e amortização"
+        series: [comprometimento_juros, comprometimento_amortizacao]
+        unidade: "% da renda mensal"
+        fonte: "Banco Central do Brasil"
+      - titulo: "Inadimplência das pessoas físicas por modalidade"
+        series: [inadimplencia_pf_total, inadimplencia_pf_abertura_1, inadimplencia_pf_abertura_2]
+        rotulos:
+          inadimplencia_pf_total: "Total"
+          inadimplencia_pf_abertura_1: "Recursos livres"
+          inadimplencia_pf_abertura_2: "Cheque especial"
+        unidade: "% da carteira"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          As três séries são aninhadas, não somáveis: o cheque especial está dentro dos
+          recursos livres, que estão dentro do total. O total inclui ainda o crédito
+          direcionado — habitacional e rural —, de inadimplência estruturalmente baixa,
+          o que puxa a curva agregada para baixo. O nível do cheque especial é uma ordem
+          de grandeza maior que o das demais e ocupa parcela pequena da carteira.
+
+  - id: empresas
+    titulo: "Empresas não financeiras"
+    subtitulo: "Alavancagem e qualidade do crédito no setor produtivo"
+    graficos:
+      - titulo: "Crédito às empresas em relação ao PIB"
+        series: [credito_pib_pj, credito_pib_pf, credito_pib_total]
+        unidade: "% do PIB"
+        fonte: "Banco Central do Brasil"
+      - titulo: "Saldo da carteira de crédito"
+        series: [saldo_credito_total, saldo_credito_pj, saldo_credito_pf]
+        rotulos:
+          saldo_credito_total: "Total"
+          saldo_credito_pj: "Pessoas jurídicas"
+          saldo_credito_pf: "Pessoas físicas"
+        unidade: "R$ milhões"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          Valores nominais, como divulgados pela fonte, sem deflacionamento. Parte do
+          crescimento do saldo é inflação e não expansão real do crédito. Para a leitura
+          de alavancagem, usar o gráfico anterior, em proporção do PIB.
+
+      - titulo: "Inadimplência da carteira de crédito"
+        series: [inadimplencia_total_sfn, inadimplencia_pj_total, inadimplencia_pf_total]
+        rotulos:
+          inadimplencia_total_sfn: "Total"
+          inadimplencia_pj_total: "Pessoas jurídicas"
+          inadimplencia_pf_total: "Pessoas físicas"
+        unidade: "% da carteira"
+        fonte: "Banco Central do Brasil"
+
+  - id: internacional
+    titulo: "Comparação internacional"
+    subtitulo: "Dívida de famílias e empresas em % do PIB — base BIS, abrangência mais ampla que a do SFN"
+    nota_metodologica: >-
+      As séries do BIS incluem crédito de todas as fontes (bancos, mercado de capitais e
+      credores externos). As séries do BCB apresentadas nos blocos anteriores cobrem apenas
+      o Sistema Financeiro Nacional. Os níveis não são diretamente comparáveis entre blocos.
+    graficos:
+      - titulo: "Dívida das famílias — Brasil e comparáveis"
+        series: [bis_familias_br, bis_familias_us, bis_familias_mx, bis_familias_cl]
+        unidade: "% do PIB"
+        fonte: "BIS, via FRED"
+      - titulo: "Dívida das empresas não financeiras — Brasil e comparáveis"
+        series: [bis_empresas_br, bis_empresas_us, bis_empresas_mx, bis_empresas_cl]
+        unidade: "% do PIB"
+        fonte: "BIS, via FRED"
+
+      # `rotulos` sobrescreve o rótulo do catálogo dentro deste gráfico. Aqui é
+      # necessário: as três séries são do Brasil e o rótulo padrão de todas é "Brasil".
+      - titulo: "Composição da dívida privada — Brasil"
+        series: [bis_privado_br, bis_familias_br, bis_empresas_br]
+        rotulos:
+          bis_privado_br: "Setor privado não financeiro"
+          bis_familias_br: "Famílias"
+          bis_empresas_br: "Empresas não financeiras"
+        unidade: "% do PIB"
+        fonte: "BIS, via FRED"
+        nota: >-
+          O setor privado não financeiro é, na definição do BIS, a soma de famílias e
+          empresas não financeiras. As três séries são divulgadas arredondadas de forma
+          independente, então a soma das duas componentes pode diferir do total em até
+          0,5 ponto percentual em um trimestre. Mesma abrangência ampla do bloco: inclui
+          crédito bancário, mercado de capitais e credores externos.
+
+      - titulo: "Serviço da dívida das famílias — Estados Unidos"
+        series: [us_debt_service_ratio, us_financial_obligations_ratio]
+        rotulos:
+          us_debt_service_ratio: "Serviço da dívida"
+          us_financial_obligations_ratio: "Obrigações financeiras totais"
+        unidade: "% da renda pessoal disponível"
+        fonte: "Federal Reserve, via FRED"
+        nota: >-
+          Espelho conceitual do comprometimento de renda do BCB, não equivalente: o
+          denominador é a renda pessoal disponível americana e o indicador de obrigações
+          financeiras inclui aluguel, leasing e seguros, além do serviço da dívida.
+          Comparar trajetória, não nível.
+
+      - titulo: "Inadimplência nos bancos comerciais — Estados Unidos"
+        series: [us_inadimplencia_cartao, us_inadimplencia_empresas]
+        rotulos:
+          us_inadimplencia_cartao: "Cartão de crédito"
+          us_inadimplencia_empresas: "Empresas"
+        unidade: "% da carteira"
+        fonte: "Federal Reserve, via FRED"
+        nota: >-
+          O critério de atraso do Federal Reserve não é o mesmo do BCB, que usa atraso
+          superior a 90 dias. Comparar trajetória, não nível.

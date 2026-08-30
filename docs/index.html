@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor de Endividamento</title>
+  <meta name="description" content="Trajetórias de endividamento, inadimplência, comprometimento de renda e alavancagem de famílias e empresas não financeiras, no Brasil e em benchmark internacional.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="conteudo">
+
+  <header class="cabecalho">
+    <h1>Monitor de Endividamento</h1>
+    <p class="cabecalho__linha">
+      Famílias e empresas não financeiras — estoque de dívida, capacidade de pagamento
+      e comparação internacional.
+    </p>
+    <p class="cabecalho__meta" id="atualizacao"></p>
+    <p class="aviso-desatualizado" id="aviso-global" hidden></p>
+    <p class="cabecalho__meta">
+      <a class="baixar" id="link-xlsx" href="monitor_endividamento.xlsx" download>
+        Baixar todas as séries (XLSX)
+      </a>
+    </p>
+  </header>
+
+  <main id="blocos">
+    <p class="carregando" id="carregando">Carregando as séries…</p>
+  </main>
+
+  <!-- Renderizado a partir de content/metodologia.md. Texto humano; o pipeline transporta. -->
+  <section class="metodologia" id="metodologia" aria-label="Nota metodológica"></section>
+
+  <footer class="rodape">
+    <p>
+      Painel técnico de acompanhamento de dados públicos. Não constitui posição
+      institucional de nenhuma entidade sobre política monetária, crédito ou regulação
+      bancária, nem recomendação de investimento.
+    </p>
+    <p>
+      Fontes: Banco Central do Brasil (SGS) e Bank for International Settlements (BIS),
+      redistribuído pelo Federal Reserve Bank of St. Louis (FRED). As séries do BIS têm
+      abrangência mais ampla que as do Sistema Financeiro Nacional e não são diretamente
+      comparáveis com o bloco Brasil — ver a nota do bloco de comparação internacional.
+    </p>
+    <p>
+      Nenhum valor é interpolado, arredondado ou estimado. Observação ainda não divulgada
+      pela fonte é omitida, nunca preenchida. Os gráficos são recortados a partir de 2005
+      para manter as trajetórias comparáveis na mesma escala de tempo; o recorte é apenas
+      de exibição — a planilha traz cada série desde a primeira observação da fonte.
+    </p>
+    <p class="rodape__credito">Kleber Pacheco de Castro</p>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="dados.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

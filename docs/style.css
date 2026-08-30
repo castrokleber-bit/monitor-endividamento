@@ -1,0 +1,116 @@
+/* Monitor de Endividamento — identidade visual
+   Azul #164194 | Ciano #008BD2 | Cinza #595959 | Arial
+   Os tokens abaixo são a única fonte de cor do projeto. Não introduzir hex solto no JS. */
+
+:root {
+  --azul:        #164194;
+  --ciano:       #008BD2;
+  --cinza:       #595959;
+  --cinza-claro: #D9D9D9;
+  --cinza-fundo: #F5F6F8;
+  --alerta:          #C0392B;   /* reservado a avisos de dado desatualizado */
+  --fundo:           #FFFFFF;
+
+  /* paleta de séries: derivada dos dois azuis institucionais antes de qualquer cor nova.
+     Ordem de uso obrigatória — Brasil sempre na primeira posição. */
+  --serie-1: #164194;
+  --serie-2: #008BD2;
+  --serie-3: #6B8CC7;
+  --serie-4: #7FC4E8;
+  --serie-5: #595959;
+
+  --escala-1: 0.75rem;   /* rótulos, fonte, data de atualização */
+  --escala-2: 0.875rem;  /* subtítulo de gráfico */
+  --escala-3: 1rem;      /* corpo */
+  --escala-4: 1.25rem;   /* título de gráfico */
+  --escala-5: 1.75rem;   /* título de bloco */
+
+  --gap: 1.5rem;
+  --largura-max: 1180px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--cinza);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: var(--escala-3);
+  line-height: 1.5;
+}
+
+h1, h2, h3 { color: var(--azul); font-weight: bold; margin: 0 0 0.5rem; }
+h1 { font-size: var(--escala-5); }
+h2 { font-size: var(--escala-4); }
+
+.conteudo { max-width: var(--largura-max); margin: 0 auto; padding: var(--gap); }
+
+.cabecalho { padding-bottom: var(--gap); }
+.cabecalho__linha { max-width: 60ch; margin: 0 0 0.75rem; }
+.cabecalho__meta { font-size: var(--escala-1); margin: 0 0 0.75rem; }
+
+.bloco { border-top: 3px solid var(--azul); padding-top: var(--gap); margin-bottom: 3rem; }
+.bloco__subtitulo { max-width: 70ch; margin: 0 0 var(--gap); }
+
+.grafico { border: 1px solid var(--cinza-claro); padding: var(--gap); margin-bottom: var(--gap); }
+.grafico__area { width: 100%; height: 360px; }
+.grafico__subtitulo { font-size: var(--escala-2); margin: 0 0 var(--gap); }
+.grafico__meta { font-size: var(--escala-1); color: var(--cinza); margin-top: 0.75rem; }
+.grafico__meta > div { margin-bottom: 0.25rem; }
+
+/* Nota metodológica: obrigatória onde a abrangência da fonte muda a leitura do gráfico. */
+.nota {
+  font-size: var(--escala-1);
+  background: var(--cinza-fundo);
+  border-left: 3px solid var(--ciano);
+  padding: 0.6rem 0.9rem;
+}
+.nota--bloco { max-width: 80ch; margin: 0 0 var(--gap); }
+.nota--grafico { max-width: 80ch; margin: 0 0 var(--gap); }
+
+.metodologia {
+  border-top: 3px solid var(--azul);
+  padding-top: var(--gap);
+  margin-bottom: 3rem;
+}
+.metodologia h2 { font-size: var(--escala-5); }
+.metodologia h3 { font-size: var(--escala-4); margin-top: var(--gap); }
+.metodologia h4 { font-size: var(--escala-3); margin-top: var(--gap); }
+.metodologia__p { max-width: 70ch; }
+
+/* Botões e links de download de um mesmo gráfico. */
+.grafico__acoes {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.carregando { font-size: var(--escala-1); }
+
+.baixar {
+  display: inline-block; text-decoration: none;
+  font-family: inherit; font-size: var(--escala-1);
+  background: var(--fundo); color: var(--azul);
+  border: 1px solid var(--azul); padding: 0.4rem 0.9rem; cursor: pointer;
+}
+.baixar:hover { background: var(--azul); color: var(--fundo); }
+.baixar:focus-visible { outline: 2px solid var(--ciano); outline-offset: 2px; }
+
+.aviso-desatualizado { color: var(--alerta); font-size: var(--escala-1); font-weight: bold; }
+
+.rodape {
+  border-top: 1px solid var(--cinza-claro);
+  margin-top: 3rem; padding-top: var(--gap);
+  font-size: var(--escala-1);
+}
+/* Crédito discreto: mesma escala do rodapé, sem destaque de cor ou peso. */
+.rodape__credito { margin-top: var(--gap); }
+
+@media (max-width: 640px) {
+  .grafico__area { height: 280px; }
+  :root { --gap: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

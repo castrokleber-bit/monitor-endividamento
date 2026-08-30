@@ -1,0 +1,194 @@
+# Catálogo de séries — Banco Central do Brasil / SGS
+#
+# validar: true  -> código ainda NÃO conferido contra a API.
+#                   Rodar `python src/validate_series.py` e corrigir antes de coletar.
+# validar: false -> código conferido (nome retornado bate com descricao_esperada).
+#
+# `rotulo` é o texto curto usado na legenda do gráfico. `descricao_esperada` é o nome
+# oficial na fonte, usado pela validação e pela planilha — não encurtar.
+#
+# Endpoint: https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json
+
+fonte: BCB/SGS
+
+series:
+
+  # ---------------------------------------------------------------
+  # BLOCO 1 — Famílias: estoque de dívida
+  # ---------------------------------------------------------------
+  - serie_id: endividamento_familias_total
+    codigo: 29037
+    rotulo: "Total"
+    descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_estoque
+    validar: false
+
+  - serie_id: endividamento_familias_ex_habitacional
+    codigo: 29038
+    rotulo: "Exceto crédito habitacional"
+    descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_estoque
+    validar: false
+
+  # ---------------------------------------------------------------
+  # BLOCO 2 — Famílias: capacidade de pagamento
+  # ---------------------------------------------------------------
+  - serie_id: comprometimento_renda_sa
+    codigo: 29034
+    rotulo: "Com ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  - serie_id: comprometimento_renda_nsa
+    codigo: 29265
+    rotulo: "Sem ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  # CORREÇÃO 2026-08-29: este serie_id apontava para 29035, que é o comprometimento com o
+  # SERVIÇO da dívida exceto crédito habitacional — não é juros. O código de juros com
+  # ajuste sazonal é 29033 (sem ajuste sazonal: 29264). Com 29035 no lugar, o gráfico
+  # "juros + amortização" não somava o comprometimento total.
+  - serie_id: comprometimento_juros
+    codigo: 29033
+    rotulo: "Juros"
+    descricao_esperada: "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  - serie_id: comprometimento_amortizacao
+    codigo: 29036
+    rotulo: "Amortização"
+    descricao_esperada: "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  - serie_id: inadimplencia_pf_total
+    codigo: 21084
+    rotulo: "Pessoas físicas — total"
+    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas físicas - Total"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  # Aberturas de inadimplência PF por modalidade — nomes conferidos na fonte em 2026-08-29.
+  - serie_id: inadimplencia_pf_abertura_1
+    codigo: 21112
+    rotulo: "PF — recursos livres"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Total"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  - serie_id: inadimplencia_pf_abertura_2
+    codigo: 21113
+    rotulo: "PF — cheque especial"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cheque especial"
+    unidade: "%"
+    periodicidade: M
+    bloco: familias_capacidade
+    validar: false
+
+  # ---------------------------------------------------------------
+  # BLOCO 3 — Empresas não financeiras
+  # ---------------------------------------------------------------
+  - serie_id: inadimplencia_pj_total
+    codigo: 21083
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
+    unidade: "%"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: inadimplencia_total_sfn
+    codigo: 21082
+    rotulo: "Total do SFN"
+    descricao_esperada: "Inadimplência da carteira de crédito - Total"
+    unidade: "%"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: saldo_credito_total
+    codigo: 20539
+    rotulo: "Total"
+    descricao_esperada: "Saldo da carteira de crédito - Total"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: saldo_credito_pj
+    codigo: 20540
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: saldo_credito_pf
+    codigo: 20541
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: credito_pib_pj
+    codigo: 20623
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas em relação ao PIB"
+    unidade: "% do PIB"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: credito_pib_pf
+    codigo: 20624
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Saldo da carteira de crédito a pessoas físicas em relação ao PIB"
+    unidade: "% do PIB"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+  - serie_id: credito_pib_total
+    codigo: 20622
+    rotulo: "Total"
+    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB"
+    unidade: "% do PIB"
+    periodicidade: M
+    bloco: empresas
+    validar: false
+
+# ---------------------------------------------------------------
+# A INCLUIR — pendente de identificação do código no SGS
+# ---------------------------------------------------------------
+# - Custo médio do crédito PJ (ICC) e spread do ICC por porte
+# - Concessões de crédito PJ (indústria, se houver abertura setorial)
+# - Prazo médio das operações PJ
+#
+# Contrapartes sem ajuste sazonal das séries de comprometimento, se forem necessárias:
+#   29264 juros | 29263 amortização | 29266 serviço exceto habitacional
+#
+# Buscar em: https://www3.bcb.gov.br/sgspub/  (localizar séries por texto)
+# ou https://dadosabertos.bcb.gov.br/dataset/?q=<termo>

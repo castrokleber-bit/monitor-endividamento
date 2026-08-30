@@ -1,0 +1,82 @@
+name: Atualiza dados e publica
+
+on:
+  schedule:
+    # 14:00 UTC = 11:00 BRT, dias úteis — após a janela usual de divulgação do BCB
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  atualiza:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Testa as transformações
+        run: python -m unittest discover -s tests
+
+      - name: Valida códigos de série
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python src/validate_series.py
+
+      # build_dataset.py sai com 2 se a cobertura regredir (série que tinha dado sumiu).
+      # O step falha, o job para e nada é commitado — é o gate contra publicar um dia ruim.
+      - name: Coleta e consolida
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          python src/build_dataset.py
+          python src/build_xlsx.py
+
+      - name: Commita se houver mudança
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # docs/ recebe dados.js e a planilha porque o Pages publica só essa pasta.
+          git add data/ docs/dados.js docs/monitor_endividamento.xlsx
+          git diff --staged --quiet || git commit -m "dados: atualização automática $(date -u +%Y-%m-%d)"
+          git push
+
+  # PUBLICAÇÃO DESLIGADA POR PADRÃO.
+  #
+  # O go live depende de decisão humana (ver CLAUDE.md). Enquanto ela não for tomada,
+  # esta etapa não roda.
+  #
+  # Para ligar, quando a decisão estiver tomada:
+  #   Settings -> Secrets and variables -> Actions -> Variables -> New repository variable
+  #   nome: PUBLICAR_PAGES   valor: true
+  # e habilitar Settings -> Pages -> Source: GitHub Actions.
+  #
+  # A chave é uma variável de repositório, e não uma edição neste arquivo, de propósito:
+  # ligar a publicação vira um ato explícito e auditável nas configurações, em vez de um
+  # commit que passa despercebido numa revisão.
+  publica:
+    needs: atualiza
+    if: vars.PUBLICAR_PAGES == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,168 @@
+# Catálogo de séries — FRED (Federal Reserve Bank of St. Louis)
+#
+# Inclui as séries do BIS (Bank for International Settlements) redistribuídas pelo FRED,
+# que são a referência internacional comparável de dívida por setor em % do PIB.
+#
+# `rotulo` é o texto curto usado na legenda do gráfico.
+# Endpoint: https://api.stlouisfed.org/fred/series/observations?series_id={id}&api_key=...
+# Chave: variável de ambiente FRED_API_KEY (em CI, GitHub Secret; local, arquivo .env).
+#
+# Códigos conferidos contra a API em 2026-08-29 — 13/13 responderam com observações.
+
+fonte: FRED
+
+series:
+
+  # ---------------------------------------------------------------
+  # BIS — dívida por setor, % do PIB, comparável entre países
+  # Padrão do código: Q + país(2) + setor(1) + valoração(1) + ajuste(1) + unidade(3) + freq
+  # setor: H = famílias | N = empresas não financeiras | P = setor privado não financeiro
+  #
+  # `pais` é metadado de identidade visual: a série com pais: BR tem de ser a primeira
+  # de qualquer gráfico que a contenha, para receber a primeira cor da paleta (o azul
+  # institucional). `build_dataset.py` falha o build se a ordem for invertida.
+  # ---------------------------------------------------------------
+  - serie_id: bis_familias_br
+    codigo: QBRHAM770A
+    pais: BR
+    rotulo: "Brasil"
+    descricao_esperada: "Credit to Households and NPISHs, Brazil, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_empresas_br
+    codigo: QBRNAM770A
+    pais: BR
+    rotulo: "Brasil"
+    descricao_esperada: "Credit to Non-Financial Corporations, Brazil, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_privado_br
+    codigo: QBRPAM770A
+    pais: BR
+    rotulo: "Brasil — setor privado não financeiro"
+    descricao_esperada: "Credit to Private Non-Financial Sector, Brazil, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  # O FRED escreve "Non-Profit Institutions Serving Households" por extenso para os EUA
+  # e "NPISHs" para os demais países. Mesma definição do BIS.
+  - serie_id: bis_familias_us
+    codigo: QUSHAM770A
+    pais: US
+    rotulo: "Estados Unidos"
+    descricao_esperada: "Credit to Households and Non-Profit Institutions Serving Households, United States, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_empresas_us
+    codigo: QUSNAM770A
+    pais: US
+    rotulo: "Estados Unidos"
+    descricao_esperada: "Credit to Non-Financial Corporations, United States, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_familias_mx
+    codigo: QMXHAM770A
+    pais: MX
+    rotulo: "México"
+    descricao_esperada: "Credit to Households and NPISHs, Mexico, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_empresas_mx
+    codigo: QMXNAM770A
+    pais: MX
+    rotulo: "México"
+    descricao_esperada: "Credit to Non-Financial Corporations, Mexico, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_familias_cl
+    codigo: QCLHAM770A
+    pais: CL
+    rotulo: "Chile"
+    descricao_esperada: "Credit to Households and NPISHs, Chile, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: bis_empresas_cl
+    codigo: QCLNAM770A
+    pais: CL
+    rotulo: "Chile"
+    descricao_esperada: "Credit to Non-Financial Corporations, Chile, % of GDP"
+    unidade: "% do PIB"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  # ---------------------------------------------------------------
+  # EUA — serviço da dívida e inadimplência (referência de método)
+  # Útil como espelho conceitual do comprometimento de renda do BCB.
+  # ---------------------------------------------------------------
+  - serie_id: us_debt_service_ratio
+    codigo: TDSP
+    rotulo: "EUA — serviço da dívida"
+    descricao_esperada: "Household Debt Service Payments as a Percent of Disposable Personal Income"
+    unidade: "%"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  # DESCONTINUADA na fonte: última observação em 2023-07-01. Mantida no catálogo pelo
+  # histórico; não deve entrar em gráfico sem a ressalva de série encerrada.
+  - serie_id: us_financial_obligations_ratio
+    codigo: FODSP
+    rotulo: "EUA — obrigações financeiras"
+    descricao_esperada: "Household Financial Obligations as a Percent of Disposable Personal Income"
+    unidade: "%"
+    periodicidade: T
+    bloco: internacional
+    nota: "Série descontinuada pela fonte; última observação em 2023."
+    validar: false
+
+  - serie_id: us_inadimplencia_cartao
+    codigo: DRCCLACBS
+    rotulo: "EUA — cartão de crédito"
+    descricao_esperada: "Delinquency Rate on Credit Card Loans, All Commercial Banks"
+    unidade: "%"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+  - serie_id: us_inadimplencia_empresas
+    codigo: DRBLACBS
+    rotulo: "EUA — empresas"
+    descricao_esperada: "Delinquency Rate on Business Loans, All Commercial Banks"
+    unidade: "%"
+    periodicidade: T
+    bloco: internacional
+    validar: false
+
+# ---------------------------------------------------------------
+# NOTA METODOLÓGICA OBRIGATÓRIA
+# ---------------------------------------------------------------
+# As séries do BIS medem crédito ao setor de TODAS as fontes (bancos, mercado de
+# capitais, credores externos), enquanto as séries do BCB medem apenas crédito do SFN.
+# NÃO são diretamente comparáveis. No painel, elas ficam em blocos separados e a
+# diferença de abrangência precisa estar escrita no rodapé do gráfico internacional.
+# Esta é exatamente a crítica que o BCB ou o mercado usariam para desqualificar o
+# monitor — a nota metodológica é a blindagem.
