@@ -58,10 +58,63 @@ h2 { font-size: var(--escala-4); }
 .bloco { border-top: 3px solid var(--azul); padding-top: var(--gap); margin-bottom: 3rem; }
 .bloco__subtitulo { max-width: 70ch; margin: 0 0 var(--gap); }
 
-.grafico { border: 1px solid var(--cinza-claro); padding: var(--gap); margin-bottom: var(--gap); }
-.grafico__area { width: 100%; height: 360px; }
+/* Dois gráficos por linha. Os cartões esticam até a altura da linha, de modo que as
+   bordas dos dois vizinhos fiquem alinhadas mesmo com notas de tamanhos diferentes. */
+/* `row-gap: 0` na grade, e não no cartão: o espaçamento entre as faixas do `subgrid`
+   abaixo é o da grade do bloco, e ele apareceria entre título, subtítulo e gráfico
+   dentro de cada cartão. Quem separa uma linha de cartões da seguinte é a margem do
+   próprio cartão. */
+.bloco__graficos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: var(--gap);
+  row-gap: 0;
+}
+
+/* Gráfico sozinho na última linha ocupa as duas colunas: meia linha vazia ao lado de um
+   cartão fica pior do que o cartão inteiro. Vale também para bloco de um gráfico só. */
+.bloco__graficos > .grafico:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+.grafico {
+  border: 1px solid var(--cinza-claro);
+  padding: var(--gap);
+  margin-bottom: var(--gap);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Alinhamento horizontal entre os dois cartões de uma mesma linha. Sem ele, um título
+   que quebra em duas linhas — ou uma nota presente em só um dos lados — desloca a área
+   do gráfico do vizinho, e as duas curvas ficam em alturas diferentes.
+
+   Com `subgrid`, os cinco elementos do cartão (título, subtítulo, vão da nota, gráfico
+   e meta) passam a compartilhar as mesmas faixas horizontais: cada faixa tem a altura
+   do maior dos dois cartões.
+
+   O número de filhos do cartão é fixo — por isso o vão da nota existe mesmo vazio. Em
+   navegador sem `subgrid` vale o empilhamento em flex acima, sem o alinhamento. */
+@supports (grid-template-rows: subgrid) {
+  .grafico {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 5;
+  }
+}
+
+/* Vazio, o vão não ocupa altura própria: quem a define é a nota do cartão vizinho. */
+.grafico__nota:not(:empty) { margin-bottom: var(--gap); }
+.grafico__area { width: 100%; height: 260px; }
+.bloco__graficos > .grafico:last-child:nth-child(odd) .grafico__area { height: 320px; }
 .grafico__subtitulo { font-size: var(--escala-2); margin: 0 0 var(--gap); }
-.grafico__meta { font-size: var(--escala-1); color: var(--cinza); margin-top: 0.75rem; }
+
+/* `margin-top: auto` empurra a meta para o rodapé do cartão: nos dois vizinhos de uma
+   mesma linha, os botões de download ficam na mesma altura. */
+.grafico__meta {
+  font-size: var(--escala-1);
+  color: var(--cinza);
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
 .grafico__meta > div { margin-bottom: 0.25rem; }
 
 /* Nota metodológica: obrigatória onde a abrangência da fonte muda a leitura do gráfico. */
@@ -72,7 +125,7 @@ h2 { font-size: var(--escala-4); }
   padding: 0.6rem 0.9rem;
 }
 .nota--bloco { max-width: 80ch; margin: 0 0 var(--gap); }
-.nota--grafico { max-width: 80ch; margin: 0 0 var(--gap); }
+.nota--grafico { max-width: 80ch; margin: 0; }
 
 .metodologia {
   border-top: 3px solid var(--azul);
@@ -119,8 +172,17 @@ code {
 /* Crédito discreto: mesma escala do rodapé, sem destaque de cor ou peso. */
 .rodape__credito { margin-top: var(--gap); }
 
+/* Abaixo de 900px a metade da largura não comporta eixo, legenda e curva legíveis:
+   volta a uma coluna, com a altura de antes. */
+@media (max-width: 900px) {
+  .bloco__graficos { grid-template-columns: 1fr; }
+  .grafico__area,
+  .bloco__graficos > .grafico:last-child:nth-child(odd) .grafico__area { height: 320px; }
+}
+
 @media (max-width: 640px) {
-  .grafico__area { height: 280px; }
+  .grafico__area,
+  .bloco__graficos > .grafico:last-child:nth-child(odd) .grafico__area { height: 280px; }
   :root { --gap: 1rem; }
 }
 

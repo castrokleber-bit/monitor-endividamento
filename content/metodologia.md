@@ -51,9 +51,10 @@ conceito. O total começa em junho de 1988 e as aberturas por tomador, em março
 Parte do crescimento nominal do saldo é inflação; para leitura de alavancagem, usar as
 séries em proporção do PIB (20622, 20623, 20624).
 
-**Saldo a preços constantes** (séries `saldo_credito_total_real`, `saldo_credito_pj_real`
-e `saldo_credito_pf_real`). Não vêm da fonte: são calculadas no pipeline, e é a única
-operação de cálculo do monitor. O saldo nominal de cada mês é deflacionado pelo IPCA e
+**Saldo a preços constantes** (todas as séries terminadas em `_real`: os três saldos da
+carteira, os dois saldos de pessoas jurídicas por origem dos recursos e os dois de capital
+de giro por prazo). Não vêm da fonte: são calculadas no pipeline, e o deflacionamento é a
+única operação de cálculo do monitor. O saldo nominal de cada mês é deflacionado pelo IPCA e
 expresso a preços do mês mais recente do índice. O deflator é a variação mensal do IPCA
 (SGS 433), encadeada em um índice de preços — `I(t) = I(t-1) × (1 + variação/100)` —, e o
 valor real é `nominal(t) × I(base) / I(t)`, com a base no último mês de IPCA divulgado.
@@ -70,6 +71,25 @@ fonte. O pipeline não a recalcula nem escolhe o denominador: coleta a série pr
 qualquer outra. Vale aqui a mesma ressalva do saldo — arredondamento independente faz a
 soma das aberturas divergir do total em até 0,01 ponto percentual —, e também o descompasso
 de início: o total começa em julho de 1995 e as aberturas, em março de 2007.
+
+**Crédito livre e crédito direcionado às pessoas jurídicas** (SGS 20543 recursos livres,
+20594 recursos direcionados). Recursos livres são as operações de crédito com taxa de juros
+livremente pactuada entre a empresa e a instituição financeira. Recursos direcionados são
+as operações com destinação e taxa reguladas — crédito rural, imobiliário, e as lastreadas
+em recursos do BNDES ou em recursos compulsórios e governamentais. As duas séries somam o
+saldo da carteira de pessoas jurídicas (20540): na observação de julho de 2026,
+R$ 1.590.492 milhões mais R$ 1.141.022 milhões contra um total de R$ 2.731.513 milhões, com
+diferença de R$ 1 milhão por arredondamento independente na fonte. Ambas começam em março
+de 2007.
+
+**Capital de giro por prazo de contratação** (SGS 20547 até 365 dias, 20548 acima de 365
+dias). Capital de giro é uma modalidade **dentro** dos recursos livres às pessoas jurídicas
+(20543), não um recorte do crédito às empresas como um todo — os níveis não são comparáveis
+com os do gráfico anterior. As duas séries também não esgotam a modalidade: a fonte publica
+ainda o capital de giro rotativo (20549), que não entra no painel, e a soma das três é que
+corresponde ao capital de giro total (20550). Em julho de 2026, R$ 92.537 milhões mais
+R$ 382.840 milhões mais R$ 14.543 milhões contra um total de R$ 489.919 milhões. As duas
+séries por prazo começam em março de 2011, quando a fonte passou a publicar a abertura.
 
 **Composição do comprometimento.** As séries de juros (SGS 29033) e de amortização
 (SGS 29036), ambas com ajuste sazonal, somam exatamente o comprometimento com o serviço

@@ -181,6 +181,57 @@ series:
     validar: false
 
   # ---------------------------------------------------------------
+  # BLOCO 4 — Empresas: composição do crédito
+  #
+  # Todas em R$ milhões correntes, como a fonte divulga. O gráfico exibe a versão
+  # deflacionada (config/derivadas.yaml); as nominais seguem em data/ e na planilha.
+  #
+  # Identidades conferidas contra a API em 02/09/2026, na observação de 07/2026:
+  #   20543 + 20594 = 20540 (saldo PJ total)          1.590.492 + 1.141.022 = 2.731.513
+  #   20547 + 20548 + 20549 = 20550 (capital de giro)    92.537 + 382.840 + 14.543 = 489.919
+  # A divergência de R$ 1 milhão em cada identidade é arredondamento independente na
+  # fonte, não diferença de conceito.
+  # ---------------------------------------------------------------
+  - serie_id: saldo_credito_pj_livre
+    codigo: 20543
+    rotulo: "Recursos livres"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas_credito
+    validar: false
+
+  - serie_id: saldo_credito_pj_direcionado
+    codigo: 20594
+    rotulo: "Recursos direcionados"
+    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas_credito
+    validar: false
+
+  # Capital de giro é modalidade DENTRO de recursos livres (20543), não um recorte do
+  # crédito PJ inteiro. As duas séries abaixo não esgotam a modalidade: falta o capital
+  # de giro rotativo (20549), fora do painel por ser pequeno e de natureza distinta.
+  - serie_id: capital_giro_ate_365d
+    codigo: 20547
+    rotulo: "Prazo de até 365 dias"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas_credito
+    validar: false
+
+  - serie_id: capital_giro_acima_365d
+    codigo: 20548
+    rotulo: "Prazo superior a 365 dias"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
+    unidade: "R$ milhões"
+    periodicidade: M
+    bloco: empresas_credito
+    validar: false
+
+  # ---------------------------------------------------------------
   # DEFLATOR — não vai a gráfico nenhum
   #
   # Existe para converter o saldo nominal em valores a preços do último mês, na regra

@@ -122,6 +122,13 @@ Cada gráfico traz: título, subtítulo com unidade e período, fonte explícita
 última observação e botão de download. Sem sombras, sem gradientes, sem arredondamento
 decorativo — o padrão é sóbrio e institucional.
 
+**Layout em duas colunas (decisão de 02/09/2026).** Os gráficos de um bloco vão numa grade
+de duas colunas; um gráfico sozinho na última linha ocupa a largura inteira. Abaixo de
+900px a grade volta a uma coluna. Os cartões de uma mesma linha alinham título, subtítulo,
+nota, área de gráfico e meta por `subgrid` — por isso o cartão tem sempre cinco filhos, com
+o vão da nota presente mesmo vazio. Quem mexer nessa estrutura em `app.js` precisa manter a
+contagem, senão as curvas de dois gráficos vizinhos deixam de ficar na mesma altura.
+
 ## Convenções de código
 
 - Python 3.11+, `requests`, `pandas`, `pyyaml`, `openpyxl`, `pyarrow`.

@@ -12,9 +12,15 @@ Kleber Pacheco de Castro
 
 ## Estado do projeto
 
-ETL e front construídos e rodando ponta a ponta: 30 séries (18 do BCB/SGS, 9 do FRED/BIS,
-3 calculadas), 10 gráficos em 4 blocos. `build_dataset.py` falha se `blocos.yaml` citar
+ETL e front construídos e rodando ponta a ponta: 38 séries (22 do BCB/SGS, 9 do FRED/BIS,
+7 calculadas), 12 gráficos em 5 blocos. `build_dataset.py` falha se `blocos.yaml` citar
 série inexistente.
+
+Em 02/09/2026 entrou o bloco *Empresas — composição do crédito*, com dois gráficos: crédito
+livre contra crédito direcionado a pessoas jurídicas (SGS 20543 e 20594) e capital de giro
+por prazo de contratação (SGS 20547 e 20548). Os quatro saldos são coletados em valores
+nominais e exibidos a preços constantes, como os demais saldos do painel. Na mesma data a
+página passou a dispor os gráficos em duas colunas.
 
 Em 30/08/2026 saíram do catálogo as quatro séries do FRED que só descreviam os Estados
 Unidos (`TDSP`, `FODSP`, `DRCCLACBS`, `DRBLACBS`), junto com os dois gráficos que as

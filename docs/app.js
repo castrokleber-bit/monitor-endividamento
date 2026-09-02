@@ -134,12 +134,16 @@
       backgroundColor: COR_FUNDO,
       color: PALETA,
       /* `containLabel` dimensiona a margem pelo rótulo real do eixo. Margem fixa cortava
-         valores longos, como os saldos em R$ milhões na casa dos milhões. */
+         valores longos, como os saldos em R$ milhões na casa dos milhões.
+
+         A folga inferior cresce com o número de séries porque, na metade da largura da
+         página, a legenda de três ou quatro séries quebra em duas linhas e encostava na
+         área do gráfico. */
       grid: {
         left: 4,
         right: 16,
         top: 24,
-        bottom: series.length > 1 ? 32 : 8,
+        bottom: series.length > 2 ? 54 : (series.length > 1 ? 32 : 8),
         containLabel: true
       },
       legend: series.length > 1
@@ -302,9 +306,16 @@
       rotuloData(fim, series[0].periodicidade)
     ));
 
-    // A ressalva metodológica vem antes do gráfico: tem de ser lida junto com a curva,
-    // não depois dela.
-    if (grafico.nota) cartao.appendChild(elemento('p', 'nota nota--grafico', grafico.nota));
+    /* A ressalva metodológica vem antes do gráfico: tem de ser lida junto com a curva,
+       não depois dela.
+
+       O vão é criado mesmo sem nota, e sempre na mesma posição, para que todo cartão
+       tenha o mesmo número de filhos. É disso que depende o alinhamento por `subgrid`
+       de style.css: sem o vão, o cartão com nota empurraria o próprio gráfico para
+       baixo e as duas curvas de uma mesma linha ficariam em alturas diferentes. */
+    var vaoNota = elemento('div', 'grafico__nota');
+    if (grafico.nota) vaoNota.appendChild(elemento('p', 'nota nota--grafico', grafico.nota));
+    cartao.appendChild(vaoNota);
 
     var area = elemento('div', 'grafico__area');
     cartao.appendChild(area);
@@ -404,9 +415,15 @@
       secao.appendChild(elemento('p', 'nota nota--bloco', bloco.nota_metodologica));
     }
 
+    /* Os cartões vão numa grade de duas colunas, não empilhados: em telas largas cabem
+       dois gráficos por linha e a página encurta pela metade. Quem decide a largura é o
+       CSS — um gráfico sozinho na última linha ocupa as duas colunas, para não deixar
+       meia linha vazia. */
+    var grade = elemento('div', 'bloco__graficos');
     bloco.graficos.forEach(function (grafico) {
-      secao.appendChild(montaGrafico(grafico, dados));
+      grade.appendChild(montaGrafico(grafico, dados));
     });
+    secao.appendChild(grade);
 
     return secao;
   }

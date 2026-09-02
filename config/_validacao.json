@@ -250,5 +250,41 @@
     "ultima_data": "01/07/2026",
     "ultimo_valor": "0.07",
     "nome_oficial": null
+  },
+  {
+    "serie_id": "saldo_credito_pj_livre",
+    "fonte": "BCB/SGS",
+    "codigo": 20543,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "1590492",
+    "nome_oficial": "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
+  },
+  {
+    "serie_id": "saldo_credito_pj_direcionado",
+    "fonte": "BCB/SGS",
+    "codigo": 20594,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "1141022",
+    "nome_oficial": null
+  },
+  {
+    "serie_id": "capital_giro_ate_365d",
+    "fonte": "BCB/SGS",
+    "codigo": 20547,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "92537",
+    "nome_oficial": "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
+  },
+  {
+    "serie_id": "capital_giro_acima_365d",
+    "fonte": "BCB/SGS",
+    "codigo": 20548,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "382840",
+    "nome_oficial": "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
   }
 ]

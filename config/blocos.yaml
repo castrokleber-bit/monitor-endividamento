@@ -90,6 +90,33 @@ blocos:
         unidade: "% da carteira"
         fonte: "Banco Central do Brasil"
 
+  - id: empresas_credito
+    titulo: "Empresas — composição do crédito"
+    aba: "Empresas — crédito"
+    subtitulo: "De onde vem e com que prazo se contrata o crédito das pessoas jurídicas"
+    graficos:
+      - titulo: "Crédito livre e crédito direcionado"
+        series: [saldo_credito_pj_livre_real, saldo_credito_pj_direcionado_real]
+        unidade: "R$ milhões de {base_ipca}"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          Recursos livres são as operações com taxa livremente pactuada; recursos
+          direcionados são as de destinação e taxa reguladas, incluídas as lastreadas
+          em recursos do BNDES. As duas somam o saldo da carteira de pessoas jurídicas.
+          Séries deflacionadas pelo IPCA, pela regra da nota metodológica; a planilha
+          traz também os valores nominais.
+
+      - titulo: "Capital de giro por prazo de contratação"
+        series: [capital_giro_ate_365d_real, capital_giro_acima_365d_real]
+        unidade: "R$ milhões de {base_ipca}"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          Capital de giro é uma modalidade dentro dos recursos livres, não um recorte do
+          crédito às empresas como um todo. As duas séries não esgotam a modalidade: a
+          fonte publica ainda o capital de giro rotativo, de saldo pequeno e natureza
+          distinta, que não entra neste gráfico. Ambas começam em março de 2011, quando
+          a fonte passou a publicar a abertura por prazo. Deflacionadas pelo IPCA.
+
   - id: internacional
     titulo: "Comparação internacional"
     subtitulo: "Dívida de famílias e empresas em % do PIB — base BIS, abrangência mais ampla que a do SFN"

@@ -45,3 +45,36 @@ series:
     rotulo: "Pessoas físicas"
     descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total, deflacionado pelo IPCA"
     bloco: mercado_credito
+
+  # ---------------------------------------------------------------------------
+  # Empresas — composição do crédito. Mesma operação, mesma base móvel: o saldo em
+  # R$ milhões correntes cresce por inflação mesmo quando o estoque real não muda,
+  # e o painel compara trajetórias. As nominais seguem em data/ e na planilha.
+  # ---------------------------------------------------------------------------
+  - serie_id: saldo_credito_pj_livre_real
+    origem: saldo_credito_pj_livre
+    operacao: deflaciona_ipca
+    rotulo: "Recursos livres"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total, deflacionado pelo IPCA"
+    bloco: empresas_credito
+
+  - serie_id: saldo_credito_pj_direcionado_real
+    origem: saldo_credito_pj_direcionado
+    operacao: deflaciona_ipca
+    rotulo: "Recursos direcionados"
+    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total, deflacionado pelo IPCA"
+    bloco: empresas_credito
+
+  - serie_id: capital_giro_ate_365d_real
+    origem: capital_giro_ate_365d
+    operacao: deflaciona_ipca
+    rotulo: "Prazo de até 365 dias"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias, deflacionado pelo IPCA"
+    bloco: empresas_credito
+
+  - serie_id: capital_giro_acima_365d_real
+    origem: capital_giro_acima_365d
+    operacao: deflaciona_ipca
+    rotulo: "Prazo superior a 365 dias"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias, deflacionado pelo IPCA"
+    bloco: empresas_credito
