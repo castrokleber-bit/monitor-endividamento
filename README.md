@@ -12,15 +12,23 @@ Kleber Pacheco de Castro
 
 ## Estado do projeto
 
-ETL e front construídos e rodando ponta a ponta: 38 séries (22 do BCB/SGS, 9 do FRED/BIS,
-7 calculadas), 12 gráficos em 5 blocos. `build_dataset.py` falha se `blocos.yaml` citar
-série inexistente.
+ETL e front construídos e rodando ponta a ponta: 42 séries (26 do BCB/SGS, 9 do FRED/BIS,
+7 calculadas), 14 gráficos em 4 abas. `build_dataset.py` falha se `abas.yaml` citar série
+inexistente, ou se citar série sem `segmento` (família/empresa/ambos) definido.
 
-Em 02/09/2026 entrou o bloco *Empresas — composição do crédito*, com dois gráficos: crédito
-livre contra crédito direcionado a pessoas jurídicas (SGS 20543 e 20594) e capital de giro
-por prazo de contratação (SGS 20547 e 20548). Os quatro saldos são coletados em valores
-nominais e exibidos a preços constantes, como os demais saldos do painel. Na mesma data a
-página passou a dispor os gráficos em duas colunas.
+Em 11/09/2026 a página deixou de empilhar tudo numa página contínua e passou a ter abas —
+Mercado de crédito, Inadimplência, Dívida e comprometimento, Comparação internacional —,
+cada uma com um filtro Família / Empresas / Ambos. `config/blocos.yaml` virou
+`config/abas.yaml`, e toda série do catálogo ganhou o campo `segmento` que alimenta esse
+filtro. Entraram também quatro séries novas: a taxa de juros do crédito livre e do crédito
+direcionado, para pessoas físicas e jurídicas (SGS 20718, 20740, 20757, 20768).
+
+Em 02/09/2026 entrou o que hoje é a aba *Mercado de crédito* — composição por origem dos
+recursos e por prazo do crédito às empresas: crédito livre contra crédito direcionado a
+pessoas jurídicas (SGS 20543 e 20594) e capital de giro por prazo de contratação
+(SGS 20547 e 20548). Os saldos são coletados em valores nominais e exibidos a preços
+constantes, como os demais saldos do painel. Na mesma data a página passou a dispor os
+gráficos de uma mesma seção em duas colunas — isso continua valendo dentro de cada aba.
 
 Em 30/08/2026 saíram do catálogo as quatro séries do FRED que só descreviam os Estados
 Unidos (`TDSP`, `FODSP`, `DRCCLACBS`, `DRBLACBS`), junto com os dois gráficos que as
@@ -30,7 +38,7 @@ Séries ainda não incluídas no catálogo estão listadas ao final de `config/s
 (custo médio do crédito PJ, concessões, prazo médio). Cada uma exige localizar o código no
 SGS e escrever a nota metodológica antes de entrar.
 
-Os gráficos são recortados a partir de 2005 (`recorte.inicio` em `config/blocos.yaml`).
+Os gráficos são recortados a partir de 2005 (`recorte.inicio` em `config/abas.yaml`).
 O recorte é só de exibição — `data/` e a planilha mantêm cada série inteira.
 
 ## Séries calculadas
@@ -40,7 +48,7 @@ calcula dentro do `build_dataset.py`, depois da coleta. Hoje há uma só operaç
 da carteira de crédito deflacionado pelo IPCA (SGS 433), a preços do mês mais recente do
 índice. A base é móvel — acompanha o último IPCA divulgado — e a unidade de cada série
 diz qual é o mês (`R$ milhões de jul/2026`). Nos gráficos, `{base_ipca}` na unidade
-declarada em `blocos.yaml` é substituído por esse mês no build.
+declarada em `abas.yaml` é substituído por esse mês no build.
 
 As séries nominais continuam publicadas ao lado das calculadas. Na página, série
 calculada troca a linha de procedência pela descrição do cálculo, para não ser confundida
@@ -99,7 +107,8 @@ continua presente é só aviso, porque revisão da fonte pode encurtar série le
 Para publicar mesmo assim, quando a perda é esperada, use `--sem-guard`.
 
 Códigos de saída do `build_dataset.py`: `0` ok · `1` configuração inconsistente
-(`blocos.yaml` citando série que não existe) · `2` regressão de cobertura.
+(`abas.yaml` citando série que não existe, ou série sem `segmento`) · `2` regressão de
+cobertura.
 
 ## Publicação
 
@@ -116,7 +125,7 @@ Ligar a publicação é, por construção, um ato explícito nas configurações
 ## Antes de publicar
 
 - [ ] `config/_validacao.json` sem falhas e com os nomes oficiais conferidos manualmente
-- [x] `content/metodologia.md` com um parágrafo por série incluída — as 30 séries do
+- [x] `content/metodologia.md` com um parágrafo por série incluída — as séries do
       catálogo aparecem citadas pelo código na fonte
 - [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório)
 - [ ] Rotacionar a chave do FRED antes de tornar o repositório público

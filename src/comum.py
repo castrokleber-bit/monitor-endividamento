@@ -90,9 +90,9 @@ def carrega_catalogo(arquivo: str) -> dict:
     return yaml.safe_load((CONFIG / arquivo).read_text(encoding="utf-8"))
 
 
-def carrega_blocos() -> dict:
-    """Carrega a organização temática da página."""
-    return yaml.safe_load((CONFIG / "blocos.yaml").read_text(encoding="utf-8"))
+def carrega_abas() -> dict:
+    """Carrega a organização em abas da página."""
+    return yaml.safe_load((CONFIG / "abas.yaml").read_text(encoding="utf-8"))
 
 
 def carrega_metodologia() -> str:

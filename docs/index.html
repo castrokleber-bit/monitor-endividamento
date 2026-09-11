@@ -14,8 +14,8 @@
   <header class="cabecalho">
     <h1>Monitor de Endividamento</h1>
     <p class="cabecalho__linha">
-      Famílias e empresas não financeiras — estoque de dívida, capacidade de pagamento
-      e comparação internacional.
+      Famílias e empresas não financeiras — mercado de crédito, inadimplência, dívida e
+      comprometimento de renda, e comparação internacional.
     </p>
     <p class="cabecalho__meta" id="atualizacao"></p>
     <p class="aviso-desatualizado" id="aviso-global" hidden></p>
@@ -26,7 +26,12 @@
     </p>
   </header>
 
-  <main id="blocos">
+  <!-- Preenchidos inteiramente por app.js a partir de window.MONITOR.abas. A navegação
+       e os painéis vivem em elementos separados porque a navegação fica visível o tempo
+       todo (mesmo quando o painel troca) e não é uma "página" como os painéis são. -->
+  <nav class="abas-nav" id="abas-nav" aria-label="Abas do painel"></nav>
+
+  <main id="abas-paineis">
     <p class="carregando" id="carregando">Carregando as séries…</p>
   </main>
 
@@ -43,7 +48,13 @@
       Fontes: Banco Central do Brasil (SGS) e Bank for International Settlements (BIS),
       redistribuído pelo Federal Reserve Bank of St. Louis (FRED). As séries do BIS têm
       abrangência mais ampla que as do Sistema Financeiro Nacional e não são diretamente
-      comparáveis com o bloco Brasil — ver a nota do bloco de comparação internacional.
+      comparáveis com as demais abas — ver a nota da aba Comparação internacional.
+    </p>
+    <p>
+      Cada aba traz um filtro Família / Empresas / Ambos. Ele decide quais séries e
+      quais gráficos aparecem, a partir de um campo do catálogo — nunca reclassifica nem
+      recalcula nada. Um gráfico cujas séries fiquem todas fora do filtro escolhido
+      simplesmente não aparece.
     </p>
     <p>
       Nenhum valor é interpolado, arredondado ou estimado. Observação ainda não divulgada

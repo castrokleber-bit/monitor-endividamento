@@ -247,8 +247,8 @@
     "fonte": "BCB/SGS",
     "codigo": 433,
     "ok": true,
-    "ultima_data": "01/07/2026",
-    "ultimo_valor": "0.07",
+    "ultima_data": "01/08/2026",
+    "ultimo_valor": "-0.32",
     "nome_oficial": null
   },
   {
@@ -267,7 +267,7 @@
     "ok": true,
     "ultima_data": "01/07/2026",
     "ultimo_valor": "1141022",
-    "nome_oficial": null
+    "nome_oficial": "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total"
   },
   {
     "serie_id": "capital_giro_ate_365d",
@@ -286,5 +286,41 @@
     "ultima_data": "01/07/2026",
     "ultimo_valor": "382840",
     "nome_oficial": "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
+  },
+  {
+    "serie_id": "taxa_juros_pj_livre",
+    "fonte": "BCB/SGS",
+    "codigo": 20718,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "25.36",
+    "nome_oficial": "Taxa média de juros das operações de crédito com recursos livres - Pessoas jurídicas - Total"
+  },
+  {
+    "serie_id": "taxa_juros_pf_livre",
+    "fonte": "BCB/SGS",
+    "codigo": 20740,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "60.04",
+    "nome_oficial": "Taxa média de juros das operações de crédito com recursos livres - Pessoas físicas - Total"
+  },
+  {
+    "serie_id": "taxa_juros_pj_direcionado",
+    "fonte": "BCB/SGS",
+    "codigo": 20757,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "13.88",
+    "nome_oficial": "Taxa média de juros das operações de crédito com recursos direcionados - Pessoas jurídicas - Total"
+  },
+  {
+    "serie_id": "taxa_juros_pf_direcionado",
+    "fonte": "BCB/SGS",
+    "codigo": 20768,
+    "ok": true,
+    "ultima_data": "01/07/2026",
+    "ultimo_valor": "11.46",
+    "nome_oficial": "Taxa média de juros das operações de crédito com recursos direcionados - Pessoas físicas - Total"
   }
 ]

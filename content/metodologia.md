@@ -10,7 +10,7 @@ dívida das empresas captada no mercado de capitais ou no exterior.
 
 **BIS (via FRED).** Cobre crédito ao setor de todas as fontes — bancos domésticos, mercado
 de capitais e credores externos. Por isso os níveis são estruturalmente mais altos que os
-do SFN e **não são comparáveis** com o bloco Brasil.
+do SFN e **não são comparáveis** com as demais abas, que cobrem o SFN.
 
 ## Definições
 
@@ -91,6 +91,18 @@ corresponde ao capital de giro total (20550). Em julho de 2026, R$ 92.537 milhõ
 R$ 382.840 milhões mais R$ 14.543 milhões contra um total de R$ 489.919 milhões. As duas
 séries por prazo começam em março de 2011, quando a fonte passou a publicar a abertura.
 
+**Taxa de juros do crédito às pessoas jurídicas e físicas, por origem dos recursos**
+(SGS 20718 PJ recursos livres, 20740 PF recursos livres, 20757 PJ recursos direcionados,
+20768 PF recursos direcionados). Taxa média de juros das operações contratadas no mês,
+em % ao ano, como divulgada pela fonte — sem cálculo no pipeline. A taxa de pessoas
+físicas com recursos livres é muito mais alta que a de pessoas jurídicas (60,04% a.a.
+contra 25,36% a.a. em julho de 2026) porque a modalidade mistura cheque especial e cartão
+de crédito rotativo — de juros altíssimos — com crédito pessoal comum; não há decomposição
+por modalidade nesta série, só nas aberturas de inadimplência PF acima. Não existe uma
+série "Total" aqui: ao contrário do saldo, a taxa média entre pessoas físicas e jurídicas
+combina carteiras de composição muito diferente, e o BCB não a apresenta como indicador
+de referência único. Todas as quatro começam em março de 2011.
+
 **Composição do comprometimento.** As séries de juros (SGS 29033) e de amortização
 (SGS 29036), ambas com ajuste sazonal, somam exatamente o comprometimento com o serviço
 da dívida (SGS 29034). Não confundir 29033 com 29035, que é o comprometimento com o
@@ -117,8 +129,8 @@ Em 30/08/2026 saíram do monitor quatro séries do Federal Reserve que descrevia
 Estados Unidos, sem contraparte brasileira: serviço da dívida e obrigações financeiras das
 famílias (`TDSP` e `FODSP`) e inadimplência de cartão e de empresas nos bancos comerciais
 (`DRCCLACBS` e `DRBLACBS`). Os dois gráficos que as exibiam foram retirados e as séries
-deixaram de ser coletadas — não estão mais em `data/` nem na planilha. O bloco
-internacional ficou restrito ao que é comparável com o Brasil, nas séries do BIS.
+deixaram de ser coletadas — não estão mais em `data/` nem na planilha. A aba
+Comparação internacional ficou restrita ao que é comparável com o Brasil, nas séries do BIS.
 
 ## Tratamento dos valores na coleta
 

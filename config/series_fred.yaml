@@ -31,7 +31,8 @@ series:
     descricao_esperada: "Credit to Households and NPISHs, Brazil, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: familia
     validar: false
 
   - serie_id: bis_empresas_br
@@ -41,7 +42,8 @@ series:
     descricao_esperada: "Credit to Non-Financial Corporations, Brazil, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: empresa
     validar: false
 
   - serie_id: bis_privado_br
@@ -51,7 +53,8 @@ series:
     descricao_esperada: "Credit to Private Non-Financial Sector, Brazil, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: ambos
     validar: false
 
   # O FRED escreve "Non-Profit Institutions Serving Households" por extenso para os EUA
@@ -63,7 +66,8 @@ series:
     descricao_esperada: "Credit to Households and Non-Profit Institutions Serving Households, United States, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: familia
     validar: false
 
   - serie_id: bis_empresas_us
@@ -73,7 +77,8 @@ series:
     descricao_esperada: "Credit to Non-Financial Corporations, United States, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: empresa
     validar: false
 
   - serie_id: bis_familias_mx
@@ -83,7 +88,8 @@ series:
     descricao_esperada: "Credit to Households and NPISHs, Mexico, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: familia
     validar: false
 
   - serie_id: bis_empresas_mx
@@ -93,7 +99,8 @@ series:
     descricao_esperada: "Credit to Non-Financial Corporations, Mexico, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: empresa
     validar: false
 
   - serie_id: bis_familias_cl
@@ -103,7 +110,8 @@ series:
     descricao_esperada: "Credit to Households and NPISHs, Chile, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: familia
     validar: false
 
   - serie_id: bis_empresas_cl
@@ -113,7 +121,8 @@ series:
     descricao_esperada: "Credit to Non-Financial Corporations, Chile, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
-    bloco: internacional
+    aba: internacional
+    segmento: empresa
     validar: false
 
 # ---------------------------------------------------------------

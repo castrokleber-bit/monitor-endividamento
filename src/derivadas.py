@@ -21,7 +21,7 @@ from comum import agora_iso
 
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
-# Marcador que `blocos.yaml` usa na unidade do gráfico para receber o mês da base.
+# Marcador que `abas.yaml` usa na unidade do gráfico para receber o mês da base.
 MARCADOR_BASE = "{base_ipca}"
 
 
@@ -139,7 +139,7 @@ def constroi(
 
 
 def aplica_marcador(texto: str | None, data_base: str | None) -> str | None:
-    """Troca `{base_ipca}` pelo mês-base nas unidades declaradas em blocos.yaml."""
+    """Troca `{base_ipca}` pelo mês-base nas unidades declaradas em abas.yaml."""
     if not texto or MARCADOR_BASE not in texto:
         return texto
     if data_base is None:

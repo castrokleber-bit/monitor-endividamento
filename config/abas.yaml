@@ -1,5 +1,14 @@
-# Organização temática da página. Define ordem, títulos e agrupamento dos gráficos.
-# O front lê este arquivo (via data/series.json) para montar a página.
+# Organização temática da página. Define as abas (tabs) da navegação, e dentro de cada
+# uma, os gráficos e sua ordem. O front lê este arquivo (via data/series.json) para
+# montar a página; `build_xlsx.py` usa a mesma lista para nomear as abas da planilha.
+#
+# Cada gráfico é filtrável por Família / Empresas / Ambos no front. Quem decide o que
+# aparece em cada filtro não é este arquivo: é o campo `segmento` de cada série, em
+# config/series_bcb.yaml, config/series_fred.yaml e config/derivadas.yaml. Um gráfico
+# cujas séries fiquem todas fora do filtro escolhido simplesmente não aparece na aba.
+#
+# Renomeado de blocos.yaml em 11/09/2026, quando a página deixou de empilhar tudo numa
+# página contínua e passou a ter abas — ver a decisão em CLAUDE.md.
 
 # Recorte temporal da EXIBIÇÃO. Vale para todos os gráficos; um gráfico pode
 # sobrescrever com seu próprio `inicio`.
@@ -11,54 +20,13 @@
 recorte:
   inicio: "2005-01-01"
 
-blocos:
-  # `aba` é o nome da aba na planilha. O Excel limita a 31 caracteres, e sem um nome
-  # explícito o título longo sairia cortado no meio da palavra.
-  - id: familias_estoque
-    titulo: "Famílias — estoque de dívida"
-    aba: "Famílias — estoque"
-    subtitulo: "Quanto as famílias devem em relação à renda que recebem"
-    graficos:
-      - titulo: "Endividamento das famílias"
-        series: [endividamento_familias_total, endividamento_familias_ex_habitacional]
-        unidade: "% da renda acumulada em 12 meses"
-        fonte: "Banco Central do Brasil"
-
-  - id: familias_capacidade
-    titulo: "Famílias — capacidade de pagamento"
-    aba: "Famílias — capacidade"
-    subtitulo: "Quanto da renda mensal vai para o serviço da dívida e quanto disso vira atraso"
-    graficos:
-      - titulo: "Comprometimento de renda com o serviço da dívida"
-        series: [comprometimento_renda_sa, comprometimento_renda_nsa]
-        unidade: "% da renda mensal"
-        fonte: "Banco Central do Brasil"
-      - titulo: "Composição do comprometimento: juros e amortização"
-        series: [comprometimento_juros, comprometimento_amortizacao]
-        unidade: "% da renda mensal"
-        fonte: "Banco Central do Brasil"
-      - titulo: "Inadimplência das pessoas físicas por modalidade"
-        series: [inadimplencia_pf_total, inadimplencia_pf_abertura_1, inadimplencia_pf_abertura_2]
-        rotulos:
-          inadimplencia_pf_total: "Total"
-          inadimplencia_pf_abertura_1: "Recursos livres"
-          inadimplencia_pf_abertura_2: "Cheque especial"
-        unidade: "% da carteira"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          As três séries são aninhadas, não somáveis: o cheque especial está dentro dos
-          recursos livres, que estão dentro do total. O total inclui ainda o crédito
-          direcionado — habitacional e rural —, de inadimplência estruturalmente baixa,
-          o que puxa a curva agregada para baixo. O nível do cheque especial é uma ordem
-          de grandeza maior que o das demais e ocupa parcela pequena da carteira.
-
+abas:
   - id: mercado_credito
     titulo: "Mercado de crédito"
-    aba: "Mercado de crédito"
-    subtitulo: "Estoque, alavancagem e qualidade da carteira do Sistema Financeiro Nacional"
+    subtitulo: "Estoque, origem dos recursos e taxa de juros do crédito do Sistema Financeiro Nacional"
     graficos:
       # O total vem primeiro para receber o azul institucional, como nos demais gráficos
-      # do bloco: agregado na primeira cor, aberturas depois.
+      # da aba: agregado na primeira cor, aberturas depois.
       - titulo: "Saldo da carteira de crédito em relação ao PIB"
         series: [credito_pib_total, credito_pib_pj, credito_pib_pf]
         unidade: "% do PIB"
@@ -81,21 +49,7 @@ blocos:
           descrita na nota metodológica. A planilha traz as duas versões, nominal e a
           preços constantes.
 
-      - titulo: "Inadimplência da carteira de crédito"
-        series: [inadimplencia_total_sfn, inadimplencia_pj_total, inadimplencia_pf_total]
-        rotulos:
-          inadimplencia_total_sfn: "Total"
-          inadimplencia_pj_total: "Pessoas jurídicas"
-          inadimplencia_pf_total: "Pessoas físicas"
-        unidade: "% da carteira"
-        fonte: "Banco Central do Brasil"
-
-  - id: empresas_credito
-    titulo: "Empresas — composição do crédito"
-    aba: "Empresas — crédito"
-    subtitulo: "De onde vem e com que prazo se contrata o crédito das pessoas jurídicas"
-    graficos:
-      - titulo: "Crédito livre e crédito direcionado"
+      - titulo: "Crédito às empresas por origem dos recursos"
         series: [saldo_credito_pj_livre_real, saldo_credito_pj_direcionado_real]
         unidade: "R$ milhões de {base_ipca}"
         fonte: "Banco Central do Brasil"
@@ -117,13 +71,85 @@ blocos:
           distinta, que não entra neste gráfico. Ambas começam em março de 2011, quando
           a fonte passou a publicar a abertura por prazo. Deflacionadas pelo IPCA.
 
+      - titulo: "Taxa de juros — crédito livre"
+        series: [taxa_juros_pj_livre, taxa_juros_pf_livre]
+        unidade: "% ao ano"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          Recursos livres são as operações com taxa livremente pactuada. A taxa de
+          pessoas físicas é muito mais alta que a de pessoas jurídicas porque a
+          modalidade mistura cheque especial e cartão de crédito rotativo — de juros
+          altíssimos — com crédito pessoal comum; os dois recortes não são comparáveis
+          entre si linha a linha, só como trajetória.
+
+      - titulo: "Taxa de juros — crédito direcionado"
+        series: [taxa_juros_pj_direcionado, taxa_juros_pf_direcionado]
+        unidade: "% ao ano"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          Recursos direcionados são as operações de destinação e taxa reguladas: para
+          pessoas jurídicas, sobretudo crédito rural e financiamento com recursos do
+          BNDES; para pessoas físicas, sobretudo crédito habitacional e rural.
+
+  - id: inadimplencia
+    titulo: "Inadimplência"
+    subtitulo: "Atraso na carteira de crédito do Sistema Financeiro Nacional, por tomador e por modalidade"
+    graficos:
+      - titulo: "Inadimplência da carteira de crédito"
+        series: [inadimplencia_total_sfn, inadimplencia_pj_total, inadimplencia_pf_total]
+        rotulos:
+          inadimplencia_total_sfn: "Total"
+          inadimplencia_pj_total: "Pessoas jurídicas"
+          inadimplencia_pf_total: "Pessoas físicas"
+        unidade: "% da carteira"
+        fonte: "Banco Central do Brasil"
+
+      - titulo: "Inadimplência das pessoas físicas por modalidade"
+        series: [inadimplencia_pf_total, inadimplencia_pf_abertura_1, inadimplencia_pf_abertura_2]
+        rotulos:
+          inadimplencia_pf_total: "Total"
+          inadimplencia_pf_abertura_1: "Recursos livres"
+          inadimplencia_pf_abertura_2: "Cheque especial"
+        unidade: "% da carteira"
+        fonte: "Banco Central do Brasil"
+        nota: >-
+          As três séries são aninhadas, não somáveis: o cheque especial está dentro dos
+          recursos livres, que estão dentro do total. O total inclui ainda o crédito
+          direcionado — habitacional e rural —, de inadimplência estruturalmente baixa,
+          o que puxa a curva agregada para baixo. O nível do cheque especial é uma ordem
+          de grandeza maior que o das demais e ocupa parcela pequena da carteira.
+
+  - id: divida_comprometimento
+    titulo: "Dívida e comprometimento"
+    subtitulo: "Quanto as famílias devem em relação à renda e quanto da renda mensal vai para o serviço da dívida"
+    nota_metodologica: >-
+      Esta aba cobre apenas famílias: o Banco Central não publica, para empresas não
+      financeiras, um indicador doméstico equivalente de endividamento em relação à renda
+      ou de comprometimento de renda com o serviço da dívida. A alavancagem das empresas
+      em comparação internacional está na aba Comparação internacional.
+    graficos:
+      - titulo: "Endividamento das famílias"
+        series: [endividamento_familias_total, endividamento_familias_ex_habitacional]
+        unidade: "% da renda acumulada em 12 meses"
+        fonte: "Banco Central do Brasil"
+
+      - titulo: "Comprometimento de renda com o serviço da dívida"
+        series: [comprometimento_renda_sa, comprometimento_renda_nsa]
+        unidade: "% da renda mensal"
+        fonte: "Banco Central do Brasil"
+
+      - titulo: "Composição do comprometimento: juros e amortização"
+        series: [comprometimento_juros, comprometimento_amortizacao]
+        unidade: "% da renda mensal"
+        fonte: "Banco Central do Brasil"
+
   - id: internacional
     titulo: "Comparação internacional"
     subtitulo: "Dívida de famílias e empresas em % do PIB — base BIS, abrangência mais ampla que a do SFN"
     nota_metodologica: >-
       As séries do BIS incluem crédito de todas as fontes (bancos, mercado de capitais e
-      credores externos). As séries do BCB apresentadas nos blocos anteriores cobrem apenas
-      o Sistema Financeiro Nacional. Os níveis não são diretamente comparáveis entre blocos.
+      credores externos). As séries do BCB apresentadas nas demais abas cobrem apenas o
+      Sistema Financeiro Nacional. Os níveis não são diretamente comparáveis entre abas.
     graficos:
       - titulo: "Dívida das famílias — Brasil e comparáveis"
         series: [bis_familias_br, bis_familias_us, bis_familias_mx, bis_familias_cl]
@@ -148,7 +174,7 @@ blocos:
           O setor privado não financeiro é, na definição do BIS, a soma de famílias e
           empresas não financeiras. As três séries são divulgadas arredondadas de forma
           independente, então a soma das duas componentes pode diferir do total em até
-          0,5 ponto percentual em um trimestre. Mesma abrangência ampla do bloco: inclui
+          0,5 ponto percentual em um trimestre. Mesma abrangência ampla da aba: inclui
           crédito bancário, mercado de capitais e credores externos.
 
 # ---------------------------------------------------------------------------

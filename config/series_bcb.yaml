@@ -7,6 +7,11 @@
 # `rotulo` é o texto curto usado na legenda do gráfico. `descricao_esperada` é o nome
 # oficial na fonte, usado pela validação e pela planilha — não encurtar.
 #
+# `aba` diz em qual aba da página (config/abas.yaml) e em qual aba da planilha a série
+# aparece. `segmento` diz a quem ela se refere — `familia`, `empresa` ou `ambos` (soma ou
+# total agregado que cobre os dois) — e é o que alimenta o filtro Família/Empresas/Ambos
+# de cada aba no front. Nenhuma série entra em gráfico sem os dois campos.
+#
 # Endpoint: https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json
 
 fonte: BCB/SGS
@@ -14,7 +19,9 @@ fonte: BCB/SGS
 series:
 
   # ---------------------------------------------------------------
-  # BLOCO 1 — Famílias: estoque de dívida
+  # ABA "Dívida e comprometimento" — só famílias: o BCB não publica indicador
+  # doméstico equivalente de endividamento ou de comprometimento de renda para
+  # empresas não financeiras (ver a nota da aba em config/abas.yaml).
   # ---------------------------------------------------------------
   - serie_id: endividamento_familias_total
     codigo: 29037
@@ -22,7 +29,8 @@ series:
     descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses"
     unidade: "%"
     periodicidade: M
-    bloco: familias_estoque
+    aba: divida_comprometimento
+    segmento: familia
     validar: false
 
   - serie_id: endividamento_familias_ex_habitacional
@@ -31,19 +39,18 @@ series:
     descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses"
     unidade: "%"
     periodicidade: M
-    bloco: familias_estoque
+    aba: divida_comprometimento
+    segmento: familia
     validar: false
 
-  # ---------------------------------------------------------------
-  # BLOCO 2 — Famílias: capacidade de pagamento
-  # ---------------------------------------------------------------
   - serie_id: comprometimento_renda_sa
     codigo: 29034
     rotulo: "Com ajuste sazonal"
     descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: divida_comprometimento
+    segmento: familia
     validar: false
 
   - serie_id: comprometimento_renda_nsa
@@ -52,7 +59,8 @@ series:
     descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: divida_comprometimento
+    segmento: familia
     validar: false
 
   # CORREÇÃO 2026-08-29: este serie_id apontava para 29035, que é o comprometimento com o
@@ -65,7 +73,8 @@ series:
     descricao_esperada: "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: divida_comprometimento
+    segmento: familia
     validar: false
 
   - serie_id: comprometimento_amortizacao
@@ -74,16 +83,21 @@ series:
     descricao_esperada: "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: divida_comprometimento
+    segmento: familia
     validar: false
 
+  # ---------------------------------------------------------------
+  # ABA "Inadimplência"
+  # ---------------------------------------------------------------
   - serie_id: inadimplencia_pf_total
     codigo: 21084
     rotulo: "Pessoas físicas — total"
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas físicas - Total"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: inadimplencia
+    segmento: familia
     validar: false
 
   # Aberturas de inadimplência PF por modalidade — nomes conferidos na fonte em 2026-08-29.
@@ -93,7 +107,8 @@ series:
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Total"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: inadimplencia
+    segmento: familia
     validar: false
 
   - serie_id: inadimplencia_pf_abertura_2
@@ -102,19 +117,18 @@ series:
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cheque especial"
     unidade: "%"
     periodicidade: M
-    bloco: familias_capacidade
+    aba: inadimplencia
+    segmento: familia
     validar: false
 
-  # ---------------------------------------------------------------
-  # BLOCO 3 — Mercado de crédito
-  # ---------------------------------------------------------------
   - serie_id: inadimplencia_pj_total
     codigo: 21083
     rotulo: "Pessoas jurídicas"
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
     unidade: "%"
     periodicidade: M
-    bloco: mercado_credito
+    aba: inadimplencia
+    segmento: empresa
     validar: false
 
   - serie_id: inadimplencia_total_sfn
@@ -123,16 +137,21 @@ series:
     descricao_esperada: "Inadimplência da carteira de crédito - Total"
     unidade: "%"
     periodicidade: M
-    bloco: mercado_credito
+    aba: inadimplencia
+    segmento: ambos
     validar: false
 
+  # ---------------------------------------------------------------
+  # ABA "Mercado de crédito" — estoque
+  # ---------------------------------------------------------------
   - serie_id: saldo_credito_total
     codigo: 20539
     rotulo: "Total"
     descricao_esperada: "Saldo da carteira de crédito - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: ambos
     validar: false
 
   - serie_id: saldo_credito_pj
@@ -141,7 +160,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: empresa
     validar: false
 
   - serie_id: saldo_credito_pf
@@ -150,7 +170,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: familia
     validar: false
 
   - serie_id: credito_pib_pj
@@ -159,7 +180,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas em relação ao PIB"
     unidade: "% do PIB"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: empresa
     validar: false
 
   - serie_id: credito_pib_pf
@@ -168,7 +190,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito a pessoas físicas em relação ao PIB"
     unidade: "% do PIB"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: familia
     validar: false
 
   - serie_id: credito_pib_total
@@ -177,11 +200,12 @@ series:
     descricao_esperada: "Saldo da carteira de crédito em relação ao PIB"
     unidade: "% do PIB"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: ambos
     validar: false
 
   # ---------------------------------------------------------------
-  # BLOCO 4 — Empresas: composição do crédito
+  # ABA "Mercado de crédito" — composição do crédito às empresas
   #
   # Todas em R$ milhões correntes, como a fonte divulga. O gráfico exibe a versão
   # deflacionada (config/derivadas.yaml); as nominais seguem em data/ e na planilha.
@@ -198,7 +222,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas_credito
+    aba: mercado_credito
+    segmento: empresa
     validar: false
 
   - serie_id: saldo_credito_pj_direcionado
@@ -207,7 +232,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas_credito
+    aba: mercado_credito
+    segmento: empresa
     validar: false
 
   # Capital de giro é modalidade DENTRO de recursos livres (20543), não um recorte do
@@ -219,7 +245,8 @@ series:
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas_credito
+    aba: mercado_credito
+    segmento: empresa
     validar: false
 
   - serie_id: capital_giro_acima_365d
@@ -228,7 +255,61 @@ series:
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
     unidade: "R$ milhões"
     periodicidade: M
-    bloco: empresas_credito
+    aba: mercado_credito
+    segmento: empresa
+    validar: false
+
+  # ---------------------------------------------------------------
+  # ABA "Mercado de crédito" — taxa de juros por origem dos recursos
+  #
+  # Códigos conferidos contra a API em 11/09/2026, na observação de 07/2026: PJ livre
+  # 25,36% a.a., PJ direcionado 13,88% a.a., PF livre 60,04% a.a., PF direcionado
+  # 11,46% a.a. O nível de PF livre é muito mais alto que os demais porque a modalidade
+  # mistura cheque especial e cartão de crédito rotativo — de juros altíssimos — com
+  # crédito pessoal comum; não é erro de coleta nem de unidade, e está registrado em
+  # content/metodologia.md. Não existe um "Total" nacional útil aqui: ao contrário do
+  # saldo, uma taxa média entre pessoas físicas e jurídicas mistura carteiras de
+  # composição muito diferente e não tem leitura simples — por isso cada gráfico traz só
+  # as duas séries por origem, sem série "ambos".
+  # ---------------------------------------------------------------
+  - serie_id: taxa_juros_pj_livre
+    codigo: 20718
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Taxa média de juros das operações de crédito com recursos livres - Pessoas jurídicas - Total"
+    unidade: "% ao ano"
+    periodicidade: M
+    aba: mercado_credito
+    segmento: empresa
+    validar: false
+
+  - serie_id: taxa_juros_pf_livre
+    codigo: 20740
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Taxa média de juros das operações de crédito com recursos livres - Pessoas físicas - Total"
+    unidade: "% ao ano"
+    periodicidade: M
+    aba: mercado_credito
+    segmento: familia
+    validar: false
+
+  - serie_id: taxa_juros_pj_direcionado
+    codigo: 20757
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Taxa média de juros das operações de crédito com recursos direcionados - Pessoas jurídicas - Total"
+    unidade: "% ao ano"
+    periodicidade: M
+    aba: mercado_credito
+    segmento: empresa
+    validar: false
+
+  - serie_id: taxa_juros_pf_direcionado
+    codigo: 20768
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Taxa média de juros das operações de crédito com recursos direcionados - Pessoas físicas - Total"
+    unidade: "% ao ano"
+    periodicidade: M
+    aba: mercado_credito
+    segmento: familia
     validar: false
 
   # ---------------------------------------------------------------
@@ -245,7 +326,8 @@ series:
     descricao_esperada: "Índice nacional de preços ao consumidor-amplo (IPCA)"
     unidade: "% ao mês"
     periodicidade: M
-    bloco: mercado_credito
+    aba: mercado_credito
+    segmento: ambos
     # Código conferido pelos dados (07/2026 = 0,07%, o IPCA do mês). O portal de dados
     # abertos não devolve o pacote desta série na busca por código, então `nome_oficial`
     # fica nulo em _validacao.json e a planilha usa a descrição acima.

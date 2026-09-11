@@ -122,12 +122,34 @@ Cada gráfico traz: título, subtítulo com unidade e período, fonte explícita
 última observação e botão de download. Sem sombras, sem gradientes, sem arredondamento
 decorativo — o padrão é sóbrio e institucional.
 
-**Layout em duas colunas (decisão de 02/09/2026).** Os gráficos de um bloco vão numa grade
-de duas colunas; um gráfico sozinho na última linha ocupa a largura inteira. Abaixo de
-900px a grade volta a uma coluna. Os cartões de uma mesma linha alinham título, subtítulo,
-nota, área de gráfico e meta por `subgrid` — por isso o cartão tem sempre cinco filhos, com
-o vão da nota presente mesmo vazio. Quem mexer nessa estrutura em `app.js` precisa manter a
-contagem, senão as curvas de dois gráficos vizinhos deixam de ficar na mesma altura.
+**Layout em duas colunas (decisão de 02/09/2026).** Dentro de uma aba, os gráficos vão
+numa grade de duas colunas; um gráfico sozinho na última linha ocupa a largura inteira.
+Abaixo de 900px a grade volta a uma coluna. Os cartões de uma mesma linha alinham título,
+subtítulo, nota, área de gráfico e meta por `subgrid` — por isso o cartão tem sempre cinco
+filhos, com o vão da nota presente mesmo vazio. Quem mexer nessa estrutura em `app.js`
+precisa manter a contagem, senão as curvas de dois gráficos vizinhos deixam de ficar na
+mesma altura.
+
+**Abas e filtro de segmento (decisão de 11/09/2026).** A página deixou de empilhar todos
+os gráficos numa página contínua: agora é organizada em abas (`config/abas.yaml`, antigo
+`blocos.yaml`), uma de cada vez, trocadas por `app.js` sem recarregar. Dentro de cada aba
+há um filtro Família / Empresas / Ambos. Quem alimenta esse filtro é o campo `segmento`
+(`familia`, `empresa` ou `ambos`) de cada série, declarado junto do código em
+`config/series_bcb.yaml`, `config/series_fred.yaml` e `config/derivadas.yaml` — nunca
+inferido no front. `build_dataset.py` falha o build se um gráfico citar série sem
+`segmento` (`confere_segmento`). Um gráfico cujas séries fiquem todas fora do filtro
+escolhido não aparece; se a aba inteira ficar sem gráfico, uma mensagem genérica avisa.
+Série tagueada `ambos` (um total ou agregado, como o SFN inteiro) aparece nos dois filtros
+específicos além de em "Ambos" — ela é referência válida nos dois recortes, não pertence
+a nenhum dos dois com exclusividade.
+
+A instância do ECharts de cada gráfico só é criada quando a aba abre pela primeira vez
+(medir a largura de um elemento `hidden` dá zero); trocar o filtro depois só chama
+`setOption` nas instâncias que já existem. E como o filtro pode ocultar cartões no meio da
+grade, "gráfico sozinho na última linha ocupa a largura inteira" deixou de ser um seletor
+CSS por posição (`:nth-child`/`:last-child` contam os irmãos ocultos) e passou a ser uma
+classe (`.grafico--linha-inteira`) que `app.js` aplica sobre os cartões visíveis, a cada
+troca de filtro.
 
 ## Convenções de código
 

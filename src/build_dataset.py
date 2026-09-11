@@ -52,7 +52,7 @@ from comum import (
     PAUSA,
     agora_brasilia,
     agora_iso,
-    carrega_blocos,
+    carrega_abas,
     carrega_catalogo,
     carrega_env,
     carrega_metodologia,
@@ -269,10 +269,10 @@ def monta_payload(
     catalogo: dict[str, dict],
     base_deflator: str | None = None,
 ) -> dict:
-    """Monta o payload que a página consome: blocos, gráficos, séries e procedência."""
+    """Monta o payload que a página consome: abas, gráficos, séries e procedência."""
     estados = {m["serie_id"]: m for m in manifesto}
-    config = carrega_blocos()
-    blocos_cfg = config["blocos"]
+    config = carrega_abas()
+    abas_cfg = config["abas"]
 
     series = {}
     for serie_id, payload in payloads.items():
@@ -289,6 +289,9 @@ def monta_payload(
             # Só séries derivadas têm `calculo`: a página mostra a regra de cálculo no
             # lugar da linha de procedência de fonte.
             "calculo": cfg.get("calculo"),
+            # Família, empresa ou ambos — alimenta o filtro por segmento de cada aba no
+            # front. `confere_segmento` falha o build se faltar numa série referenciada.
+            "segmento": cfg.get("segmento"),
             "status": entrada["status"],
             "coletado_em": entrada["coletado_em"],
             "inicio": entrada["inicio"],
@@ -297,10 +300,10 @@ def monta_payload(
             "obs": payload["obs"],
         }
 
-    blocos = []
-    for bloco in blocos_cfg:
+    abas = []
+    for aba in abas_cfg:
         graficos = []
-        for grafico in bloco.get("graficos", []):
+        for grafico in aba.get("graficos", []):
             presentes = [s for s in grafico["series"] if s in series]
             if not presentes:
                 continue
@@ -313,12 +316,12 @@ def monta_payload(
                     "unidade": derivadas.aplica_marcador(grafico["unidade"], base_deflator),
                 }
             )
-        blocos.append(
+        abas.append(
             {
-                "id": bloco["id"],
-                "titulo": bloco["titulo"],
-                "subtitulo": bloco.get("subtitulo", ""),
-                "nota_metodologica": bloco.get("nota_metodologica"),
+                "id": aba["id"],
+                "titulo": aba["titulo"],
+                "subtitulo": aba.get("subtitulo", ""),
+                "nota_metodologica": aba.get("nota_metodologica"),
                 "graficos": graficos,
             }
         )
@@ -333,7 +336,7 @@ def monta_payload(
         "recorte": config.get("recorte", {}),
         # Texto humano de content/, transportado sem alteração.
         "metodologia": carrega_metodologia(),
-        "blocos": blocos,
+        "abas": abas,
         "series": series,
     }
 
@@ -391,7 +394,7 @@ def catalogo_completo() -> dict[str, dict]:
     Catálogo inteiro, independentemente das fontes coletadas nesta execução.
 
     As verificações de configuração precisam disto: rodar `--fonte bcb` não torna as
-    séries do FRED citadas em blocos.yaml inexistentes.
+    séries do FRED citadas em abas.yaml inexistentes.
     """
     series: dict[str, dict] = {}
     for arquivo in list(CATALOGOS.values()) + [CATALOGO_DERIVADAS]:
@@ -401,13 +404,13 @@ def catalogo_completo() -> dict[str, dict]:
 
 
 def confere_referencias(catalogo: dict[str, dict]) -> list[str]:
-    """Aponta séries citadas em blocos.yaml que não existem no catálogo de séries."""
+    """Aponta séries citadas em abas.yaml que não existem no catálogo de séries."""
     faltantes = []
-    for bloco in carrega_blocos()["blocos"]:
-        for grafico in bloco.get("graficos", []):
+    for aba in carrega_abas()["abas"]:
+        for grafico in aba.get("graficos", []):
             for serie_id in grafico["series"]:
                 if serie_id not in catalogo:
-                    faltantes.append(f"{bloco['id']}/{grafico['titulo']}: {serie_id}")
+                    faltantes.append(f"{aba['id']}/{grafico['titulo']}: {serie_id}")
     return faltantes
 
 
@@ -417,21 +420,43 @@ def confere_brasil_primeiro(catalogo: dict[str, dict]) -> list[str]:
 
     A regra de identidade visual manda o Brasil na primeira cor da paleta (`--serie-1`,
     o azul institucional). O front atribui cor pela ordem das séries no gráfico, então a
-    regra se cumpre pela ordenação em blocos.yaml. Esta verificação existe para que ela
+    regra se cumpre pela ordenação em abas.yaml. Esta verificação existe para que ela
     não dependa de alguém lembrar: quem inverter a ordem quebra o build, não a página.
     """
     problemas = []
-    for bloco in carrega_blocos()["blocos"]:
-        for grafico in bloco.get("graficos", []):
+    for aba in carrega_abas()["abas"]:
+        for grafico in aba.get("graficos", []):
             paises = [catalogo.get(s, {}).get("pais") for s in grafico["series"]]
             if "BR" not in paises or paises[0] == "BR":
                 continue
             posicao = paises.index("BR")
             problemas.append(
-                f"{bloco['id']}/{grafico['titulo']}: a série do Brasil "
+                f"{aba['id']}/{grafico['titulo']}: a série do Brasil "
                 f"({grafico['series'][posicao]}) está na posição {posicao + 1} e "
                 "precisa ser a primeira, para receber a primeira cor da paleta"
             )
+    return problemas
+
+
+def confere_segmento(catalogo: dict[str, dict]) -> list[str]:
+    """
+    Garante que toda série citada em algum gráfico tenha `segmento` definido.
+
+    O filtro Família / Empresas / Ambos do front decide o que mostrar a partir desse
+    campo. Série sem `segmento` ficaria sempre invisível nos dois filtros específicos
+    (nunca bate `familia` nem `empresa`) sem que o build avisasse — por isso falha aqui,
+    e não em silêncio na página.
+    """
+    problemas = []
+    for aba in carrega_abas()["abas"]:
+        for grafico in aba.get("graficos", []):
+            for serie_id in grafico["series"]:
+                segmento = catalogo.get(serie_id, {}).get("segmento")
+                if segmento not in ("familia", "empresa", "ambos"):
+                    problemas.append(
+                        f"{aba['id']}/{grafico['titulo']}: {serie_id} tem "
+                        f"segmento={segmento!r}, precisa ser familia, empresa ou ambos"
+                    )
     return problemas
 
 
@@ -459,7 +484,7 @@ def main() -> int:
 
     faltantes = confere_referencias(completo)
     if faltantes:
-        print("\nFALHA — blocos.yaml cita série inexistente no catálogo:")
+        print("\nFALHA — abas.yaml cita série inexistente no catálogo:")
         for f in faltantes:
             print(f"  {f}")
         return 1
@@ -469,6 +494,13 @@ def main() -> int:
         print("\nFALHA — identidade visual: Brasil não está na primeira posição.")
         for p in fora_de_ordem:
             print(f"  {p}")
+        return 1
+
+    sem_segmento = confere_segmento(completo)
+    if sem_segmento:
+        print("\nFALHA — série em gráfico sem `segmento` (familia/empresa/ambos) no catálogo:")
+        for s in sem_segmento:
+            print(f"  {s}")
         return 1
 
     # Os artefatos são sempre escritos: uma série problemática não impede a atualização

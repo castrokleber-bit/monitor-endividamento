@@ -4,7 +4,7 @@ Gera a planilha pública a partir de `data/series.parquet`.
 Estrutura da pasta:
   Leia-me       procedência, abrangência das fontes e a ressalva BIS × SFN
   Dicionário    uma linha por série: nome oficial, código na fonte, unidade, cobertura
-  <bloco>       uma aba por bloco temático, datas em linhas e séries em colunas
+  <aba>         uma aba por aba temática da página, datas em linhas e séries em colunas
   dados_longo   o formato canônico inteiro, para quem for reprocessar
 
 A planilha é gerada, nunca editada à mão. Copiada para `docs/` porque o GitHub Pages
@@ -27,7 +27,7 @@ import pandas as pd
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 
-from comum import CONFIG, DATA, DOCS, carrega_blocos, carrega_catalogo
+from comum import CONFIG, DATA, DOCS, carrega_abas, carrega_catalogo
 
 ARQUIVO = "monitor_endividamento.xlsx"
 
@@ -54,7 +54,7 @@ LEIA_ME = [
         "BIS (via FRED)",
         "Cobre crédito ao setor de todas as fontes — bancos domésticos, mercado de capitais "
         "e credores externos. Os níveis são estruturalmente mais altos que os do SFN e NÃO "
-        "são comparáveis com as abas do bloco Brasil.",
+        "são comparáveis com as demais abas, que cobrem o SFN.",
     ),
     ("", ""),
     (
@@ -73,8 +73,8 @@ LEIA_ME = [
 
 
 def _catalogo_completo() -> dict[str, dict]:
-    # `derivadas.yaml` entra aqui para que as séries calculadas apareçam na aba do bloco
-    # e no Dicionário, ao lado das coletadas.
+    # `derivadas.yaml` entra aqui para que as séries calculadas apareçam na aba da
+    # página e no Dicionário, ao lado das coletadas.
     series = {}
     for arquivo in ("series_bcb.yaml", "series_fred.yaml", "derivadas.yaml"):
         for serie in carrega_catalogo(arquivo)["series"]:
@@ -153,7 +153,7 @@ def main() -> int:
     df = pd.read_parquet(caminho_parquet)
     manifesto = json.loads((DATA / "manifest.json").read_text(encoding="utf-8"))
     catalogo = _catalogo_completo()
-    blocos = carrega_blocos()["blocos"]
+    abas = carrega_abas()["abas"]
 
     destino = DATA / ARQUIVO
     with pd.ExcelWriter(destino, engine="openpyxl") as writer:
@@ -172,16 +172,17 @@ def main() -> int:
         _largura(writer.sheets["Dicionário"], [38, 96, 12, 16, 14, 14, 20, 20])
         _cabecalho(writer.sheets["Dicionário"])
 
-        for bloco in blocos:
-            ids = [s["serie_id"] for s in catalogo.values() if s.get("bloco") == bloco["id"]]
+        for aba in abas:
+            ids = [s["serie_id"] for s in catalogo.values() if s.get("aba") == aba["id"]]
             ids = [i for i in ids if i in set(df["serie_id"])]
             if not ids:
                 continue
-            # `aba` explícita em blocos.yaml; sem ela, corta no limite do Excel.
-            aba = (bloco.get("aba") or bloco["titulo"])[:31]
-            para_largo(df, ids).to_excel(writer, sheet_name=aba, index=False)
-            _largura(writer.sheets[aba], [12] + [26] * len(ids))
-            _cabecalho(writer.sheets[aba])
+            # Título da aba truncado no limite do Excel (31 caracteres); nenhum título
+            # de abas.yaml chega perto disso hoje.
+            nome_aba = aba["titulo"][:31]
+            para_largo(df, ids).to_excel(writer, sheet_name=nome_aba, index=False)
+            _largura(writer.sheets[nome_aba], [12] + [26] * len(ids))
+            _cabecalho(writer.sheets[nome_aba])
 
         longo = df.copy()
         longo["data"] = longo["data"].dt.date
