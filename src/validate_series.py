@@ -46,6 +46,12 @@ FRED_META = "https://api.stlouisfed.org/fred/series"
 TIMEOUT = 30
 PAUSA = 0.7  # intervalo mínimo entre chamadas — o SGS devolve 429 sob rajada
 
+# Tentativas por série diante do erro MASCARADO do SGS (status 200 com corpo que não é
+# JSON, ou lista vazia). Ver `_observacao_mais_recente`. Três é o suficiente para
+# atravessar uma rajada sem transformar o gate numa espera longa: com o backoff de
+# PAUSA x 2^n, o pior caso por série é cerca de quatro segundos.
+TENTATIVAS_VALIDACAO = 3
+
 
 def _get(url: str, **kwargs) -> requests.Response:
     """
@@ -61,26 +67,58 @@ def _get(url: str, **kwargs) -> requests.Response:
 # ---------------------------------------------------------------- BCB / SGS
 
 
+def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None]:
+    """
+    Última observação da série, com retry sobre o erro MASCARADO do SGS.
+
+    `comum.http_get` já repete em 429 e em 5xx, mas não tem como repetir no caso que
+    mais aparece quando a API está sob carga: status 200 com corpo que não é JSON, ou
+    com a lista vazia. Para ele, aquilo foi uma resposta bem-sucedida.
+
+    Isso derrubou o build em 19/09/2026: dezesseis séries consecutivas falharam com
+    "resposta não é JSON" numa execução, e as mesmas dezesseis tinham passado na execução
+    anterior e passavam localmente — a API do BCB estava instável naquele momento. O gate
+    agiu certo ao não publicar, mas reprovar um catálogo inteiro por uma rajada, quando a
+    política declarada do projeto é retry com backoff, é fragilidade e não rigor.
+
+    O que NÃO é repetido: 406, que é código inexistente. Aí não há o que esperar. E se o
+    erro mascarado persistir nas três tentativas, a série reprova do mesmo jeito — o gate
+    continua com dentes.
+
+    Devolve (observação, erro). Um dos dois é None.
+    """
+    ultimo_erro = "sem resposta"
+    for tentativa in range(TENTATIVAS_VALIDACAO):
+        resp = _get(SGS_DADOS.format(codigo=codigo, n=1))
+        if resp.status_code == 406:
+            return None, "406 — código inexistente ou inválido no SGS"
+        if resp.status_code != 200:
+            ultimo_erro = f"HTTP {resp.status_code}"
+        else:
+            try:
+                dados = resp.json()
+            except ValueError:
+                # o SGS devolve página HTML de erro com status 200 quando está sob carga
+                ultimo_erro = "resposta não é JSON (provável erro mascarado)"
+                dados = None
+            else:
+                if isinstance(dados, list) and dados:
+                    return dados[-1], None
+                ultimo_erro = "série sem observações"
+
+        if tentativa < TENTATIVAS_VALIDACAO - 1:
+            time.sleep(PAUSA * 2 ** (tentativa + 1))
+
+    return None, ultimo_erro
+
+
 def valida_bcb(serie: dict) -> dict:
     codigo = serie["codigo"]
     res = {"serie_id": serie["serie_id"], "fonte": "BCB/SGS", "codigo": codigo}
 
-    resp = _get(SGS_DADOS.format(codigo=codigo, n=1))
-    if resp.status_code == 406:
-        return {**res, "ok": False, "erro": "406 — código inexistente ou inválido no SGS"}
-    if resp.status_code != 200:
-        return {**res, "ok": False, "erro": f"HTTP {resp.status_code}"}
-
-    try:
-        dados = resp.json()
-    except ValueError:
-        # o SGS às vezes devolve página HTML de erro com status 200
-        return {**res, "ok": False, "erro": "resposta não é JSON (provável erro mascarado)"}
-
-    if not isinstance(dados, list) or not dados:
-        return {**res, "ok": False, "erro": "série sem observações"}
-
-    ultima = dados[-1]
+    ultima, erro = _observacao_mais_recente(codigo)
+    if erro is not None:
+        return {**res, "ok": False, "erro": erro}
     res.update(
         {
             "ok": True,

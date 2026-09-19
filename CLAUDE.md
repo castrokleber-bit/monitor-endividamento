@@ -120,7 +120,13 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
   separador decimal é vírgula. Sempre `.replace(".", "").replace(",", ".")` antes do cast.
 - `406` = série inexistente ou parâmetro inválido. `429` = rajada. Usar retry com backoff
   exponencial e intervalo mínimo entre chamadas.
-- Resposta pode vir como HTML de erro com status 200. Validar que o payload é lista de dicts.
+- Resposta pode vir como HTML de erro com status 200. Validar que o payload é lista de
+  dicts — e REPETIR, porque esse é o sinal de que a API está sob carga, não de que o
+  código está errado. `comum.http_get` não consegue fazer isso sozinho: para ele, 200 foi
+  sucesso. Quem repete é quem sabe o formato esperado — `validate_series` tem retry
+  próprio com backoff, e `fetch_bcb` cai para janelas de data. Em 19/09/2026, sem esse
+  retry, uma instabilidade momentânea do BCB reprovou dezesseis séries consecutivas que
+  haviam passado minutos antes, e derrubou o build inteiro.
 - **Há série que RECUSA a consulta sem intervalo.** Descoberto em 19/09/2026 na série
   27703: a consulta aberta devolve `{"erro":{}}` com status 200, e `/dados/ultimos/N`
   responde 400 para N maior que 20; com `dataInicial`/`dataFinal` ela entrega os 175

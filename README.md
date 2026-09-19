@@ -125,8 +125,14 @@ JSON lido por `fetch()`: sob `file://` o navegador bloqueia `fetch()` de arquivo
 | `docs/dados.js` | payload embutido que a página consome |
 | `docs/monitor_endividamento.xlsx` | planilha pública (cópia de `data/`) |
 
-`validate_series.py` sai com código 1 se qualquer série falhar. O workflow do GitHub Actions
-usa isso como gate: dado não sobe se um código estiver quebrado.
+`validate_series.py` sai com código 1 se qualquer série falhar. O workflow do GitHub
+Actions usa isso como gate: dado não sobe se um código estiver quebrado.
+
+O gate repete até três vezes, com backoff, diante do erro mascarado do SGS — status 200
+com corpo que não é JSON, que é como a API responde sob carga. Não repete 406, que é
+código inexistente, e continua reprovando se o erro persistir. A política existe porque
+em 19/09/2026 uma instabilidade momentânea do BCB reprovou dezesseis séries que haviam
+passado minutos antes.
 
 ## Política de falha na coleta
 
