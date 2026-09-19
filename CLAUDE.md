@@ -240,8 +240,8 @@ R$ 11 a R$ 259 bilhões viravam uma faixa colada no zero.
 ## O que exige decisão humana — sinalizar, não executar
 
 - Publicar o repositório (o job `publica` só roda com a variável de repositório
-  `PUBLICAR_PAGES=true`). O *go live* da página foi autorizado em 19/09/2026 e a variável
-  está ligada; desligá-la de novo também é decisão humana.
+  `PUBLICAR_PAGES=true`, ligada desde 30/08/2026). O *go live* da página foi autorizado
+  em 19/09/2026; desligar a publicação de novo também é decisão humana.
 - Reintroduzir qualquer atribuição institucional — nome, sigla, assinatura ou marca.
 - Incluir série cuja metodologia não esteja documentada em fonte oficial.
 - Construir indicador derivado (ex.: proxy de alavancagem) sem nota metodológica escrita.

@@ -146,7 +146,8 @@ cobertura.
 ## Publicação
 
 A página está no ar em <https://castrokleber-bit.github.io/monitor-endividamento/>,
-publicada por decisão de 19/09/2026.
+publicada por decisão de 19/09/2026. A variável `PUBLICAR_PAGES` já estava ligada desde
+30/08/2026 e *Pages → Source* já estava em *GitHub Actions*.
 
 O job `publica` do workflow só roda se existir a variável de repositório
 `PUBLICAR_PAGES` com valor `true`. Ligar ou desligar a publicação é, por construção, um
@@ -170,8 +171,17 @@ rotulada `pipeline`.
       identidades contábeis do build, que são teste mais forte que um nome
 - [x] `content/metodologia.md` com um parágrafo por série incluída — as séries do
       catálogo aparecem citadas pelo código na fonte
-- [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório)
-- [ ] Rotacionar a chave do FRED antes de tornar o repositório público
+- [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório) — é o que o
+      workflow usa, via `secrets.FRED_API_KEY`
+- [ ] **Apagar a variável de repositório `FRED_API_KEY`.** Além do Secret, existe uma
+      *variável* de mesmo nome com a chave em texto claro, criada em 30/08/2026. Variável
+      de Actions não é criptografada e a própria documentação do GitHub diz para não
+      guardar segredo nela; ela não é legível sem autenticação, mas é visível a qualquer
+      colaborador e a qualquer workflow do repositório. O workflow não a usa. Rotacionar
+      a chave no FRED e apagar a variável em *Settings → Secrets and variables → Actions
+      → Variables*
+- [ ] ~~Rotacionar a chave do FRED antes de tornar o repositório público~~ — o
+      repositório já é público; ver o item acima
 - [ ] Se a atribuição institucional for retomada, validá-la com quem de direito antes de
       voltar a citar qualquer entidade na página, na planilha e nos tokens de cor
 
