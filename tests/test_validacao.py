@@ -98,13 +98,34 @@ class TestRetryDoErroMascarado(unittest.TestCase):
         self.assertEqual(get.call_count, 1)
         self.sleep.assert_not_called()
 
-    def test_backoff_cresce_entre_tentativas(self):
+    def test_backoff_cresce_e_dura_o_bastante_para_atravessar_throttling(self):
+        """
+        A espera total por série problemática tem de ficar numa faixa útil.
+
+        Curta demais não adianta: com 1,4s + 2,8s, sete séries ainda reprovaram com
+        HTTP 400 em 19/09/2026 porque o estrangulamento do SGS dura mais que isso.
+        Longa demais transforma o gate numa espera interminável quando a fonte está
+        realmente fora do ar — e aí o certo é reprovar rápido e avisar.
+        """
         with self._com_respostas([MASCARADO] * validate_series.TENTATIVAS_VALIDACAO):
             validate_series.valida_bcb(SERIE)
         esperas = [c.args[0] for c in self.sleep.call_args_list]
         self.assertEqual(len(esperas), validate_series.TENTATIVAS_VALIDACAO - 1)
         self.assertEqual(esperas, sorted(esperas))
-        self.assertLess(sum(esperas), 10)  # o gate não pode virar uma espera longa
+        self.assertEqual(len(set(esperas)), len(esperas))  # estritamente crescente
+        self.assertGreaterEqual(sum(esperas), 10)
+        self.assertLessEqual(sum(esperas), 30)
+
+    def test_http_400_e_repetido(self):
+        """
+        O SGS estrangula rajada longa com 400, não só com 429.
+
+        `comum.http_get` não repete 400 — para uma biblioteca HTTP genérica, 400 é erro
+        do cliente. Quem sabe que ali é throttling é este módulo.
+        """
+        with self._com_respostas([RespostaFalsa(400), BOM]) as get:
+            self.assertTrue(validate_series.valida_bcb(SERIE)["ok"])
+        self.assertEqual(get.call_count, 2)
 
 
 if __name__ == "__main__":

@@ -122,8 +122,20 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
 - Recusa intervalos maiores que **10 anos** em séries diárias — paginar por janelas.
 - Datas vêm como `dd/MM/yyyy` (string). Valores vêm como string; em algumas séries o
   separador decimal é vírgula. Sempre `.replace(".", "").replace(",", ".")` antes do cast.
-- `406` = série inexistente ou parâmetro inválido. `429` = rajada. Usar retry com backoff
-  exponencial e intervalo mínimo entre chamadas.
+- `406` = série inexistente ou parâmetro inválido. **Sob carga, o SGS responde de três
+  maneiras diferentes, e todas significam a mesma coisa — "estou estrangulando você":**
+  `429`, `400`, e `200` com página HTML no corpo. Nenhuma delas `comum.http_get` trata
+  sozinho (ele só repete 429 e 5xx), então quem repete é quem conhece o formato esperado:
+  `validate_series._observacao_mais_recente` e `fetch_bcb._pede_json`, com espera de
+  2s, 4s e 8s. Backoff curto não vence throttling — em 19/09/2026, com 1,4s e 2,8s,
+  sete séries ainda reprovaram com 400.
+- **A assinatura de estrangulamento é o BLOCO CONTÍGUO.** Quando falham séries vizinhas
+  na ordem do catálogo, e as mesmas passavam minutos antes, é a fonte e não o código.
+  Código errado falha sozinho e falha sempre.
+- **O ritmo importa e mudou com o tamanho do catálogo.** Com 42 séries, 0,7s entre
+  chamadas bastava. Com 108, a validação virou 103 requisições em rajada contínua e
+  passou a ser recusada; `validate_series.PAUSA` subiu para 1,2s. Quem acrescentar muitas
+  séries de uma vez precisa reavaliar isso.
 - Resposta pode vir como HTML de erro com status 200. Validar que o payload é lista de
   dicts — e REPETIR, porque esse é o sinal de que a API está sob carga, não de que o
   código está errado. `comum.http_get` não consegue fazer isso sozinho: para ele, 200 foi

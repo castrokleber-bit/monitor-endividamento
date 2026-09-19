@@ -44,9 +44,14 @@ FONTE = "BCB/SGS"
 ANO_INICIAL = 1980
 JANELA_ANOS = 9  # < 10 anos, com folga, porque o limite do SGS é exclusivo na borda
 
-# Tentativas por requisição diante do erro MASCARADO do SGS — status 200 com corpo que
-# não é JSON, ou que não é lista. Ver `_pede_json`.
-TENTATIVAS_PAYLOAD = 3
+# Tentativas por requisição diante de uma resposta que não serve — erro mascarado
+# (200 com corpo que não é JSON), 400, 5xx. Ver `_pede_json`.
+TENTATIVAS_PAYLOAD = 4
+
+# Espera antes de repetir, em segundos. Mesma progressão de `validate_series`, e pelo
+# mesmo motivo: o que importa é a duração total (~14s), suficiente para atravessar uma
+# janela de estrangulamento do SGS. Backoff curto não adianta contra throttling.
+ESPERAS_PAYLOAD = (2, 4, 8)
 
 _MILHAR = re.compile(r"^-?\d{1,3}(\.\d{3})+$")
 
@@ -158,6 +163,7 @@ def _pede_json(url: str, serie_id: str, onde: str) -> list | None:
         if resp.status_code == 406:
             raise ErroColeta(f"{serie_id}: 406 — código inexistente ou inválido no SGS")
         if resp.status_code != 200:
+            # Inclui 400, que o SGS usa para estrangular rajada longa — não só 429.
             ultimo = f"HTTP {resp.status_code}"
         else:
             try:
@@ -172,7 +178,7 @@ def _pede_json(url: str, serie_id: str, onde: str) -> list | None:
                 ultimo = "payload não é lista de observações"
 
         if tentativa < TENTATIVAS_PAYLOAD - 1:
-            time.sleep(PAUSA * 2 ** (tentativa + 1))
+            time.sleep(ESPERAS_PAYLOAD[tentativa])
 
     raise ErroColeta(f"{serie_id}: {ultimo} em {onde}")
 

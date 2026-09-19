@@ -44,13 +44,24 @@ SGS_DADOS = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimo
 FRED_META = "https://api.stlouisfed.org/fred/series"
 
 TIMEOUT = 30
-PAUSA = 0.7  # intervalo mínimo entre chamadas — o SGS devolve 429 sob rajada
 
-# Tentativas por série diante do erro MASCARADO do SGS (status 200 com corpo que não é
-# JSON, ou lista vazia). Ver `_observacao_mais_recente`. Três é o suficiente para
-# atravessar uma rajada sem transformar o gate numa espera longa: com o backoff de
-# PAUSA x 2^n, o pior caso por série é cerca de quatro segundos.
-TENTATIVAS_VALIDACAO = 3
+# Intervalo entre chamadas. Subiu de 0,7s para 1,2s em 19/09/2026, junto com o catálogo
+# que foi de 42 para 108 séries: a validação passou de ~35 para 103 requisições em
+# rajada contínua, e o ritmo que servia para a lista curta passou a ser recusado. O SGS
+# tolera rajada curta e estrangula rajada longa.
+PAUSA = 1.2
+
+# Tentativas por série diante de uma resposta que não serve — erro mascarado (200 com
+# corpo que não é JSON), 400, 5xx ou falha de rede. Ver `_observacao_mais_recente`.
+TENTATIVAS_VALIDACAO = 4
+
+# Espera antes de repetir, em segundos. Progressão explícita em vez de fórmula porque o
+# que importa aqui é a duração TOTAL: ~14s por série problemática, o bastante para
+# atravessar uma janela de estrangulamento do SGS. A versão anterior esperava 1,4s e
+# 2,8s, curto demais — em 19/09/2026 sete séries reprovaram com HTTP 400 mesmo depois
+# das tentativas, todas num bloco contíguo do catálogo, que é a assinatura de throttling
+# e não de código errado.
+ESPERAS_VALIDACAO = (2, 4, 8)
 
 
 def _get(url: str, **kwargs) -> requests.Response:
@@ -69,21 +80,24 @@ def _get(url: str, **kwargs) -> requests.Response:
 
 def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None]:
     """
-    Última observação da série, com retry sobre o erro MASCARADO do SGS.
+    Última observação da série, com retry sobre tudo o que o SGS faz sob carga.
 
-    `comum.http_get` já repete em 429 e em 5xx, mas não tem como repetir no caso que
-    mais aparece quando a API está sob carga: status 200 com corpo que não é JSON, ou
-    com a lista vazia. Para ele, aquilo foi uma resposta bem-sucedida.
+    São três respostas diferentes para a mesma coisa — "estou estrangulando você" — e
+    nenhuma delas `comum.http_get` consegue tratar sozinho:
 
-    Isso derrubou o build em 19/09/2026: dezesseis séries consecutivas falharam com
-    "resposta não é JSON" numa execução, e as mesmas dezesseis tinham passado na execução
-    anterior e passavam localmente — a API do BCB estava instável naquele momento. O gate
-    agiu certo ao não publicar, mas reprovar um catálogo inteiro por uma rajada, quando a
-    política declarada do projeto é retry com backoff, é fragilidade e não rigor.
+      200 com HTML no corpo   para ele, 200 foi sucesso
+      400                     para uma biblioteca HTTP genérica, 400 é erro do cliente
+      read timeout            ele repete, mas levanta RuntimeError ao esgotar
 
-    O que NÃO é repetido: 406, que é código inexistente. Aí não há o que esperar. E se o
-    erro mascarado persistir nas três tentativas, a série reprova do mesmo jeito — o gate
-    continua com dentes.
+    As três apareceram em 19/09/2026, em execuções seguidas, sempre em BLOCOS CONTÍGUOS
+    do catálogo — que é a assinatura de estrangulamento, não de código errado: as mesmas
+    séries passavam minutos antes e passavam localmente. O gate agiu certo ao não
+    publicar, mas reprovar um catálogo inteiro por uma rajada, quando a política
+    declarada do projeto é retry com backoff, é fragilidade e não rigor.
+
+    O que NÃO é repetido: 406, que é código inexistente — aí não há o que esperar. E se o
+    erro persistir nas quatro tentativas, a série reprova do mesmo jeito: o gate continua
+    com dentes.
 
     Devolve (observação, erro). Um dos dois é None.
     """
@@ -100,12 +114,15 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
             # é um acidente.
             ultimo_erro = f"falha de rede: {exc}"
             if tentativa < TENTATIVAS_VALIDACAO - 1:
-                time.sleep(PAUSA * 2 ** (tentativa + 1))
+                time.sleep(ESPERAS_VALIDACAO[tentativa])
             continue
 
         if resp.status_code == 406:
             return None, "406 — código inexistente ou inválido no SGS"
         if resp.status_code != 200:
+            # Inclui 400, que o SGS usa para estrangular rajada longa — não só 429, como
+            # o CLAUDE.md supunha. Repetir é o tratamento certo; `comum.http_get` não
+            # repete 400 porque, para uma biblioteca HTTP genérica, 400 é erro do cliente.
             ultimo_erro = f"HTTP {resp.status_code}"
         else:
             try:
@@ -120,7 +137,7 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
                 ultimo_erro = "série sem observações"
 
         if tentativa < TENTATIVAS_VALIDACAO - 1:
-            time.sleep(PAUSA * 2 ** (tentativa + 1))
+            time.sleep(ESPERAS_VALIDACAO[tentativa])
 
     return None, ultimo_erro
 
