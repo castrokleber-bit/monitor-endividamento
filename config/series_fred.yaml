@@ -28,6 +28,7 @@ series:
     codigo: QBRHAM770A
     pais: BR
     rotulo: "Brasil"
+    cor: total
     descricao_esperada: "Credit to Households and NPISHs, Brazil, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -39,6 +40,7 @@ series:
     codigo: QBRNAM770A
     pais: BR
     rotulo: "Brasil"
+    cor: total
     descricao_esperada: "Credit to Non-Financial Corporations, Brazil, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -50,6 +52,7 @@ series:
     codigo: QBRPAM770A
     pais: BR
     rotulo: "Brasil — setor privado não financeiro"
+    cor: total
     descricao_esperada: "Credit to Private Non-Financial Sector, Brazil, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -63,6 +66,7 @@ series:
     codigo: QUSHAM770A
     pais: US
     rotulo: "Estados Unidos"
+    cor: dir
     descricao_esperada: "Credit to Households and Non-Profit Institutions Serving Households, United States, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -74,6 +78,7 @@ series:
     codigo: QUSNAM770A
     pais: US
     rotulo: "Estados Unidos"
+    cor: dir
     descricao_esperada: "Credit to Non-Financial Corporations, United States, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -85,6 +90,7 @@ series:
     codigo: QMXHAM770A
     pais: MX
     rotulo: "México"
+    cor: extra-1
     descricao_esperada: "Credit to Households and NPISHs, Mexico, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -96,6 +102,7 @@ series:
     codigo: QMXNAM770A
     pais: MX
     rotulo: "México"
+    cor: extra-1
     descricao_esperada: "Credit to Non-Financial Corporations, Mexico, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -107,6 +114,7 @@ series:
     codigo: QCLHAM770A
     pais: CL
     rotulo: "Chile"
+    cor: extra-2
     descricao_esperada: "Credit to Households and NPISHs, Chile, % of GDP"
     unidade: "% do PIB"
     periodicidade: T
@@ -118,6 +126,7 @@ series:
     codigo: QCLNAM770A
     pais: CL
     rotulo: "Chile"
+    cor: extra-2
     descricao_esperada: "Credit to Non-Financial Corporations, Chile, % of GDP"
     unidade: "% do PIB"
     periodicidade: T

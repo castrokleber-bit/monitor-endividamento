@@ -32,6 +32,18 @@
 
 fonte: BCB/SGS
 
+# DADO PRELIMINAR. Nas tabelas de estatísticas monetárias e de crédito, o Banco Central
+# publica o mês mais recente marcado com asterisco: é preliminar e pode mudar na
+# divulgação seguinte. Não há como ler esse asterisco pela API — ele vive no PDF e na
+# planilha da divulgação —, então a marcação é feita por REGRA declarada, e não por
+# inferência: toda série cujo campo `tabela` comece com o prefixo abaixo tem a sua última
+# observação marcada como preliminar. O front desenha esse ponto com círculo vazado em
+# vez de preenchido, e a Metodologia explica.
+#
+# A regra se propaga às séries derivadas, e deve mesmo: um residual calculado sobre um
+# mês preliminar também é preliminar.
+prefixo_tabela_preliminar: "Tabela "
+
 # Âncora YAML reutilizada pelos saldos. Não é campo do catálogo.
 _bases_saldo: &bases_saldo [nominal, real, pib, var1m, var12m]
 
@@ -87,6 +99,7 @@ series:
   - serie_id: amplo_total
     codigo: 28183
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Crédito ampliado ao setor não financeiro - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -101,6 +114,7 @@ series:
   - serie_id: amplo_emprestimos
     codigo: 28184
     rotulo: "Empréstimos"
+    cor: extra-2
     descricao_esperada: "Crédito ampliado ao setor não financeiro - Empréstimos - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -114,6 +128,7 @@ series:
   - serie_id: amplo_titulos
     codigo: 28188
     rotulo: "Títulos de dívida"
+    cor: extra-1
     descricao_esperada: "Crédito ampliado ao setor não financeiro - Títulos de dívida - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -127,6 +142,7 @@ series:
   - serie_id: amplo_divida_externa
     codigo: 28192
     rotulo: "Dívida externa"
+    cor: extra-4
     descricao_esperada: "Crédito ampliado ao setor não financeiro - Dívida externa - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -145,6 +161,7 @@ series:
   - serie_id: amplo_emp_total
     codigo: 28846
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Crédito ampliado às empresas - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -159,6 +176,7 @@ series:
   - serie_id: amplo_emp_emprestimos
     codigo: 28847
     rotulo: "Empréstimos"
+    cor: extra-2
     descricao_esperada: "Crédito ampliado às empresas - Empréstimos - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -172,6 +190,7 @@ series:
   - serie_id: amplo_emp_titulos
     codigo: 28851
     rotulo: "Títulos de dívida"
+    cor: extra-1
     descricao_esperada: "Crédito ampliado às empresas - Títulos de dívida - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -185,6 +204,7 @@ series:
   - serie_id: amplo_emp_divida_externa
     codigo: 28854
     rotulo: "Dívida externa"
+    cor: extra-4
     descricao_esperada: "Crédito ampliado às empresas - Dívida externa"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -206,6 +226,7 @@ series:
   - serie_id: amplo_fam_total
     codigo: 28858
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Crédito ampliado às famílias - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -220,6 +241,7 @@ series:
   - serie_id: amplo_fam_emprestimos
     codigo: 28859
     rotulo: "Empréstimos"
+    cor: extra-2
     descricao_esperada: "Crédito ampliado às famílias - Empréstimos - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -235,6 +257,7 @@ series:
   - serie_id: amplo_fam_titulos
     codigo: 28863
     rotulo: "Títulos securitizados"
+    cor: extra-1
     descricao_esperada: "Crédito ampliado às famílias - Títulos securitizados"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -248,6 +271,7 @@ series:
   - serie_id: amplo_fam_divida_externa
     codigo: 28864
     rotulo: "Dívida externa"
+    cor: extra-4
     descricao_esperada: "Crédito ampliado às famílias - Dívida externa"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
@@ -278,6 +302,7 @@ series:
   - serie_id: sfn_total
     codigo: 20539
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Saldo da carteira de crédito - Total"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "R$ milhões"
@@ -292,6 +317,7 @@ series:
   - serie_id: sfn_direcionado
     codigo: 20593
     rotulo: "Recursos direcionados"
+    cor: dir
     descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Total"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "R$ milhões"
@@ -305,6 +331,7 @@ series:
   - serie_id: sfn_livre
     codigo: 20542
     rotulo: "Recursos livres"
+    cor: livre
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Total"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "R$ milhões"
@@ -318,6 +345,7 @@ series:
   - serie_id: sfn_pj
     codigo: 20540
     rotulo: "Pessoas jurídicas"
+    cor: pj
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total"
     tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
     unidade: "R$ milhões"
@@ -331,6 +359,7 @@ series:
   - serie_id: sfn_pf
     codigo: 20541
     rotulo: "Pessoas físicas"
+    cor: pf
     descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total"
     tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
     unidade: "R$ milhões"
@@ -344,6 +373,7 @@ series:
   - serie_id: sfn_direcionado_pj
     codigo: 20594
     rotulo: "Pessoas jurídicas"
+    cor: pj
     descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total"
     tabela: "Tabela 5 — Saldo da carteira de crédito direcionado"
     unidade: "R$ milhões"
@@ -357,6 +387,7 @@ series:
   - serie_id: sfn_direcionado_pf
     codigo: 20606
     rotulo: "Pessoas físicas"
+    cor: pf
     descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas físicas - Total"
     tabela: "Tabela 5 — Saldo da carteira de crédito direcionado"
     unidade: "R$ milhões"
@@ -370,6 +401,7 @@ series:
   - serie_id: sfn_livre_pj
     codigo: 20543
     rotulo: "Pessoas jurídicas"
+    cor: pj
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
     tabela: "Tabela 4 — Saldo da carteira de crédito livre"
     unidade: "R$ milhões"
@@ -384,6 +416,7 @@ series:
   - serie_id: sfn_livre_pf
     codigo: 20570
     rotulo: "Pessoas físicas"
+    cor: pf
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Total"
     tabela: "Tabela 4 — Saldo da carteira de crédito livre"
     unidade: "R$ milhões"
@@ -411,6 +444,7 @@ series:
   - serie_id: livre_pj_capital_giro_acima_365d
     codigo: 20548
     rotulo: "Capital de giro — acima de 365 dias"
+    cor: extra-1
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
@@ -424,6 +458,7 @@ series:
   - serie_id: livre_pj_capital_giro_ate_365d
     codigo: 20547
     rotulo: "Capital de giro — até 365 dias"
+    cor: extra-2
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
@@ -437,6 +472,7 @@ series:
   - serie_id: livre_pj_duplicatas
     codigo: 20544
     rotulo: "Desconto de duplicatas e recebíveis"
+    cor: extra-3
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e outros recebíveis"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
@@ -450,6 +486,7 @@ series:
   - serie_id: livre_pj_veiculos
     codigo: 20553
     rotulo: "Aquisição de veículos"
+    cor: extra-4
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Aquisição de veículos"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
@@ -463,6 +500,7 @@ series:
   - serie_id: livre_pj_exportacoes
     codigo: 20567
     rotulo: "Financiamento a exportações"
+    cor: extra-5
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Financiamento a exportações"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
@@ -476,6 +514,7 @@ series:
   - serie_id: livre_pj_acc
     codigo: 20565
     rotulo: "Adiantamento sobre contratos de câmbio"
+    cor: extra-6
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Adiantamento sobre contratos de câmbio (ACC)"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
@@ -497,6 +536,7 @@ series:
   - serie_id: livre_pf_consignado
     codigo: 20579
     rotulo: "Crédito consignado"
+    cor: extra-1
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal consignado total"
     tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
     unidade: "R$ milhões"
@@ -510,6 +550,7 @@ series:
   - serie_id: livre_pf_nao_consignado
     codigo: 20574
     rotulo: "Crédito não consignado"
+    cor: extra-2
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal não consignado total"
     tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
     unidade: "R$ milhões"
@@ -523,6 +564,7 @@ series:
   - serie_id: livre_pf_cartao
     codigo: 20590
     rotulo: "Cartão de crédito"
+    cor: extra-3
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Cartão de crédito total"
     tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
     unidade: "R$ milhões"
@@ -536,6 +578,7 @@ series:
   - serie_id: livre_pf_veiculos
     codigo: 20581
     rotulo: "Aquisição de veículos"
+    cor: extra-4
     descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Aquisição de veículos"
     tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
     unidade: "R$ milhões"
@@ -560,6 +603,7 @@ series:
   - serie_id: porte_mpme
     codigo: 27701
     rotulo: "Micro, pequenas e médias"
+    cor: extra-1
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Micro, pequena e média empresa"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "R$ milhões"
@@ -573,6 +617,7 @@ series:
   - serie_id: porte_grande
     codigo: 27702
     rotulo: "Grandes"
+    cor: extra-4
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Grande empresa"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "R$ milhões"
@@ -593,6 +638,7 @@ series:
   - serie_id: ativ_agropecuaria
     codigo: 22027
     rotulo: "Agropecuária"
+    cor: extra-2
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Agricultura, pecuária, produção florestal, pesca e aquicultura"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
@@ -606,6 +652,7 @@ series:
   - serie_id: ativ_industria
     codigo: 22043
     rotulo: "Indústria"
+    cor: extra-1
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Total"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
@@ -619,6 +666,7 @@ series:
   - serie_id: ativ_servicos
     codigo: 22044
     rotulo: "Serviços"
+    cor: extra-4
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Serviços - Total"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
@@ -632,6 +680,7 @@ series:
   - serie_id: ativ_outros
     codigo: 22042
     rotulo: "Outras atividades"
+    cor: outros
     descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Outros serviços"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
@@ -870,6 +919,7 @@ series:
   - serie_id: inad_sfn_total
     codigo: 21082
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Inadimplência da carteira de crédito - Total"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "%"
@@ -884,6 +934,7 @@ series:
   - serie_id: inad_sfn_direcionado
     codigo: 21132
     rotulo: "Recursos direcionados"
+    cor: dir
     descricao_esperada: "Inadimplência da carteira de crédito com recursos direcionados - Total"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "%"
@@ -897,6 +948,7 @@ series:
   - serie_id: inad_sfn_livre
     codigo: 21085
     rotulo: "Recursos livres"
+    cor: livre
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Total"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "%"
@@ -910,6 +962,7 @@ series:
   - serie_id: inad_sfn_pj
     codigo: 21083
     rotulo: "Pessoas jurídicas"
+    cor: pj
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
     tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
     unidade: "%"
@@ -923,6 +976,7 @@ series:
   - serie_id: inad_sfn_pf
     codigo: 21084
     rotulo: "Pessoas físicas"
+    cor: pf
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas físicas - Total"
     tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
     unidade: "%"
@@ -945,6 +999,7 @@ series:
   - serie_id: inad_livre_pj_total
     codigo: 21086
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -959,6 +1014,7 @@ series:
   - serie_id: inad_livre_pj_capital_giro_acima_365d
     codigo: 21091
     rotulo: "Capital de giro — acima de 365 dias"
+    cor: extra-1
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -972,6 +1028,7 @@ series:
   - serie_id: inad_livre_pj_capital_giro_ate_365d
     codigo: 21090
     rotulo: "Capital de giro — até 365 dias"
+    cor: extra-2
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -985,6 +1042,7 @@ series:
   - serie_id: inad_livre_pj_duplicatas
     codigo: 21087
     rotulo: "Desconto de duplicatas e recebíveis"
+    cor: extra-3
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e outros recebíveis"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -998,6 +1056,7 @@ series:
   - serie_id: inad_livre_pj_veiculos
     codigo: 21096
     rotulo: "Aquisição de veículos"
+    cor: extra-4
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Aquisição de veículos"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -1011,6 +1070,7 @@ series:
   - serie_id: inad_livre_pj_exportacoes
     codigo: 21109
     rotulo: "Financiamento a exportações"
+    cor: extra-5
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Financiamento a exportações"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -1024,6 +1084,7 @@ series:
   - serie_id: inad_livre_pj_acc
     codigo: 21107
     rotulo: "Adiantamento sobre contratos de câmbio"
+    cor: extra-6
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Adiantamento sobre contratos de câmbio (ACC)"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -1037,6 +1098,7 @@ series:
   - serie_id: inad_livre_pj_outros
     codigo: 21111
     rotulo: "Outras modalidades"
+    cor: outros
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Outros créditos livres"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
@@ -1055,6 +1117,7 @@ series:
   - serie_id: inad_livre_pf_total
     codigo: 21112
     rotulo: "Total"
+    cor: total
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Total"
     tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
     unidade: "%"
@@ -1069,6 +1132,7 @@ series:
   - serie_id: inad_livre_pf_consignado
     codigo: 21119
     rotulo: "Crédito consignado"
+    cor: extra-1
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal consignado total"
     tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
     unidade: "%"
@@ -1082,6 +1146,7 @@ series:
   - serie_id: inad_livre_pf_nao_consignado
     codigo: 21114
     rotulo: "Crédito não consignado"
+    cor: extra-2
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal não consignado total"
     tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
     unidade: "%"
@@ -1095,6 +1160,7 @@ series:
   - serie_id: inad_livre_pf_cartao
     codigo: 21129
     rotulo: "Cartão de crédito"
+    cor: extra-3
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cartão de crédito total"
     tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
     unidade: "%"
@@ -1108,6 +1174,7 @@ series:
   - serie_id: inad_livre_pf_veiculos
     codigo: 21121
     rotulo: "Aquisição de veículos"
+    cor: extra-4
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Aquisição de veículos"
     tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
     unidade: "%"
@@ -1121,6 +1188,7 @@ series:
   - serie_id: inad_livre_pf_outros
     codigo: 21131
     rotulo: "Outras modalidades"
+    cor: outros
     descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Outros créditos livres"
     tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
     unidade: "%"
@@ -1144,6 +1212,7 @@ series:
   - serie_id: inad_porte_mpme
     codigo: 27703
     rotulo: "Micro, pequenas e médias"
+    cor: extra-1
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Micro, pequena e média empresa"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "%"
@@ -1157,6 +1226,7 @@ series:
   - serie_id: inad_porte_grande
     codigo: 27704
     rotulo: "Grandes"
+    cor: extra-4
     descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Grande empresa"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "%"
@@ -1178,6 +1248,7 @@ series:
   - serie_id: endividamento_familias_total
     codigo: 29037
     rotulo: "Total"
+    cor: alerta
     descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
@@ -1191,6 +1262,7 @@ series:
   - serie_id: endividamento_familias_ex_habitacional
     codigo: 29038
     rotulo: "Exceto financiamento imobiliário"
+    cor: pf
     descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
@@ -1204,6 +1276,7 @@ series:
   - serie_id: comprometimento_renda_total
     codigo: 29034
     rotulo: "Total"
+    cor: alerta
     descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
@@ -1217,6 +1290,7 @@ series:
   - serie_id: comprometimento_renda_ex_habitacional
     codigo: 29035
     rotulo: "Exceto financiamento imobiliário"
+    cor: pf
     descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional exceto crédito habitacional - Com ajuste sazonal"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"

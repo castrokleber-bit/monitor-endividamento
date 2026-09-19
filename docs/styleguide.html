@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Folha de estilo — Monitor de Crédito e Endividamento</title>
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..700&amp;family=Hanken+Grotesk:wght@400..700&amp;display=swap">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Só o que é específico desta página de referência. O resto vem de style.css, de
+       propósito: se a folha de estilo viva precisasse de CSS próprio para parecer certa,
+       ela não estaria mostrando o site de verdade. */
+    .sg-secao { margin-bottom: var(--s-16); }
+    .sg-secao > h2 {
+      font-family: var(--f-titulo); font-size: var(--t-secao); font-weight: 600;
+      color: var(--ink); margin: 0 0 var(--s-2);
+    }
+    .sg-secao > p { color: var(--ink-2); max-width: var(--medida); margin: 0 0 var(--s-6); }
+    .sg-grade { display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    .sg-amostra {
+      border: 1px solid var(--line); border-radius: var(--r-btn);
+      background: var(--surface); overflow: hidden;
+    }
+    .sg-chapa { height: 64px; }
+    .sg-amostra dl { margin: 0; padding: var(--s-3); font-size: var(--t-eixo); }
+    .sg-amostra dt { color: var(--ink); font-weight: 600; }
+    .sg-amostra dd { margin: 2px 0 0; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .sg-linha { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; margin-bottom: var(--s-4); }
+    .sg-nota { color: var(--ink-3); font-size: var(--t-eixo); }
+    .sg-tipo { border-bottom: 1px solid var(--line); padding: var(--s-4) 0; }
+    .sg-tipo:last-child { border-bottom: none; }
+    .sg-tipo small { display: block; color: var(--ink-3); font-size: var(--t-eixo); margin-bottom: var(--s-1); }
+    .sg-traco { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-3); font-size: var(--t-eixo); color: var(--ink-2); }
+    .sg-traco i { display: block; width: 120px; border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="pagina">
+
+  <header class="cabecalho">
+    <div class="cabecalho__topo">
+      <h1 class="cabecalho__titulo">Folha de estilo</h1>
+      <a class="link-discreto" href="index.html">Voltar ao monitor</a>
+    </div>
+    <p class="cabecalho__linha">
+      Referência viva dos tokens do Monitor de Crédito e Endividamento. Tudo nesta página
+      lê <code>tokens.css</code> e <code>style.css</code>, os mesmos do site — inclusive o
+      modo escuro, que segue a preferência do sistema.
+    </p>
+  </header>
+
+  <section class="sg-secao">
+    <h2>Paleta</h2>
+    <p>
+      A cor identifica, não decora. Cada token tem papel fixo: uma série que aparece em
+      vários gráficos tem a mesma cor em todos, e o papel é declarado no catálogo, nunca
+      derivado da posição da série no gráfico.
+    </p>
+    <div class="sg-grade" id="sg-cores"></div>
+  </section>
+
+  <section class="sg-secao">
+    <h2>Tipografia</h2>
+    <p>
+      Duas famílias: Bricolage Grotesque nos títulos, Hanken Grotesk no texto e em todo
+      número. Números sempre com <code>tabular-nums</code>, para alinharem em coluna.
+    </p>
+    <div id="sg-tipos"></div>
+  </section>
+
+  <section class="sg-secao">
+    <h2>Controles</h2>
+    <p>Abas, seletor de base, seletor de período, ícone de metodologia e download.</p>
+
+    <div class="sg-linha">
+      <nav class="abas" style="position: static; border: none; background: none; padding: 0; margin: 0;">
+        <button class="aba-pilula" type="button" aria-selected="true">Mercado de crédito</button>
+        <button class="aba-pilula" type="button" aria-selected="false">Inadimplência</button>
+        <button class="aba-pilula" type="button" aria-selected="false">Metodologia</button>
+      </nav>
+    </div>
+
+    <div class="sg-linha">
+      <select class="pilula" aria-label="Base de valores">
+        <option>R$ correntes</option>
+        <option>R$ constantes</option>
+        <option>% do PIB</option>
+        <option>Variação mensal</option>
+        <option>Variação em 12 meses</option>
+      </select>
+
+      <div class="segmentado" role="group" aria-label="Período">
+        <button class="segmentado__item" type="button" aria-pressed="true">Tudo</button>
+        <button class="segmentado__item" type="button" aria-pressed="false">10a</button>
+        <button class="segmentado__item" type="button" aria-pressed="false">5a</button>
+        <button class="segmentado__item" type="button" aria-pressed="false">3a</button>
+        <button class="segmentado__item" type="button" aria-pressed="false">1a</button>
+        <button class="segmentado__item" type="button" aria-pressed="false">⋯</button>
+      </div>
+
+      <button class="info" type="button" title="Nota metodológica">i</button>
+
+      <div class="baixar">
+        <button class="baixar__botao" type="button" aria-label="Baixar">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2.5v8m0 0 3.2-3.2M8 10.5 4.8 7.3M3 13.5h10" stroke="currentColor"
+                  stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <span class="sg-nota">e o menu aberto:</span>
+
+      <div class="baixar" style="position: static;">
+        <div class="baixar__menu" style="position: static;">
+          <button class="baixar__item" type="button">Imagem (PNG)</button>
+          <button class="baixar__item" type="button">Dados (CSV)</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sg-secao">
+    <h2>Hierarquia de traço</h2>
+    <p>
+      O peso da linha diz o papel da série antes de a cor dizer qual é. O residual é a
+      única linha tracejada do site.
+    </p>
+    <div id="sg-tracos"></div>
+  </section>
+
+  <section class="sg-secao">
+    <h2>Cartão de gráfico</h2>
+    <p>
+      Título à esquerda, controles à direita, gráfico, e nada abaixo dele: sem nota, sem
+      fonte, sem "última observação". As séries se identificam pelo rótulo na ponta da
+      linha, e a unidade fica no topo do eixo.
+    </p>
+    <div class="grade">
+      <section class="cartao" style="--col: 8" data-largura="8">
+        <div class="cartao__topo">
+          <h3 class="cartao__titulo">Crédito do SFN por tipo de tomador</h3>
+          <div class="cartao__controles">
+            <select class="pilula" aria-label="Base de valores">
+              <option>R$ correntes</option><option>% do PIB</option>
+            </select>
+            <div class="segmentado" role="group" aria-label="Período">
+              <button class="segmentado__item" type="button" aria-pressed="true">Tudo</button>
+              <button class="segmentado__item" type="button" aria-pressed="false">5a</button>
+              <button class="segmentado__item" type="button" aria-pressed="false">⋯</button>
+            </div>
+            <button class="info" type="button">i</button>
+            <div class="baixar">
+              <button class="baixar__botao" type="button" aria-label="Baixar">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 2.5v8m0 0 3.2-3.2M8 10.5 4.8 7.3M3 13.5h10" stroke="currentColor"
+                        stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="cartao__area" id="sg-grafico"></div>
+      </section>
+
+      <section class="cartao" style="--col: 4" data-largura="4">
+        <div class="cartao__topo">
+          <h3 class="cartao__titulo">Tooltip</h3>
+        </div>
+        <div class="cartao__area" style="height: auto; display: grid; place-items: center; padding: var(--s-6) 0;">
+          <div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow-card);">
+            <div class="tt__data">jul/2026</div>
+            <div class="tt__linha">
+              <span class="tt__marca" style="background: var(--c-total)"></span>
+              <span class="tt__nome">Total</span>
+              <span class="tt__valor">7.372,2</span>
+            </div>
+            <div class="tt__linha">
+              <span class="tt__marca" style="background: var(--c-pj)"></span>
+              <span class="tt__nome">Pessoas jurídicas</span>
+              <span class="tt__valor">2.731,5</span>
+            </div>
+            <div class="tt__linha">
+              <span class="tt__marca" style="background: var(--c-pf)"></span>
+              <span class="tt__nome">Pessoas físicas</span>
+              <span class="tt__valor">4.640,7</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="sg-secao">
+    <h2>Espaço e raio</h2>
+    <div class="sg-grade" id="sg-espaco"></div>
+  </section>
+
+  <footer class="rodape">
+    <p>Página de referência, fora do menu do site. Não indexada.</p>
+    <p class="rodape__autor">Kleber Pacheco de Castro</p>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var raiz = getComputedStyle(document.documentElement);
+  function tk(n) { return raiz.getPropertyValue(n).trim(); }
+
+  // ---------------------------------------------------------------- paleta
+  var CORES = [
+    ['--c-total', 'Total', 'petróleo'],
+    ['--c-pj', 'PJ / empresas', 'ocre'],
+    ['--c-pf', 'PF / famílias', 'ameixa'],
+    ['--c-livre', 'Recursos livres', 'verde-jade'],
+    ['--c-dir', 'Recursos direcionados', 'azul-ardósia'],
+    ['--c-alerta', 'Atenção', 'framboesa'],
+    ['--c-outros', 'Residual / outros', 'cinza-verde'],
+    ['--c-extra-1', 'Modalidade 1', 'mostarda'],
+    ['--c-extra-2', 'Modalidade 2', 'sálvia'],
+    ['--c-extra-3', 'Modalidade 3', 'telha'],
+    ['--c-extra-4', 'Modalidade 4', 'petróleo claro'],
+    ['--c-extra-5', 'Modalidade 5', 'lavanda'],
+    ['--c-extra-6', 'Modalidade 6', 'oliva'],
+    ['--bg', 'Fundo da página', ''],
+    ['--surface', 'Cartão', ''],
+    ['--ink', 'Texto principal', ''],
+    ['--ink-2', 'Texto secundário', ''],
+    ['--ink-3', 'Rótulos e eixos', ''],
+    ['--line', 'Bordas e grid', '']
+  ];
+  var alvoCores = document.getElementById('sg-cores');
+  CORES.forEach(function (c) {
+    var d = document.createElement('div');
+    d.className = 'sg-amostra';
+    d.innerHTML =
+      '<div class="sg-chapa" style="background: var(' + c[0] + ')"></div>' +
+      '<dl><dt>' + c[1] + '</dt><dd>' + c[0] + '</dd>' +
+      '<dd>' + tk(c[0]).toUpperCase() + (c[2] ? ' · ' + c[2] : '') + '</dd></dl>';
+    alvoCores.appendChild(d);
+  });
+
+  // ---------------------------------------------------------------- tipografia
+  var TIPOS = [
+    ['Título do site', '--f-titulo', 36, 600, 'Monitor de Crédito e Endividamento'],
+    ['Título de seção', '--f-titulo', 24, 600, 'Mercado de crédito'],
+    ['Título de cartão', '--f-titulo', 18, 500, 'Crédito do SFN por tipo de tomador'],
+    ['Corpo', '--f-texto', 16, 400, 'O site é um instrumento de leitura, não um painel corporativo.'],
+    ['Controle', '--f-texto', 15, 500, 'R$ constantes · 10a · Personalizar'],
+    ['Valor no tooltip', '--f-texto', 14, 600, '7.372,2'],
+    ['Rótulo de ponta', '--f-texto', 13, 500, 'Pessoas jurídicas  2.731,5'],
+    ['Rótulo de eixo', '--f-texto', 12, 400, '0 · 2.000 · 4.000 · 6.000']
+  ];
+  var alvoTipos = document.getElementById('sg-tipos');
+  TIPOS.forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'sg-tipo';
+    d.innerHTML = '<small>' + t[0] + ' — ' + t[2] + 'px / peso ' + t[3] + '</small>' +
+      '<div style="font-family: var(' + t[1] + '); font-size: ' + t[2] + 'px; font-weight: ' +
+      t[3] + '; color: var(--ink); font-variant-numeric: tabular-nums;">' + t[4] + '</div>';
+    alvoTipos.appendChild(d);
+  });
+
+  // ---------------------------------------------------------------- traços
+  var TRACOS = [
+    [2.5, 'solid', '--c-total', 'Total — 2,5px'],
+    [1.5, 'solid', '--c-pj', 'Componente — 1,5px'],
+    [1.25, 'dashed', '--c-outros', 'Residual "Outros" — 1,25px tracejado']
+  ];
+  var alvoTracos = document.getElementById('sg-tracos');
+  TRACOS.forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'sg-traco';
+    d.innerHTML = '<i style="height: 0; border-top: ' + t[0] + 'px ' + t[1] +
+      ' var(' + t[2] + ')"></i><span>' + t[3] + '</span>';
+    alvoTracos.appendChild(d);
+  });
+  var pontos = document.createElement('div');
+  pontos.className = 'sg-traco';
+  pontos.innerHTML =
+    '<i style="width: 120px; display: flex; gap: 24px; align-items: center; border: none;">' +
+    '<span style="width:6px;height:6px;border-radius:50%;background:var(--c-total);display:block"></span>' +
+    '<span style="width:9px;height:9px;border-radius:50%;background:var(--surface);border:1.5px solid var(--c-total);display:block"></span>' +
+    '</i><span>Último ponto: cheio quando o dado é definitivo, vazado quando é preliminar na fonte</span>';
+  alvoTracos.appendChild(pontos);
+
+  // ---------------------------------------------------------------- espaço e raio
+  var ESPACO = [
+    ['--s-2', '8px'], ['--s-4', '16px'], ['--s-6', '24px'], ['--s-8', '32px'],
+    ['--s-12', '48px'], ['--r-btn', '10px'], ['--r-plot', '12px'], ['--r-card', '20px']
+  ];
+  var alvoEspaco = document.getElementById('sg-espaco');
+  ESPACO.forEach(function (e) {
+    var raio = e[0].indexOf('--r-') === 0;
+    var d = document.createElement('div');
+    d.className = 'sg-amostra';
+    d.innerHTML =
+      '<div style="padding: var(--s-3)"><div style="' +
+      (raio
+        ? 'height: 48px; background: var(--line); border-radius: var(' + e[0] + ')'
+        : 'height: 16px; width: var(' + e[0] + '); background: var(--c-total)') +
+      '"></div></div><dl><dt>' + e[0] + '</dt><dd>' + e[1] + '</dd></dl>';
+    alvoEspaco.appendChild(d);
+  });
+
+  // ---------------------------------------------------------------- gráfico de exemplo
+  /* Dados sintéticos, de propósito: esta página mostra FORMA, e usar série real aqui
+     convidaria a lê-la como dado publicado. */
+  function serie(inicio, passo, ruido) {
+    var pontos = [], v = inicio;
+    for (var a = 2015; a <= 2026; a++) {
+      for (var m = 1; m <= 12; m += 3) {
+        if (a === 2026 && m > 7) break;
+        v = v * (1 + passo) + (Math.sin(a * m) * ruido);
+        pontos.push([a + '-' + String(m).padStart(2, '0') + '-01', Math.round(v * 10) / 10]);
+      }
+    }
+    return pontos;
+  }
+
+  var dados = [
+    { nome: 'Total', cor: tk('--c-total'), largura: 2.5, dados: serie(3000, 0.022, 40), papel: 'total' },
+    { nome: 'Pessoas jurídicas', cor: tk('--c-pj'), largura: 1.5, dados: serie(1300, 0.018, 20) },
+    { nome: 'Pessoas físicas', cor: tk('--c-pf'), largura: 1.5, dados: serie(1700, 0.025, 25) }
+  ];
+
+  echarts.init(document.getElementById('sg-grafico'), null, { renderer: 'svg' }).setOption({
+    useUTC: true,
+    backgroundColor: 'transparent',
+    textStyle: { fontFamily: tk('--f-texto') },
+    animation: false,
+    grid: { left: 2, right: 118, top: 28, bottom: 4, containLabel: true },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: tk('--surface'), borderColor: tk('--line'), borderWidth: 1,
+      borderRadius: 10, padding: [10, 12],
+      axisPointer: { type: 'line', lineStyle: { color: tk('--ink-3'), width: 1 } }
+    },
+    xAxis: {
+      type: 'time', axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
+      axisLabel: { color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), hideOverlap: true }
+    },
+    yAxis: {
+      type: 'value', scale: true, splitNumber: 4,
+      name: 'R$ bi', nameLocation: 'end', nameGap: 12,
+      nameTextStyle: { color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), align: 'left' },
+      axisLine: { show: false }, axisTick: { show: false },
+      splitLine: { lineStyle: { color: tk('--line') } },
+      axisLabel: {
+        color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'),
+        formatter: function (v) { return v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); }
+      }
+    },
+    series: dados.map(function (s) {
+      return {
+        name: s.nome, type: 'line', color: s.cor, showSymbol: false,
+        lineStyle: { width: s.largura, cap: 'round' },
+        endLabel: {
+          show: true, color: s.cor, fontSize: 13, fontWeight: 500,
+          fontFamily: tk('--f-texto'), distance: 10,
+          formatter: function (p) {
+            return p.seriesName + '  ' + p.value[1].toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+          }
+        },
+        labelLayout: { moveOverlap: 'shiftY' },
+        emphasis: { focus: 'series' },
+        blur: { lineStyle: { opacity: .25 }, label: { opacity: .25 } },
+        markPoint: {
+          silent: true, symbol: 'circle', symbolSize: s.papel ? 6 : 9,
+          itemStyle: s.papel
+            ? { color: s.cor }
+            : { color: tk('--surface'), borderColor: s.cor, borderWidth: 1.5 },
+          label: { show: false },
+          data: [{ coord: s.dados[s.dados.length - 1] }]
+        },
+        data: s.dados
+      };
+    })
+  });
+})();
+</script>
+</body>
+</html>

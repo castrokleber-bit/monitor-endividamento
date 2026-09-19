@@ -1,0 +1,135 @@
+/* Monitor de Crédito e Endividamento — tokens.
+ *
+ * FONTE ÚNICA DE VERDADE DE COR, TIPO, ESPAÇO E RAIO.
+ *
+ * Nenhum hex vive fora deste arquivo. `style.css` usa as variáveis; `app.js` lê os
+ * tokens com `getComputedStyle` e nunca escreve cor literal, nem para passar ao ECharts.
+ * Quem precisar de uma cor nova cria um token aqui.
+ *
+ * Direção visual de 19/09/2026, que SUBSTITUI a identidade anterior (azul #164194,
+ * ciano #008BD2, Arial, paleta de cinco séries derivada dos dois azuis). A substituição
+ * está registrada no CLAUDE.md. A regra que sobrevive da versão antiga, porque é a mesma
+ * ideia dita de outro jeito, é a de que a cor IDENTIFICA e não decora: uma série que
+ * aparece em vários gráficos tem a mesma cor em todos.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- base */
+  --bg:      #EEF1EC;   /* névoa esverdeada — não é branco, não é creme */
+  --surface: #FAFBF8;   /* cartões */
+  --ink:     #14231E;   /* texto principal — verde-negro, nunca #000 nem #111 */
+  --ink-2:   #4A5751;   /* texto secundário */
+  --ink-3:   #8C968F;   /* rótulos, eixos, datas */
+  --line:    #D9DED8;   /* bordas e gridlines */
+
+  /* ---------------------------------------------------------------- séries
+   * Cada token tem papel FIXO em todos os gráficos. O catálogo declara o papel de cada
+   * série no campo `cor`, e `app.js` resolve o token a partir dele — nunca por posição.
+   * Série sem papel declarado cai numa rotação de sobra (--c-extra-1, --c-extra-2, ...),
+   * que é o caso das modalidades e dos países estrangeiros.
+   */
+  --c-total:   #0F4C5C;   /* petróleo — sempre o Total */
+  --c-pj:      #B8771E;   /* ocre — sempre PJ / empresas */
+  --c-pf:      #6E4C8C;   /* ameixa — sempre PF / famílias */
+  --c-livre:   #2E7D6B;   /* verde-jade — recursos livres */
+  --c-dir:     #3B6AA0;   /* azul-ardósia — recursos direcionados */
+  --c-alerta:  #C7385A;   /* framboesa — comprometimento de renda, atenção */
+  --c-outros:  #A9B1AB;   /* cinza-verde — residuais e "outros" */
+  --c-extra-1: #D9A441;   /* mostarda */
+  --c-extra-2: #5C8A72;   /* sálvia */
+  /* A orientação previu extras para a "6ª/7ª série em gráficos de modalidade". G8 tem
+     sete componentes além do total, então foram necessários mais quatro. Todos ficam
+     fora da faixa semântica: nenhum deles pode virar "a cor de PJ" por acidente. */
+  --c-extra-3: #8C5B4A;   /* telha */
+  --c-extra-4: #4C6E8C;   /* petróleo claro */
+  --c-extra-5: #7D6BA8;   /* lavanda escura */
+  --c-extra-6: #9A8C3C;   /* oliva */
+
+  /* ---------------------------------------------------------------- raios */
+  --r-card: 20px;
+  --r-plot: 12px;
+  --r-ctrl: 999px;
+  --r-btn:  10px;
+
+  /* ---------------------------------------------------------------- espaço */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-6: 24px;  --s-8: 32px;  --s-12: 48px; --s-16: 64px;
+
+  /* ---------------------------------------------------------------- sombra */
+  --shadow-card: 0 1px 0 rgba(20, 35, 30, .04), 0 8px 24px -16px rgba(20, 35, 30, .18);
+
+  /* ---------------------------------------------------------------- tipo
+   * Duas famílias, claramente diferentes. O fallback é `system-ui` e não uma pilha longa:
+   * a página tem de ficar legível antes das fontes chegarem, e com métricas próximas o
+   * bastante para o layout não saltar quando elas chegam.
+   */
+  --f-titulo: "Bricolage Grotesque", system-ui, sans-serif;
+  --f-texto:  "Hanken Grotesk", system-ui, sans-serif;
+
+  /* Escala, base 16px, razão ~1,25. */
+  --t-site:    36px;  --lh-site:    1.1;
+  --t-secao:   24px;  --lh-secao:   1.25;
+  --t-cartao:  18px;  --lh-cartao:  1.3;
+  --t-corpo:   16px;  --lh-corpo:   1.6;
+  --t-controle:15px;  --lh-controle:1.2;
+  --t-tooltip: 14px;  --lh-tooltip: 1.3;
+  --t-ponta:   13px;  --lh-ponta:   1.2;
+  --t-eixo:    12px;  --lh-eixo:    1.2;
+
+  /* Largura máxima do texto corrido, em caracteres. */
+  --medida: 68ch;
+
+  /* Duração única para todo movimento que responde a uma ação. */
+  --dur: 200ms;
+  --dur-grafico: 250ms;
+}
+
+/* ---------------------------------------------------------------- modo escuro
+ * Não é inversão: é a mesma paleta em outra chave. As cores de série foram clareadas
+ * para manter contraste mínimo de 3:1 sobre --surface escuro, e o texto 4.5:1.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      #121A17;
+    --surface: #1A2320;
+    --ink:     #E6EAE6;
+    --ink-2:   #A8B1AB;
+    --ink-3:   #6F7A74;
+    --line:    #2A3531;
+
+    --c-total:   #5FB3C4;
+    --c-pj:      #D9A05B;
+    --c-pf:      #A98BC4;
+    --c-livre:   #63B59F;
+    --c-dir:     #7FA4D6;
+    --c-alerta:  #E8748F;
+    --c-outros:  #6F7A74;
+    --c-extra-1: #E5C069;
+    --c-extra-2: #8EB8A2;
+    --c-extra-3: #C08B79;
+    --c-extra-4: #8AA9C4;
+    --c-extra-5: #A597CE;
+    --c-extra-6: #C0B463;
+
+    --shadow-card: 0 1px 0 rgba(0, 0, 0, .2), 0 8px 24px -16px rgba(0, 0, 0, .6);
+  }
+}
+
+/* ---------------------------------------------------------------- impressão
+ * Fundo branco e tinta preta no papel, redefinindo os tokens em vez de abrir exceção
+ * de cor na folha de estilo. As cores de série não mudam: o ECharts já desenhou com os
+ * tokens de tela, e a orientação pede que a impressão mantenha os rótulos na ponta.
+ * Vem depois do bloco de modo escuro de propósito — quem imprime com o sistema no
+ * escuro deve receber papel branco do mesmo jeito.
+ */
+@media print {
+  :root {
+    --bg:      #FFFFFF;
+    --surface: #FFFFFF;
+    --ink:     #000000;
+    --ink-2:   #333333;
+    --ink-3:   #666666;
+    --line:    #CCCCCC;
+    --shadow-card: none;
+  }
+}

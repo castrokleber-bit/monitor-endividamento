@@ -5,31 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Monitor de Crédito e Endividamento</title>
   <meta name="description" content="Crédito, inadimplência, endividamento e comprometimento de renda de famílias e empresas não financeiras no Brasil, com comparação internacional. Dados do Banco Central e do BIS, atualizados quinzenalmente.">
+  <meta name="color-scheme" content="light dark">
+
+  <!-- Duas famílias variáveis. `display=swap` e a pilha de fallback em tokens.css
+       garantem que a página fique legível antes de as fontes chegarem, e o `preconnect`
+       evita que a espera pelo DNS atrase o primeiro texto. Sem rede, `system-ui` desenha
+       tudo sem quebrar o layout. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..700&amp;family=Hanken+Grotesk:wght@400..700&amp;display=swap">
+
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="conteudo">
+<div class="pagina">
 
+  <!-- Abertura sem hero de dashboard: título, uma frase, a data da última atualização.
+       O primeiro gráfico aparece na primeira dobra. -->
   <header class="cabecalho">
-    <h1>Monitor de Crédito e Endividamento</h1>
-    <p class="cabecalho__linha">
-      Famílias e empresas não financeiras — crédito, inadimplência, endividamento e
-      comprometimento de renda, e comparação internacional.
+    <div class="cabecalho__topo">
+      <h1 class="cabecalho__titulo">Monitor de Crédito e Endividamento</h1>
+      <a class="link-discreto" href="monitor_endividamento.xlsx" download>Baixar XLSX</a>
+    </div>
+    <p class="cabecalho__linha" id="cabecalho-linha">
+      Famílias e empresas não financeiras — crédito, inadimplência e dívida.
     </p>
-    <p class="cabecalho__meta" id="atualizacao"></p>
-    <p class="aviso-desatualizado" id="aviso-global" hidden></p>
-    <p class="cabecalho__meta">
-      <a class="baixar" id="link-xlsx" href="monitor_endividamento.xlsx" download>
-        Baixar todas as séries (XLSX)
-      </a>
-    </p>
+    <p class="aviso" id="aviso-global" hidden></p>
   </header>
 
-  <!-- Navegação e painéis vivem em elementos separados porque a navegação fica visível
-       o tempo todo, enquanto o painel troca. Ambos são preenchidos por app.js a partir
-       de window.MONITOR. -->
-  <nav class="abas-nav" id="abas-nav" aria-label="Abas do painel"></nav>
+  <!-- Navegação sticky, preenchida por app.js a partir de window.MONITOR. -->
+  <nav class="abas" id="abas-nav" aria-label="Seções do monitor"></nav>
 
   <main id="abas-paineis">
     <p class="carregando" id="carregando">Carregando as séries…</p>
@@ -37,12 +44,7 @@
 
   <footer class="rodape">
     <p id="rodape-fonte"></p>
-    <p>
-      Painel técnico de acompanhamento de dados públicos. Não constitui posição
-      institucional de nenhuma entidade sobre política monetária, crédito ou regulação
-      bancária, nem recomendação de investimento.
-    </p>
-    <p class="rodape__credito">Desenvolvido por Kleber Pacheco de Castro</p>
+    <p class="rodape__autor">Kleber Pacheco de Castro</p>
   </footer>
 
 </div>

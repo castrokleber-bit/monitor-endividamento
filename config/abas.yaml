@@ -83,6 +83,20 @@ periodo_padrao: tudo
 # inteira desde a primeira observação da fonte.
 inicio_padrao: comum
 
+# ---------------------------------------------------------------------------
+# `largura` é a fração de doze colunas que o cartão ocupa, conforme a direção visual de
+# 19/09/2026: gráfico de abertura da aba 8/12, gráficos de três ou quatro séries 4/12,
+# gráficos de modalidade (seis ou mais séries) 12/12. As larguras de cada aba somam
+# doze por linha.
+#
+# Exceção declarada: G17a e G17b ficam 6/12 cada. São dois painéis que existem para ser
+# comparados lado a lado — endividamento e comprometimento —, e larguras diferentes
+# atrapalhariam exatamente a leitura que eles servem.
+#
+# Um cartão sozinho numa linha incompleta é esticado pelo front até fechar as doze
+# colunas, para não deixar buraco quando um gráfico não é montado por falta de série.
+# ---------------------------------------------------------------------------
+
 abas:
 
   # =========================================================================
@@ -97,6 +111,7 @@ abas:
 
       - id: g1
         titulo: "Crédito ampliado ao setor não financeiro"
+        largura: 8
         series: [amplo_total, amplo_emprestimos, amplo_titulos, amplo_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -104,6 +119,7 @@ abas:
 
       - id: g2
         titulo: "Crédito ampliado às empresas"
+        largura: 4
         series: [amplo_emp_total, amplo_emp_emprestimos, amplo_emp_titulos, amplo_emp_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -111,6 +127,7 @@ abas:
 
       - id: g3
         titulo: "Crédito ampliado às famílias"
+        largura: 4
         series: [amplo_fam_total, amplo_fam_emprestimos, amplo_fam_titulos, amplo_fam_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -118,6 +135,7 @@ abas:
 
       - id: g4
         titulo: "Crédito do SFN por origem dos recursos"
+        largura: 4
         series: [sfn_total, sfn_direcionado, sfn_livre]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -125,6 +143,7 @@ abas:
 
       - id: g5
         titulo: "Crédito do SFN por tipo de tomador"
+        largura: 4
         series: [sfn_total, sfn_pj, sfn_pf]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -132,6 +151,7 @@ abas:
 
       - id: g6
         titulo: "Crédito direcionado por tipo de tomador"
+        largura: 4
         series: [sfn_direcionado, sfn_direcionado_pj, sfn_direcionado_pf]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -139,6 +159,7 @@ abas:
 
       - id: g7
         titulo: "Crédito livre por tipo de tomador"
+        largura: 4
         series: [sfn_livre, sfn_livre_pj, sfn_livre_pf]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -146,6 +167,7 @@ abas:
 
       - id: g8
         titulo: "Crédito livre às empresas por modalidade"
+        largura: 12
         series:
           - sfn_livre_pj
           - livre_pj_capital_giro_acima_365d
@@ -160,12 +182,18 @@ abas:
         # melhor na legenda ao lado de "Capital de giro" e "Desconto de duplicatas".
         rotulos:
           sfn_livre_pj: "Total"
+        # 20543 é a linha de PJ (ocre) nos gráficos por tomador e o AGREGADO aqui. A
+        # regra da direção visual é "Total é petróleo em todos os gráficos", então o
+        # papel de cor muda junto com o papel da série.
+        cores:
+          sfn_livre_pj: total
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-modalidades-pj
 
       - id: g9
         titulo: "Crédito livre às famílias por modalidade"
+        largura: 12
         series:
           - sfn_livre_pf
           - livre_pf_consignado
@@ -175,12 +203,15 @@ abas:
           - livre_pf_outros
         rotulos:
           sfn_livre_pf: "Total"
+        cores:
+          sfn_livre_pf: total
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-modalidades-pf
 
       - id: g14
         titulo: "Crédito às empresas por porte"
+        largura: 4
         series: [porte_total, porte_mpme, porte_grande]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -188,6 +219,7 @@ abas:
 
       - id: g16
         titulo: "Crédito às empresas por atividade econômica"
+        largura: 12
         series: [ativ_total, ativ_agropecuaria, ativ_industria, ativ_servicos, ativ_outros]
         bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
@@ -231,18 +263,21 @@ abas:
 
       - id: g10
         titulo: "Inadimplência por origem dos recursos"
+        largura: 8
         series: [inad_sfn_total, inad_sfn_direcionado, inad_sfn_livre]
         bases: []
         metodologia: conceito-inadimplencia
 
       - id: g11
         titulo: "Inadimplência por tipo de tomador"
+        largura: 4
         series: [inad_sfn_total, inad_sfn_pj, inad_sfn_pf]
         bases: []
         metodologia: conceito-inadimplencia
 
       - id: g12
         titulo: "Inadimplência do crédito livre às empresas por modalidade"
+        largura: 12
         series:
           - inad_livre_pj_total
           - inad_livre_pj_capital_giro_acima_365d
@@ -257,6 +292,7 @@ abas:
 
       - id: g13
         titulo: "Inadimplência do crédito livre às famílias por modalidade"
+        largura: 12
         series:
           - inad_livre_pf_total
           - inad_livre_pf_consignado
@@ -269,6 +305,7 @@ abas:
 
       - id: g15
         titulo: "Inadimplência das empresas por porte"
+        largura: 12
         series: [inad_porte_total, inad_porte_mpme, inad_porte_grande]
         bases: []
         metodologia: conceito-porte
@@ -294,12 +331,14 @@ abas:
 
       - id: g17a
         titulo: "Endividamento das famílias"
+        largura: 6
         series: [endividamento_familias_total, endividamento_familias_ex_habitacional]
         bases: []
         metodologia: conceito-endividamento-familias
 
       - id: g17b
         titulo: "Comprometimento de renda com o serviço da dívida"
+        largura: 6
         series: [comprometimento_renda_total, comprometimento_renda_ex_habitacional]
         bases: []
         metodologia: conceito-comprometimento
@@ -324,12 +363,14 @@ abas:
 
       - id: g18
         titulo: "Dívida das famílias — Brasil e comparáveis"
+        largura: 8
         series: [bis_familias_br, bis_familias_us, bis_familias_mx, bis_familias_cl]
         bases: []
         metodologia: conceito-bis
 
       - id: g19
         titulo: "Dívida das empresas não financeiras — Brasil e comparáveis"
+        largura: 4
         series: [bis_empresas_br, bis_empresas_us, bis_empresas_mx, bis_empresas_cl]
         bases: []
         metodologia: conceito-bis
@@ -338,10 +379,18 @@ abas:
       # necessário: as três séries são do Brasil e o rótulo padrão de todas é "Brasil".
       - id: g20
         titulo: "Composição da dívida privada — Brasil"
+        largura: 12
         series: [bis_privado_br, bis_familias_br, bis_empresas_br]
         rotulos:
           bis_privado_br: "Setor privado não financeiro"
           bis_familias_br: "Famílias"
           bis_empresas_br: "Empresas não financeiras"
+        # As três séries são do Brasil, então a cor não pode marcar país aqui: marca
+        # setor, como nas demais abas. O agregado fica petróleo, famílias ameixa,
+        # empresas ocre.
+        cores:
+          bis_privado_br: total
+          bis_familias_br: pf
+          bis_empresas_br: pj
         bases: []
         metodologia: conceito-bis

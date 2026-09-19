@@ -422,6 +422,8 @@ def monta_payload(
     estados = {m["serie_id"]: m for m in manifesto}
     config = carrega_abas()
     inicio_padrao = config.get("inicio_padrao", "comum")
+    # Ver a nota sobre dado preliminar no cabeçalho de config/series_bcb.yaml.
+    prefixo_preliminar = carrega_catalogo(CATALOGOS["bcb"]).get("prefixo_tabela_preliminar")
 
     series = {}
     for serie_id, payload in payloads.items():
@@ -436,6 +438,15 @@ def monta_payload(
             "tabela": cfg.get("tabela", ""),
             "periodicidade": payload["periodicidade"],
             "segmento": cfg.get("segmento"),
+            # Papel de cor declarado no catálogo. O front resolve o token a partir dele,
+            # nunca pela posição da série no gráfico — é o que mantém "PJ é sempre ocre"
+            # em todos os gráficos em que PJ aparece.
+            "cor": cfg.get("cor"),
+            # A última observação desta série é preliminar na fonte?
+            "preliminar": bool(
+                prefixo_preliminar
+                and str(cfg.get("tabela", "")).startswith(prefixo_preliminar)
+            ),
             # `papel: total` engrossa o traço da curva no gráfico. Vem do catálogo e não
             # de heurística sobre o nome da série: "total" no slug não é garantia de
             # nada, e uma heurística erraria justamente nos gráficos em que o agregado

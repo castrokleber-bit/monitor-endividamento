@@ -1,476 +1,710 @@
-/* Monitor de Crédito e Endividamento — identidade visual.
+/* Monitor de Crédito e Endividamento — folha de estilo.
  *
- * Todas as cores vivem aqui, como custom properties. app.js lê os tokens e nunca
- * escreve hex. Padrão sóbrio e institucional: sem sombra, sem gradiente, sem
- * arredondamento decorativo.
+ * Nenhum hex aqui: tudo vem de tokens.css. Nenhuma fonte além das duas de lá.
  *
- * Paleta das linhas, na ordem de uso obrigatória (o Total sempre na primeira). Da
- * terceira em diante a paleta sai da família azul — a regra anterior, de derivar tudo
- * dos dois azuis, produzia curvas indistinguíveis nos gráficos de três e quatro séries
- * e ilegíveis em preto e branco (decisão de 30/08/2026). Vermelho segue reservado a
- * alertas. Quando um gráfico tem mais séries que cores, app.js varia o traço em vez de
- * inventar cor nova.
+ * O conceito, da direção visual de 19/09/2026: o site é um instrumento de leitura, não
+ * um painel corporativo. Pouca cor, muito espaço, e a ousadia concentrada num lugar só —
+ * os gráficos. Todo o resto é silencioso.
  */
-
-:root {
-  --azul: #164194;
-  --ciano: #008BD2;
-  --cinza: #595959;
-  --cinza-claro: #D9D9D9;
-  --fundo: #FFFFFF;
-
-  --serie-1: #164194;
-  --serie-2: #008BD2;
-  --serie-3: #00785F;
-  --serie-4: #C77F00;
-  --serie-5: #595959;
-
-  --alerta: #A4262C;
-
-  --fonte: Arial, Helvetica, sans-serif;
-}
 
 * { box-sizing: border-box; }
 
+/* Sem `scroll-behavior: smooth` global: ele transforma TODA rolagem da página em
+   animação, inclusive as que o leitor não pediu, e a orientação pede movimento só em
+   resposta a uma ação. A suavidade de ir até uma âncora é aplicada pontualmente em
+   `app.js`, onde a ação existe. */
 html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--fundo);
-  color: var(--cinza);
-  font-family: var(--fonte);
-  font-size: 15px;
-  line-height: 1.5;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-texto);
+  font-size: var(--t-corpo);
+  line-height: var(--lh-corpo);
+  font-synthesis-weight: none;
 }
 
-.conteudo {
-  max-width: 1200px;
+/* Números alinhados em coluna onde são lidos como quantidade, não como texto. */
+.tabular, th, td, input, select { font-variant-numeric: tabular-nums; }
+
+.pagina {
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 32px 20px 64px;
+  padding: var(--s-8);
+}
+
+/* Foco de teclado visível em tudo que é operável. */
+:where(a, button, select, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-total);
+  outline-offset: 2px;
+  border-radius: var(--r-btn);
 }
 
 /* ------------------------------------------------------------------ cabeçalho */
 
-.cabecalho h1 {
-  margin: 0 0 6px;
-  color: var(--azul);
-  font-size: 30px;
-  line-height: 1.2;
+.cabecalho { padding: var(--s-4) 0 var(--s-6); }
+
+.cabecalho__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.cabecalho__titulo {
+  margin: 0;
+  font-family: var(--f-titulo);
+  font-size: var(--t-site);
+  line-height: var(--lh-site);
+  font-weight: 600;
+  /* Bricolage é variável em largura; levemente condensada dá densidade ao título sem
+     recorrer a letter-spacing. */
+  font-stretch: 92%;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 
 .cabecalho__linha {
-  margin: 0 0 12px;
-  max-width: 72ch;
+  margin: var(--s-3) 0 0;
+  max-width: var(--medida);
+  color: var(--ink-2);
 }
 
-.cabecalho__meta {
-  margin: 0 0 6px;
-  font-size: 13px;
+.link-discreto {
+  color: var(--ink-2);
+  font-size: var(--t-controle);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 2px;
+  transition: color var(--dur), border-color var(--dur);
+  white-space: nowrap;
+}
+
+.link-discreto:hover { color: var(--ink); border-bottom-color: var(--ink-3); }
+
+.aviso {
+  margin: var(--s-4) 0 0;
+  max-width: var(--medida);
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--c-alerta);
+  background: var(--surface);
+  border-radius: 0 var(--r-btn) var(--r-btn) 0;
+  color: var(--ink-2);
+  font-size: var(--t-controle);
+  line-height: 1.5;
 }
 
 /* ------------------------------------------------------------------ abas */
 
-.abas-nav {
+.abas {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
-  margin: 24px 0 0;
-  border-bottom: 2px solid var(--cinza-claro);
+  gap: var(--s-2);
+  padding: var(--s-3) 0;
+  margin-bottom: var(--s-6);
+  /* Translúcido para o conteúdo passar por baixo sem sumir nem competir. */
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
 }
 
-.abas-nav__botao {
+.aba-pilula {
   appearance: none;
   border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
   background: none;
-  padding: 10px 16px;
-  color: var(--cinza);
-  font-family: var(--fonte);
-  font-size: 15px;
+  height: 36px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-ctrl);
+  font-family: var(--f-texto);
+  font-size: var(--t-controle);
+  font-weight: 500;
+  line-height: var(--lh-controle);
+  color: var(--ink-2);
   cursor: pointer;
+  transition: background-color var(--dur) ease, color var(--dur) ease;
 }
 
-.abas-nav__botao:hover { color: var(--azul); }
+.aba-pilula:hover { background: var(--line); color: var(--ink); }
 
-.abas-nav__botao--ativo {
-  color: var(--azul);
-  border-bottom-color: var(--azul);
-  font-weight: bold;
+.aba-pilula[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--surface);
 }
 
-.aba-painel { padding-top: 24px; }
+/* ------------------------------------------------------------------ painel */
 
-.aba-painel h1 {
-  margin: 0 0 6px;
-  color: var(--azul);
-  font-size: 22px;
+.painel { padding-bottom: var(--s-12); }
+
+.painel__cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-6);
 }
 
-.aba__subtitulo {
-  margin: 0 0 12px;
-  max-width: 80ch;
+.painel__intro { max-width: var(--medida); }
+
+.painel__titulo {
+  margin: 0;
+  font-family: var(--f-titulo);
+  font-size: var(--t-secao);
+  line-height: var(--lh-secao);
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.nota--aba {
-  margin: 0 0 16px;
-  max-width: 80ch;
-  padding-left: 12px;
-  border-left: 3px solid var(--cinza-claro);
-  font-size: 13px;
+.painel__linha {
+  margin: var(--s-2) 0 0;
+  color: var(--ink-2);
+  font-size: var(--t-controle);
+  line-height: 1.5;
 }
 
-/* ------------------------------------------------------------------ controles da aba */
-
-.aba__controles {
+.painel__periodo {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 20px;
-  padding: 10px 12px;
-  background: #FAFAFA;
-  border: 1px solid var(--cinza-claro);
+  gap: var(--s-3);
+  font-size: var(--t-eixo);
+  color: var(--ink-3);
+  white-space: nowrap;
 }
-
-.aba__controles-rotulo { font-size: 13px; }
 
 /* ------------------------------------------------------------------ grade */
 
-/* Duas colunas dentro de uma aba; um gráfico sozinho na última linha ocupa a largura
-   inteira (a classe é aplicada por app.js, não por `:nth-child` — ver o comentário lá).
-   Abaixo de 900px a grade volta a uma coluna. */
-.aba__graficos {
+/* Doze colunas. A largura de cada cartão vem de `largura` em config/abas.yaml, e app.js
+   estica o último cartão de uma linha incompleta para fechar as doze. */
+.grade {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px 24px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--s-6);
 }
 
-/* Os cartões de uma mesma linha alinham topo, subtítulo, área de gráfico e rodapé por
-   `subgrid`. É disso que depende as duas curvas ficarem na mesma altura: sem o subgrid,
-   um cartão com título de duas linhas empurraria o próprio gráfico para baixo. Por isso
-   o cartão tem SEMPRE quatro filhos — quem mexer nesta estrutura em app.js precisa
-   manter a contagem. */
-.aba__graficos > .grafico {
-  display: grid;
-  grid-template-rows: subgrid;
-  grid-row: span 4;
+.cartao { grid-column: span var(--col, 12); }
+
+/* Rótulo de ponta precisa de ~110px à direita da plotagem. Abaixo de 1100px um cartão
+   de 4/12 não tem largura para isso, então a grade engrossa antes de virar coluna só. */
+@media (max-width: 1099px) {
+  .cartao { grid-column: span min(12, max(var(--col, 12), 6)); }
 }
 
-@supports not (grid-template-rows: subgrid) {
-  .aba__graficos > .grafico {
-    display: flex;
-    flex-direction: column;
-  }
-  .grafico__area { flex: 1; }
-}
-
-.grafico--linha-inteira { grid-column: 1 / -1; }
-
-@media (max-width: 900px) {
-  .aba__graficos { grid-template-columns: minmax(0, 1fr); }
-  .aba__graficos > .grafico { grid-column: 1; }
+@media (max-width: 720px) {
+  .pagina { padding: var(--s-4); }
+  .cartao { grid-column: span 12; }
+  .cabecalho__titulo { font-size: 28px; }
+  .abas { margin-left: calc(-1 * var(--s-4)); margin-right: calc(-1 * var(--s-4)); padding-left: var(--s-4); padding-right: var(--s-4); }
 }
 
 /* ------------------------------------------------------------------ cartão */
 
-.grafico {
-  border: 1px solid var(--cinza-claro);
-  padding: 14px 16px 12px;
+.cartao {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--s-6);
   min-width: 0;
-}
-
-/* Título numa linha, controles na seguinte, alinhados à direita.
- *
- * A orientação pede os controles "no canto superior direito", e é o que acontece — mas
- * numa linha própria, não ao lado do título. Lado a lado, numa coluna de ~450px, um
- * título de duas linhas espremia os seletores e o ícone "i" caía sozinho numa terceira
- * linha. Com a linha própria, o alinhamento à direita se mantém e a altura do topo fica
- * previsível, que é do que o `subgrid` precisa para alinhar os cartões vizinhos.
- */
-.grafico__topo {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s-4);
 }
 
-.grafico__titulo {
-  margin: 0;
-  color: var(--azul);
-  font-size: 16px;
-  line-height: 1.3;
-}
-
-.grafico__controles {
+.cartao__topo {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  gap: var(--s-4);
   flex-wrap: wrap;
 }
 
-.grafico__subtitulo {
-  margin: 4px 0 8px;
-  font-size: 12px;
-  color: var(--cinza);
-}
-
-.grafico__area {
-  width: 100%;
-  min-width: 0;
-  height: 300px;
-}
-
-.grafico--linha-inteira .grafico__area { height: 340px; }
-
-.grafico__rodape {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--cinza-claro);
-}
-
-.grafico__meta {
-  font-size: 11px;
-  line-height: 1.4;
+.cartao__titulo {
+  margin: 0;
+  font-family: var(--f-titulo);
+  font-size: var(--t-cartao);
+  line-height: var(--lh-cartao);
+  font-weight: 500;
+  color: var(--ink);
   min-width: 0;
 }
 
-.grafico__acoes {
+.cartao__controles {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: var(--s-2);
   flex-shrink: 0;
 }
 
-/* ------------------------------------------------------------------ controles discretos */
+.cartao__area {
+  width: 100%;
+  min-width: 0;
+  height: 320px;
+}
 
-.controle {
+.cartao[data-col="12"] .cartao__area { height: 380px; }
+
+/* Num cartão de quatro colunas os controles não cabem ao lado do título: o seletor de
+   base, o grupo de período, o "i" e o download somam mais que a largura do cartão, e a
+   quebra deixava o ícone de download sozinho numa terceira linha. Abaixo desse limite a
+   linha do título e a dos controles se separam. */
+.cartao[data-col="4"] .cartao__topo,
+.cartao[data-col="5"] .cartao__topo {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-3);
+}
+
+.cartao[data-col="4"] .cartao__controles,
+.cartao[data-col="5"] .cartao__controles {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  row-gap: var(--s-2);
+}
+
+@media (max-width: 720px) {
+  .cartao__area,
+  .cartao[data-col="12"] .cartao__area { height: 260px; }
+  .cartao__topo { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+  .cartao__controles { justify-content: flex-start; flex-wrap: wrap; row-gap: var(--s-2); }
+}
+
+/* ------------------------------------------------------------------ controles */
+
+.pilula {
+  appearance: none;
+  height: 28px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctrl);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--f-texto);
+  font-size: var(--t-eixo);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--dur), color var(--dur);
+}
+
+.pilula:hover { border-color: var(--ink-3); color: var(--ink); }
+
+/* O `select` de base vira pílula: seta fina desenhada em CSS, sem a do sistema. */
+select.pilula {
+  padding-right: calc(var(--s-4) + var(--s-2));
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 14px center, right 9px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* Grupo segmentado do período: uma pílula só, dividida. */
+.segmentado {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctrl);
+  background: var(--surface);
+  overflow: hidden;
 }
 
-.controle__rotulo { color: var(--cinza); }
-
-.controle__campo {
+.segmentado__item {
   appearance: none;
-  border: 1px solid var(--cinza-claro);
-  background: var(--fundo);
-  color: var(--cinza);
-  font-family: var(--fonte);
-  font-size: 11px;
-  padding: 3px 6px;
-  max-width: 140px;
+  border: none;
+  background: none;
+  height: 26px;
+  padding: 0 var(--s-3);
+  font-family: var(--f-texto);
+  font-size: var(--t-eixo);
+  line-height: 1;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background-color var(--dur), color var(--dur);
 }
 
-.controle__campo:focus-visible { outline: 2px solid var(--ciano); }
+.segmentado__item:hover { color: var(--ink); }
 
-.controle--caixa { gap: 4px; cursor: pointer; }
+.segmentado__item[aria-pressed="true"] {
+  background: var(--line);
+  color: var(--ink);
+}
 
-.custom {
+.intervalo {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  margin-top: 6px;
-  font-size: 11px;
+  gap: var(--s-2);
+  font-size: var(--t-eixo);
+  color: var(--ink-3);
 }
 
-/* `display: flex` numa regra de classe vence o `[hidden] { display: none }` da folha do
-   navegador, que é de origem mais fraca. Sem esta linha os campos do intervalo
-   personalizado aparecem sempre, apesar de `el.hidden = true`. */
-.custom[hidden] { display: none; }
+.intervalo[hidden] { display: none; }
 
-.custom__rotulo { color: var(--cinza); }
-
-.custom__campo {
-  border: 1px solid var(--cinza-claro);
-  background: var(--fundo);
-  color: var(--cinza);
-  font-family: var(--fonte);
-  font-size: 11px;
-  padding: 3px 6px;
+.intervalo input {
+  height: 26px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--f-texto);
+  font-size: var(--t-eixo);
 }
 
-/* Ícone "i": leva à âncora da aba Metodologia. É o único lugar do cartão que fala de
-   método — a explicação toda vive lá, não aqui. */
+/* Ícone de metodologia. */
 .info {
   appearance: none;
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  border: 1px solid var(--ciano);
+  padding: 0;
+  border: 1px solid var(--ink-3);
   border-radius: 50%;
-  background: var(--fundo);
-  color: var(--ciano);
-  font-family: Georgia, "Times New Roman", serif;
-  font-style: italic;
+  background: none;
+  color: var(--ink-3);
+  font-family: var(--f-texto);
   font-size: 12px;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
+  transition: background-color var(--dur), color var(--dur);
 }
 
-.info:hover { background: var(--ciano); color: var(--fundo); }
+.info:hover { background: var(--ink-3); color: var(--surface); }
 
-/* ------------------------------------------------------------------ botões e links */
+/* Download: seta fina, sem texto, com menu de duas opções. */
+.baixar { position: relative; }
 
-.baixar {
+.baixar__botao {
   appearance: none;
-  border: 1px solid var(--ciano);
-  background: var(--fundo);
-  color: var(--ciano);
-  font-family: var(--fonte);
-  font-size: 11px;
-  padding: 4px 10px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-3);
   cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-btn);
+  transition: color var(--dur), background-color var(--dur);
 }
 
-.baixar:hover { background: var(--ciano); color: var(--fundo); }
+.baixar__botao:hover { color: var(--ink); background: var(--line); }
 
-.carregando {
-  color: var(--cinza);
-  font-size: 13px;
-  padding: 16px 0;
+.baixar__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--s-1));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  padding: var(--s-1);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn);
+  box-shadow: var(--shadow-card);
 }
 
-.aviso-desatualizado {
-  margin: 8px 0;
-  padding: 8px 10px;
-  border-left: 3px solid var(--alerta);
-  background: #FDF4F4;
-  font-size: 12px;
+.baixar__menu[hidden] { display: none; }
+
+.baixar__item {
+  appearance: none;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: var(--s-2) var(--s-3);
+  border-radius: 6px;
+  font-family: var(--f-texto);
+  font-size: var(--t-eixo);
+  color: var(--ink-2);
+  cursor: pointer;
 }
+
+.baixar__item:hover { background: var(--line); color: var(--ink); }
+
+/* ------------------------------------------------------------------ estados */
+
+.carregando, .painel__vazio {
+  color: var(--ink-3);
+  font-size: var(--t-controle);
+  padding: var(--s-6) 0;
+}
+
+/* Esqueleto com a forma do cartão, sem spinner. */
+.esqueleto {
+  background: var(--line);
+  border-radius: var(--r-plot);
+  width: 100%;
+  height: 100%;
+  opacity: .5;
+}
+
+.cartao__erro {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--s-4);
+  color: var(--ink-2);
+  font-size: var(--t-controle);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ tooltip */
+
+/* O tooltip é HTML gerado por app.js e estilizado aqui, para que cor e fonte continuem
+   vindo dos tokens. */
+.tt__data {
+  color: var(--ink-3);
+  font-size: var(--t-eixo);
+  margin-bottom: var(--s-2);
+}
+
+.tt__linha {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  font-size: var(--t-tooltip);
+  line-height: var(--lh-tooltip);
+  white-space: nowrap;
+}
+
+.tt__marca {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tt__nome { color: var(--ink-2); margin-right: auto; }
+
+.tt__valor { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.tt__ref { color: var(--ink-3); font-size: var(--t-eixo); }
 
 /* ------------------------------------------------------------------ metodologia */
 
-.aba-painel--texto { max-width: 100%; }
-
-.metodologia { max-width: 100%; }
-
-.metodologia h2 {
-  margin: 32px 0 8px;
-  color: var(--azul);
-  font-size: 19px;
-  border-bottom: 1px solid var(--cinza-claro);
-  padding-bottom: 4px;
+.metodologia {
+  display: grid;
+  grid-template-columns: 3fr 9fr;
+  gap: var(--s-12);
+  align-items: start;
 }
 
-.metodologia h3 {
-  margin: 22px 0 4px;
-  color: var(--azul);
-  font-size: 15px;
+@media (max-width: 900px) {
+  .metodologia { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
 }
 
-.metodologia h4 {
-  margin: 16px 0 4px;
+.sumario {
+  position: sticky;
+  top: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.sumario__item {
+  appearance: none;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: var(--s-1) 0;
+  font-family: var(--f-texto);
   font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color var(--dur);
 }
 
-.metodologia__p {
-  margin: 0 0 10px;
-  max-width: 88ch;
+.sumario__item:hover { color: var(--ink-2); }
+.sumario__item[aria-current="true"] { color: var(--ink); font-weight: 500; }
+
+.sumario__recuo { padding-left: var(--s-3); }
+
+@media (max-width: 900px) {
+  .sumario { position: static; }
 }
 
-.metodologia__lista {
-  margin: 0 0 10px;
-  max-width: 88ch;
-  padding-left: 20px;
+.sumario__abertura {
+  font-family: var(--f-texto);
+  font-size: var(--t-controle);
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: var(--s-2) 0;
 }
 
-.metodologia__lista li { margin-bottom: 4px; }
+.texto { max-width: 100%; min-width: 0; }
 
-/* Realce momentâneo de onde o ícone "i" levou o leitor. Sem isto, numa aba longa, a
-   âncora certa chega e o leitor não sabe qual parágrafo é o dele. */
+.texto h2 {
+  margin: var(--s-12) 0 var(--s-3);
+  font-family: var(--f-titulo);
+  font-size: var(--t-secao);
+  line-height: var(--lh-secao);
+  font-weight: 600;
+  color: var(--ink);
+  scroll-margin-top: 80px;
+}
+
+.texto h2:first-child { margin-top: 0; }
+
+.texto h3 {
+  margin: var(--s-8) 0 var(--s-2);
+  font-family: var(--f-titulo);
+  font-size: var(--t-cartao);
+  line-height: var(--lh-cartao);
+  font-weight: 500;
+  color: var(--ink);
+  scroll-margin-top: 80px;
+}
+
+.texto p, .texto ul { max-width: var(--medida); color: var(--ink-2); }
+
+.texto p { margin: 0 0 var(--s-3); }
+
+.texto ul { margin: 0 0 var(--s-3); padding-left: var(--s-4); }
+
+.texto li { margin-bottom: var(--s-1); }
+
+.texto strong { color: var(--ink); font-weight: 600; }
+
+.texto code {
+  font-family: var(--f-texto);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Destaque momentâneo de onde o ícone "i" levou o leitor. */
 .destacado {
-  background: #FFF8E1;
-  transition: background 1.2s ease-out;
+  background: var(--line);
+  border-radius: var(--r-btn);
+  box-shadow: 0 0 0 var(--s-2) var(--line);
 }
 
-.bloco { margin-top: 32px; }
-
-.bloco h2 {
-  margin: 0 0 8px;
-  color: var(--azul);
-  font-size: 19px;
-  border-bottom: 1px solid var(--cinza-claro);
-  padding-bottom: 4px;
+.some {
+  transition: background-color 1.2s ease, box-shadow 1.2s ease;
+  background: transparent;
+  box-shadow: none;
 }
 
-/* Tabela larga rola dentro do próprio contêiner. A página nunca rola na horizontal. */
-.tabela-rolavel {
+/* Fórmula de série derivada, em texto e não em LaTeX. */
+.formula {
+  background: var(--bg);
+  border-radius: var(--r-btn);
+  padding: var(--s-4);
+  margin: 0 0 var(--s-3);
+  font-size: var(--t-controle);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
   overflow-x: auto;
-  border: 1px solid var(--cinza-claro);
-  margin-bottom: 12px;
+  max-width: none;
 }
 
-.tabela {
+.formula__id {
+  color: var(--ink-3);
+  display: block;
+  margin-bottom: var(--s-1);
+  font-size: var(--t-eixo);
+}
+
+/* Ficha por série. */
+.tabela-envolucro {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn);
+  margin-bottom: var(--s-4);
+}
+
+.ficha {
   border-collapse: collapse;
   width: 100%;
-  font-size: 12px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-.tabela--ficha { font-size: 11px; }
-
-.tabela th,
-.tabela td {
-  border-bottom: 1px solid var(--cinza-claro);
-  padding: 5px 8px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.tabela th {
-  background: #FAFAFA;
-  color: var(--azul);
-  font-weight: bold;
-  white-space: nowrap;
+.ficha th {
   position: sticky;
   top: 0;
-}
-
-.tabela tbody tr:hover { background: #FAFAFA; }
-
-.mono {
-  font-family: Consolas, "Courier New", monospace;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
   white-space: nowrap;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.tooltip__ref { color: var(--cinza); font-size: 11px; }
-
-code {
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 0.92em;
+.ficha td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  color: var(--ink-2);
 }
+
+.ficha tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--bg) 45%, transparent); }
+
+.ficha tbody tr.destacado { background: var(--line); box-shadow: none; }
+
+.ficha__id { font-weight: 500; color: var(--ink); white-space: nowrap; }
+
+/* Histórico como sequência cronológica. */
+.historico { list-style: none; margin: 0; padding: 0; max-width: none; }
+
+.historico li {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+  margin: 0;
+}
+
+.historico__data {
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.historico__texto { color: var(--ink-2); font-size: var(--t-controle); }
 
 /* ------------------------------------------------------------------ rodapé */
 
 .rodape {
-  margin-top: 48px;
-  padding-top: 16px;
-  border-top: 1px solid var(--cinza-claro);
-  font-size: 12px;
+  margin-top: var(--s-12);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.rodape p { margin: 0 0 8px; max-width: 90ch; }
+.rodape p { margin: 0; color: var(--ink-3); }
 
-.rodape__credito { color: var(--azul); }
+.rodape__autor { color: var(--ink-2); margin-top: var(--s-1); }
+
+/* ------------------------------------------------------------------ movimento */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ impressão */
 
 @media print {
-  .abas-nav, .aba__controles, .grafico__controles, .grafico__acoes { display: none; }
-  .aba-painel[hidden] { display: none; }
-  .aba__graficos { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* Tabela longa — a ficha de série e o histórico — ganha painel próprio com rolagem
-   vertical. O cabeçalho já é `position: sticky`, então ele gruda no topo do painel em
-   vez de no topo da janela, que é o comportamento certo aqui. */
-.tabela-rolavel--alta {
-  max-height: 70vh;
-  overflow-y: auto;
+  .abas, .cartao__controles, .painel__periodo, .sumario { display: none !important; }
+  /* O fundo branco vem da redefinição de tokens em tokens.css, não de hex aqui. */
+  .cartao { break-inside: avoid; box-shadow: none; grid-column: 1 !important; }
+  .grade { grid-template-columns: minmax(0, 1fr); }
+  .painel[hidden] { display: none; }
+  .tabela-envolucro { max-height: none; overflow: visible; }
 }

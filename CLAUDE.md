@@ -170,100 +170,99 @@ não cobrir a série desejada.
 
 ## Identidade visual (obrigatória)
 
-| token | valor | uso |
+**Direção visual de 19/09/2026.** Esta seção SUBSTITUI integralmente a identidade
+anterior — azul `#164194`, ciano `#008BD2`, Arial e a paleta de cinco séries derivada dos
+dois azuis, incluindo a decisão de 30/08/2026 sobre as posições 3 e 4. Aquela regra não
+vale mais; a decisão de trocá-la é humana, registrada na orientação de direção visual
+entregue nesta data. Não reintroduzir a paleta antiga sem nova decisão humana.
+
+**Os tokens vivem em `docs/tokens.css` e em nenhum outro lugar.** Cor, tipo, espaço,
+raio e sombra. `style.css` usa as variáveis; `app.js` lê os tokens com `getComputedStyle`
+e nunca escreve cor literal, nem para passar ao ECharts. Quem precisar de cor nova cria
+token. Um `grep` por hex fora de `tokens.css` tem de voltar vazio — inclusive no bloco de
+impressão, que redefine os tokens em vez de abrir exceção.
+
+**O conceito:** o site é um instrumento de leitura, não um painel corporativo. A
+referência é um relatório de pesquisa bem editado — pouca cor, tipografia com
+personalidade, muito espaço, gráficos como protagonistas. **A ousadia vai para um lugar
+só: os gráficos. Todo o resto é silencioso.**
+
+### Cor
+
+A cor IDENTIFICA, não decora. Cada token tem papel fixo em todos os gráficos, e o papel
+é declarado no campo `cor` de cada série no catálogo — nunca derivado da posição da série
+no gráfico, como era antes.
+
+| papel | token | onde |
 |---|---|---|
-| `--azul` | `#164194` | títulos, série principal Brasil |
-| `--ciano` | `#008BD2` | série secundária, destaques |
-| `--cinza` | `#595959` | texto corrido, eixos |
-| `--cinza-claro` | `#D9D9D9` | grid, bordas |
-| `--fundo` | `#FFFFFF` | fundo da página |
+| `total` | `--c-total` petróleo | todo agregado, e sempre com traço de 2,5px |
+| `pj` | `--c-pj` ocre | pessoas jurídicas / empresas |
+| `pf` | `--c-pf` ameixa | pessoas físicas / famílias |
+| `livre` | `--c-livre` jade | recursos livres |
+| `dir` | `--c-dir` ardósia | recursos direcionados |
+| `alerta` | `--c-alerta` framboesa | endividamento e comprometimento das famílias |
+| `outros` | `--c-outros` cinza-verde | residuais, com traço de 1,25px tracejado |
+| `extra-1` a `extra-6` | — | modalidades e aberturas, fora da faixa semântica |
 
-Tipografia: **Arial** em toda a página (`font-family: Arial, Helvetica, sans-serif`).
+Um gráfico pode sobrescrever o papel de uma série no campo `cores`, em `config/abas.yaml`.
+É necessário quando a mesma série muda de papel conforme o recorte: 20543 é a linha de PJ
+nos gráficos por tomador e o agregado no gráfico de modalidades.
 
-Paleta das linhas dos gráficos, na ordem de uso obrigatória (Brasil sempre na primeira):
+Gradiente existe em um lugar só: preenchimento sob a linha em gráfico de série única.
 
-| token | valor | |
-|---|---|---|
-| `--serie-1` | `#164194` | azul institucional |
-| `--serie-2` | `#008BD2` | ciano institucional |
-| `--serie-3` | `#00785F` | verde-petróleo |
-| `--serie-4` | `#C77F00` | ocre |
-| `--serie-5` | `#595959` | cinza |
+### Tipografia
 
-> **Decisão de 30/08/2026.** Da terceira série em diante a paleta sai da família azul.
-> A regra anterior — derivar tudo dos dois azuis — produzia curvas indistinguíveis nos
-> gráficos de três e quatro séries e ilegíveis em preto e branco. Não voltar a tons de
-> azul nas posições 3 e 4 sem decisão humana. Vermelho segue reservado a alertas.
+**Bricolage Grotesque** nos títulos (variável, levemente condensada no título do site) e
+**Hanken Grotesk** no texto e em todo número, sempre com `tabular-nums` em eixo, tooltip,
+rótulo de ponta e tabela. As duas vêm do Google Fonts com `display=swap`; a página tem de
+ficar legível em `system-ui` antes de elas chegarem, e sem quebrar o layout.
 
-Cada gráfico traz: título, subtítulo com unidade e período, fonte explícita, data da
-última observação e botão de download. Sem sombras, sem gradientes, sem arredondamento
-decorativo — o padrão é sóbrio e institucional.
+São a única exceção à regra de "nenhuma dependência de front além do ECharts": duas
+folhas de estilo externas, sem JavaScript. Sem rede, a página inteira continua funcional.
 
-**Layout em duas colunas (decisão de 02/09/2026).** Dentro de uma aba, os gráficos vão
-numa grade de duas colunas; um gráfico sozinho na última linha ocupa a largura inteira.
-Abaixo de 900px a grade volta a uma coluna. Os cartões de uma mesma linha alinham topo,
-subtítulo, área de gráfico e rodapé por `subgrid` — por isso o cartão tem sempre **quatro**
-filhos. Quem mexer nessa estrutura em `app.js` precisa manter a contagem, senão as curvas
-de dois gráficos vizinhos deixam de ficar na mesma altura. (Os campos do intervalo
-personalizado ficam dentro do topo, e não como quinto filho, justamente por isso: eles
-aparecem e somem conforme o leitor escolhe "Personalizado…".)
+### Gráficos
 
-**Reformulação de 19/09/2026.** A página foi reorganizada em cinco abas — Mercado de
-crédito, Inadimplência, Dívida das famílias, Comparação internacional e Metodologia — com
-o catálogo de gráficos G1 a G20 declarado em `config/abas.yaml`. O que mudou, e não deve
-ser desfeito sem nova decisão humana:
+- **Rótulo na ponta da linha, sem legenda.** É o elemento memorável do site. A folga à
+  direita é MEDIDA a partir do texto real, com a fonte real, e limitada a 42% da largura
+  do cartão. Quando não cabe em uma linha, o rótulo quebra em duas (nome em cima, valor
+  embaixo); só em último caso o nome é encurtado, e o valor nunca é cortado.
+- **Hierarquia de traço:** total 2,5px, componente 1,5px, residual 1,25px tracejado.
+- **Marcador só no último ponto:** cheio; vazado quando o dado é preliminar na fonte.
+- **Grid horizontal apenas**, no máximo cinco linhas. Sem grid vertical, sem moldura, sem
+  título de eixo. A unidade fica no topo do eixo Y.
+- **Sem animação de entrada.** Só a transição de 250ms ao trocar base ou período.
 
-- **O recorte fixo de exibição a partir de 2005 acabou.** Cada gráfico abre na série
-  completa e o leitor escolhe o intervalo: atalhos Tudo / 10 / 5 / 3 / 1 ano, mais um
-  intervalo personalizado em dois campos mês/ano. Há um seletor por gráfico e um por aba,
-  e o da aba sobrescreve os individuais quando acionado.
-- **O filtro Família / Empresas / Ambos saiu.** O recorte por tomador passou a ser feito
-  por gráficos específicos. O campo `segmento` do catálogo continua obrigatório em toda
-  série — `build_dataset.py` falha sem ele —, mas agora é metadado da ficha de série na
-  aba Metodologia, não filtro.
-- **As explicações saíram dos cartões.** O cartão carrega título, unidade no eixo,
-  legenda, procedência, último ponto e um ícone "i" que leva à âncora correspondente na
-  aba Metodologia. Nenhuma nota de rodapé dentro do cartão.
-- **A aba Metodologia é gerada do catálogo.** Fontes, transformações, séries derivadas,
-  ficha por série e histórico de atualizações são produzidos por `src/build_metodologia.py`
-  a cada build e encaixados nos marcadores `{{fontes}}`, `{{transformacoes}}`,
-  `{{derivadas}}`, `{{ficha}}` e `{{historico}}` de `content/metodologia.md`. O texto
-  corrido continua sendo humano. Não escrever à mão o que é gerado: desatualiza.
-- **A atualização passou de diária a quinzenal**, dias 1 e 16.
+### Layout
 
-**Onde o intervalo "Tudo" começa.** Por `inicio: comum` (padrão em `config/abas.yaml`),
-um gráfico abre na primeira data em que TODAS as suas séries têm observação. A alternativa
-`uniao` existe mas não é o padrão por um caso concreto: a série 20539 (total do SFN) tem
-observações desde 06/1988, mas todas as suas aberturas começam em 03/2007, e os valores
-anteriores a 1994 estão reexpressos em reais a ponto de serem degenerados (06/1988 = R$ 0).
-Com `uniao`, G4 e G5 abririam numa linha reta no zero por vinte anos. O recorte é só de
-exibição — `data/`, a planilha e o CSV de cada gráfico seguem com a série inteira.
+Grade de doze colunas; a largura de cada cartão vem de `largura` em `config/abas.yaml`.
+Gráfico de abertura da aba 8/12, de três ou quatro séries 4/12, de modalidade 12/12. O
+front estica o último cartão de uma linha incompleta para fechar as doze colunas.
 
-**Cor por posição, não por identidade.** O front atribui cor pela ordem da série no
-gráfico. A consistência que a orientação pede — mesma cor para PJ, PF, livre e direcionado
-em todos os gráficos em que aparecem — se cumpre pela ORDENAÇÃO em `abas.yaml`: o agregado
-sempre primeiro, depois PJ antes de PF e direcionado antes de livre. Quem reordenar um
-gráfico quebra a consistência entre gráficos. Séries com `papel: total` recebem traço mais
-grosso.
+O cartão carrega título, controles e gráfico — **e nada abaixo do gráfico**. Sem nota,
+sem fonte, sem "última observação". A explicação toda vive na aba Metodologia, alcançada
+pelo ícone "i".
 
-Quando um gráfico tem mais séries que cores (G8 tem oito, a abertura da indústria em G16
-tem dezessete), `app.js` varia o TRAÇO — sólido, tracejado, pontilhado — em vez de
-estender a paleta. Estender a paleta é inventar cor institucional e depende de decisão
-humana. Acima de seis séries a legenda vira `scroll`, de uma linha só: com dezessete
-curvas ela ocupava cinco linhas e invadia o eixo do tempo.
+Abas como pílulas, barra sticky. Aba Metodologia como página editorial, com sumário fixo
+à esquerda.
 
-**"Detalhar indústria" troca o gráfico, não acrescenta séries.** Ligar o detalhe em G16
-mostra SÓ as dezesseis aberturas da indústria — nem as demais atividades, nem o total da
-própria indústria (decisão de 19/09/2026). Acrescentar não funcionava: com o total em
-R$ 2,7 trilhões no mesmo eixo, aberturas de R$ 11 a R$ 259 bilhões viravam uma faixa
-colada no zero; e manter o total da indústria, quatro vezes maior que a maior abertura,
-reproduzia o problema em escala menor.
+### Modo escuro
+
+`prefers-color-scheme: dark` troca o conjunto de tokens — não é inversão, é a mesma
+paleta em outra chave. Como as cores dos gráficos são lidas no momento do desenho, o
+front redesenha todos os gráficos quando o sistema troca de tema.
+
+### `docs/styleguide.html`
+
+Folha de estilo viva: paleta, escala tipográfica, controles, hierarquia de traço, cartão
+e tooltip, lendo os mesmos `tokens.css` e `style.css` do site. Fora do menu e com
+`noindex`. Quem mexer nos tokens confere ali primeiro.
 
 ## Convenções de código
 
 - Python 3.11+, `requests`, `pandas`, `pyyaml`, `openpyxl`, `pyarrow`.
 - Type hints em funções públicas. Docstrings curtas em português.
-- Nenhuma dependência de front além do ECharts via CDN (versão pinada).
+- Nenhuma dependência de front além do ECharts via CDN (versão pinada) e das duas
+  famílias do Google Fonts. Nenhuma delas pode ser necessária para a página funcionar.
 - Testes nunca vão à rede. `tests/test_parsing.py` cobre a normalização da coleta
   (decimal brasileiro, data `dd/MM/yyyy`, payload mascarado, janelas); `tests/test_bases.py`,
   as quatro transformações; `tests/test_derivadas.py`, residual, soma e média ponderada,
@@ -281,6 +280,6 @@ reproduzia o problema em escala menor.
 - Reintroduzir qualquer atribuição institucional — nome, sigla, assinatura ou marca.
 - Incluir série cuja metodologia não esteja documentada em fonte oficial.
 - Construir indicador derivado (ex.: proxy de alavancagem) sem nota metodológica escrita.
-- Estender a paleta de cores além dos cinco tokens.
+- Alterar a paleta ou a tipografia de `docs/tokens.css`.
 - Implementar variação (mensal ou em 12 meses) para séries já em porcentagem.
 - Escrever à mão qualquer seção da aba Metodologia que hoje é gerada do catálogo.

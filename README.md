@@ -54,6 +54,28 @@ build. O texto corrido continua humano, em `content/metodologia.md`.
 **O filtro Família / Empresas / Ambos saiu**, substituído por gráficos específicos. O
 campo `segmento` continua obrigatório no catálogo e virou metadado da ficha de série.
 
+### Direção visual de 19/09/2026
+
+A página foi reconstruída sobre uma direção visual nova, que substitui a identidade
+anterior (azul institucional, Arial, paleta de cinco séries). O conceito: instrumento de
+leitura, não painel corporativo — pouca cor, muito espaço, e a ousadia concentrada nos
+gráficos.
+
+- **`docs/tokens.css` é a fonte única de cor, tipo, espaço e raio.** Nenhum hex fora dele,
+  nem no CSS, nem no JavaScript que configura os gráficos, nem no bloco de impressão.
+- **Cor com papel fixo**: o Total é petróleo em todos os gráficos, PJ é ocre, PF é ameixa,
+  livre é jade, direcionado é ardósia. O papel é declarado no campo `cor` de cada série no
+  catálogo, nunca derivado da posição no gráfico.
+- **Sem legenda**: cada série termina com um ponto e o nome mais o último valor na ponta
+  da linha. A folga é medida a partir do texto real; quando não cabe em uma linha, o
+  rótulo quebra em duas.
+- **Nada abaixo do gráfico dentro do cartão** — a explicação vive na aba Metodologia,
+  alcançada pelo ícone "i".
+- **Modo escuro** por `prefers-color-scheme`, com os gráficos redesenhados na troca.
+- **`docs/styleguide.html`**: folha de estilo viva, fora do menu, lendo os mesmos tokens.
+- Tipografia: Bricolage Grotesque nos títulos, Hanken Grotesk no texto e nos números. São
+  a única dependência de front além do ECharts, e a página fica legível sem elas.
+
 ### Validações que o build faz contra a fonte
 
 `build_dataset.py` sai com **código 1** se qualquer uma falhar:
@@ -124,6 +146,8 @@ JSON lido por `fetch()`: sob `file://` o navegador bloqueia `fetch()` de arquivo
 | `data/_cache/` | último payload por série, fora do versionamento |
 | `docs/dados.js` | payload embutido que a página consome |
 | `docs/monitor_endividamento.xlsx` | planilha pública (cópia de `data/`) |
+| `docs/tokens.css` | cor, tipo, espaço e raio — fonte única, escrita à mão |
+| `docs/styleguide.html` | folha de estilo viva, fora do menu |
 
 `validate_series.py` sai com código 1 se qualquer série falhar. O workflow do GitHub
 Actions usa isso como gate: dado não sobe se um código estiver quebrado.
