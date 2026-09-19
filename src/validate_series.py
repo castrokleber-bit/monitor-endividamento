@@ -89,7 +89,20 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
     """
     ultimo_erro = "sem resposta"
     for tentativa in range(TENTATIVAS_VALIDACAO):
-        resp = _get(SGS_DADOS.format(codigo=codigo, n=1))
+        try:
+            resp = _get(SGS_DADOS.format(codigo=codigo, n=1))
+        except (RuntimeError, requests.RequestException) as exc:
+            # `comum.http_get` levanta RuntimeError depois de esgotar as tentativas de
+            # rede. Sem este `except`, um único timeout derrubava o SCRIPT INTEIRO com
+            # traceback, no meio da lista, em vez de reprovar aquela série — foi o que
+            # aconteceu em 19/09/2026 na série 20541 (run 35461558695). O gate tem de
+            # conseguir dizer QUAIS séries falharam; morrer na primeira não é um gate,
+            # é um acidente.
+            ultimo_erro = f"falha de rede: {exc}"
+            if tentativa < TENTATIVAS_VALIDACAO - 1:
+                time.sleep(PAUSA * 2 ** (tentativa + 1))
+            continue
+
         if resp.status_code == 406:
             return None, "406 — código inexistente ou inválido no SGS"
         if resp.status_code != 200:
@@ -146,13 +159,22 @@ def valida_fred(serie: dict, api_key: str) -> dict:
     codigo = serie["codigo"]
     res = {"serie_id": serie["serie_id"], "fonte": "FRED", "codigo": codigo}
 
-    resp = _get(FRED_META, params={"series_id": codigo, "api_key": api_key, "file_type": "json"})
+    # Mesma proteção de `_observacao_mais_recente`: falha de rede reprova a série, não
+    # derruba o script. O FRED é bem mais estável que o SGS, mas a regra é a mesma.
+    try:
+        resp = _get(FRED_META, params={"series_id": codigo, "api_key": api_key, "file_type": "json"})
+    except (RuntimeError, requests.RequestException) as exc:
+        return {**res, "ok": False, "erro": f"falha de rede: {exc}"}
+
     if resp.status_code == 400:
         return {**res, "ok": False, "erro": "400 — series_id inexistente no FRED"}
     if resp.status_code != 200:
         return {**res, "ok": False, "erro": f"HTTP {resp.status_code}"}
 
-    info = resp.json().get("seriess", [])
+    try:
+        info = resp.json().get("seriess", [])
+    except ValueError:
+        return {**res, "ok": False, "erro": "resposta não é JSON"}
     if not info:
         return {**res, "ok": False, "erro": "série não encontrada"}
 

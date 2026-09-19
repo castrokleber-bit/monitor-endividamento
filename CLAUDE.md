@@ -137,6 +137,11 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
   meses normalmente. Não há como saber de antemão quais códigos se comportam assim, então
   `fetch_bcb.py` cai para janelas de data sempre que a consulta aberta falha. Não remover
   essa queda por parecer redundante.
+- **Falha de rede de UMA série não pode derrubar a execução.** `comum.http_get` levanta
+  `RuntimeError` ao esgotar as tentativas de rede. A coleta já tratava isso (cai para o
+  cache); a validação não, e em 19/09/2026 um read timeout na série 20541 matou o script
+  inteiro com traceback no meio da lista. Um gate que morre na primeira falha de rede não
+  consegue dizer quais códigos estão quebrados, que é a única coisa que se pede dele.
 - **Não existe endpoint público de metadados por código.** A consulta do `sgspub` exige
   sessão de navegador e o portal de dados abertos (CKAN) só busca por texto livre,
   devolvendo pacotes de outro assunto — o código 433 traz "Ouvidorias dos bancos" em

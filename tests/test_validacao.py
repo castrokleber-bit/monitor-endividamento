@@ -182,3 +182,49 @@ class TestRetryNaColeta(unittest.TestCase):
         respostas += [BOM]  # a última janela traz a série
         with self._com(respostas):
             self.assertEqual(self.fetch_bcb._baixa(28183, "M", "amplo_total"), OBS)
+
+
+class TestFalhaDeRedeNaoDerrubaOScript(unittest.TestCase):
+    """
+    Uma série inalcançável reprova aquela série — não mata a execução.
+
+    Em 19/09/2026 (run 35461558695) um read timeout na série 20541 levantou o
+    RuntimeError que `comum.http_get` emite ao esgotar as tentativas de rede. Ninguem
+    tratava, e o script morreu com traceback no meio da lista. Um gate que morre na
+    primeira falha de rede nao consegue dizer QUAIS codigos estao quebrados, que e a
+    unica coisa que se pede dele.
+    """
+
+    def setUp(self):
+        mock.patch.object(validate_series.time, "sleep").start()
+        self.addCleanup(mock.patch.stopall)
+
+    def test_runtime_error_de_rede_vira_reprovacao_da_serie(self):
+        erro = RuntimeError("falha de rede em https://...: Read timed out")
+        with mock.patch.object(validate_series, "_get", side_effect=erro):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertFalse(res["ok"])
+        self.assertIn("falha de rede", res["erro"])
+
+    def test_rede_instavel_que_se_recupera_passa(self):
+        erro = RuntimeError("falha de rede")
+        with mock.patch.object(validate_series, "_get", side_effect=[erro, BOM]) as get:
+            res = validate_series.valida_bcb(SERIE)
+        self.assertTrue(res["ok"])
+        self.assertEqual(get.call_count, 2)
+
+    def test_fred_tambem_reprova_em_vez_de_levantar(self):
+        erro = RuntimeError("falha de rede")
+        with mock.patch.object(validate_series, "_get", side_effect=erro):
+            res = validate_series.valida_fred({"serie_id": "bis_x", "codigo": "QBRHAM770A"}, "k")
+        self.assertFalse(res["ok"])
+        self.assertIn("falha de rede", res["erro"])
+
+    def test_main_relata_todas_as_series_mesmo_com_rede_caindo(self):
+        """O relatório tem de sair com uma linha por série, não parar na primeira."""
+        erro = RuntimeError("falha de rede")
+        series = [dict(SERIE, serie_id=f"s{i}", codigo=1000 + i) for i in range(4)]
+        with mock.patch.object(validate_series, "_get", side_effect=erro):
+            resultados = [validate_series.valida_bcb(s) for s in series]
+        self.assertEqual(len(resultados), 4)
+        self.assertTrue(all(not r["ok"] for r in resultados))
