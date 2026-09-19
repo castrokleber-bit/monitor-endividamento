@@ -144,6 +144,10 @@ Uma série problemática nunca derruba a coleta das outras:
 | fonte caiu, há cache | `stale` | reusa o cache; `ultima_coleta_ok` diz de quando é o dado |
 | fonte caiu, sem cache | `ausente` | a série fica fora dos artefatos daquela execução |
 
+No CI, `data/_cache/` é restaurado entre execuções por `actions/cache`. Sem esse passo a
+linha `stale` da tabela acima seria letra morta lá: a pasta não é versionada, cada
+execução seria partida fria, e qualquer falha de coleta viraria `ausente`.
+
 Os artefatos são sempre escritos. O que protege a publicação é o **guard de regressão**:
 se uma série que tinha dado na execução anterior desaparece, ou se a cobertura total cai,
 `build_dataset.py` escreve tudo e sai com **código 2**, e o workflow para antes do commit —

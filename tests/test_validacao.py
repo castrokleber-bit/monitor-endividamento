@@ -109,3 +109,76 @@ class TestRetryDoErroMascarado(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRetryNaColeta(unittest.TestCase):
+    """
+    A mesma política de retry, no caminho da COLETA.
+
+    O caso real, run 35460622823 de 19/09/2026: a consulta aberta de dez séries do
+    crédito ampliado falhou durante uma instabilidade do BCB, a coleta caiu para janelas
+    de data, e a primeira janela devolveu HTML com status 200. Sem retry, aquela janela
+    abortava a série inteira. Como `data/_cache/` não é versionado, no CI não há cache
+    para amparar: as dez foram para `ausente` e dispararam o guard de regressão, que
+    parou a publicação com código 2.
+    """
+
+    def setUp(self):
+        import fetch_bcb
+
+        self.fetch_bcb = fetch_bcb
+        mock.patch.object(fetch_bcb.time, "sleep").start()
+        self.addCleanup(mock.patch.stopall)
+
+    def _com(self, respostas):
+        return mock.patch.object(self.fetch_bcb, "http_get", side_effect=respostas)
+
+    def test_html_com_status_200_e_repetido(self):
+        with self._com([MASCARADO, BOM]) as get:
+            self.assertEqual(self.fetch_bcb._pede_json("url", "s", "onde"), OBS)
+        self.assertEqual(get.call_count, 2)
+
+    def test_404_e_janela_vazia_e_nao_falha(self):
+        """404 no SGS é intervalo sem dado, não erro. Não repete e não aborta."""
+        with self._com([RespostaFalsa(404)]) as get:
+            self.assertIsNone(self.fetch_bcb._pede_json("url", "s", "janela"))
+        self.assertEqual(get.call_count, 1)
+
+    def test_406_nao_e_repetido(self):
+        with self._com([RespostaFalsa(406), BOM]) as get:
+            with self.assertRaises(self.fetch_bcb.ErroColeta):
+                self.fetch_bcb._pede_json("url", "s", "onde")
+        self.assertEqual(get.call_count, 1)
+
+    def test_erro_persistente_aborta_a_serie(self):
+        """
+        Falha que persiste TEM de abortar: devolver a série com um buraco silencioso
+        no meio é exatamente o que este projeto não pode fazer.
+        """
+        n = self.fetch_bcb.TENTATIVAS_PAYLOAD
+        with self._com([MASCARADO] * n) as get:
+            with self.assertRaises(self.fetch_bcb.ErroColeta) as ctx:
+                self.fetch_bcb._pede_json("url", "serie_x", "janela 1980-1989")
+        self.assertIn("janela 1980-1989", str(ctx.exception))
+        self.assertEqual(get.call_count, n)
+
+    def test_erro_mascarado_da_27703_ainda_cai_para_janelas(self):
+        """
+        A série 27703 recusa a consulta aberta de forma permanente, devolvendo
+        `{"erro":{}}`. Depois das tentativas, `_baixa_aberto` levanta e `_baixa` cai para
+        as janelas — o comportamento que fez a série funcionar. O retry não pode ter
+        quebrado isso.
+        """
+        erro_da_27703 = RespostaFalsa(200, payload={"erro": {}})
+        n = self.fetch_bcb.TENTATIVAS_PAYLOAD
+        with self._com([erro_da_27703] * n):
+            with self.assertRaises(self.fetch_bcb.ErroColeta):
+                self.fetch_bcb._baixa_aberto(27703, "inad_porte_mpme")
+
+    def test_janela_boa_depois_de_janela_vazia_entra_no_resultado(self):
+        janelas = len(self.fetch_bcb._janelas())
+        respostas = [MASCARADO] * self.fetch_bcb.TENTATIVAS_PAYLOAD  # consulta aberta falha
+        respostas += [RespostaFalsa(404)] * (janelas - 1)  # janelas antigas sem dado
+        respostas += [BOM]  # a última janela traz a série
+        with self._com(respostas):
+            self.assertEqual(self.fetch_bcb._baixa(28183, "M", "amplo_total"), OBS)

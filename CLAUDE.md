@@ -25,6 +25,10 @@ Autoria: Kleber Pacheco de Castro.
    não responder ou se a série estiver vazia.
 4. **Falha de API não publica dado parcial.** Se uma fonte cair, o pipeline reutiliza o
    cache anterior e registra `status: stale` no manifesto. A página exibe o aviso.
+   No CI isso só funciona porque o workflow restaura `data/_cache/` entre execuções com
+   `actions/cache` — a pasta não é versionada, e sem esse passo cada execução seria
+   partida fria: série que falha vai direto para `ausente` e derruba o guard de
+   regressão, em vez de virar `stale`. Não remover o passo de cache.
 5. **Front sem build step.** HTML + ECharts via CDN. Tem que abrir por `file://` e
    servido em GitHub Pages, com o mesmo código.
 6. **Nenhum texto interpretativo gerado por IA.** Este é um painel de dados: ele

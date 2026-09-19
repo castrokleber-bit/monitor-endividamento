@@ -34,6 +34,23 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # O cache de payloads entre execuções é o que faz a política de falha do CLAUDE.md
+      # existir no CI. `data/_cache/` não é versionado, então sem isto cada execução é
+      # partida fria: uma série que falha na coleta não tem cache anterior para reusar,
+      # vai direto para `ausente` em vez de `stale`, e derruba o guard de regressão.
+      # Foi o que aconteceu em 19/09/2026 — dez séries do crédito ampliado falharam numa
+      # instabilidade do BCB e o job parou com código 2. O retry de `fetch_bcb` trata a
+      # causa; isto é a rede de segurança para quando a fonte cair de verdade.
+      #
+      # `restore-keys` faz a execução pegar o cache mais recente que existir, já que a
+      # chave carrega a data e nunca bate exatamente.
+      - name: Cache dos payloads da última coleta
+        uses: actions/cache@v4
+        with:
+          path: data/_cache
+          key: sgs-cache-${{ github.run_id }}
+          restore-keys: sgs-cache-
+
       - name: Testa as transformações
         run: python -m unittest discover -s tests
 

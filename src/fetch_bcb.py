@@ -44,6 +44,10 @@ FONTE = "BCB/SGS"
 ANO_INICIAL = 1980
 JANELA_ANOS = 9  # < 10 anos, com folga, porque o limite do SGS é exclusivo na borda
 
+# Tentativas por requisição diante do erro MASCARADO do SGS — status 200 com corpo que
+# não é JSON, ou que não é lista. Ver `_pede_json`.
+TENTATIVAS_PAYLOAD = 3
+
 _MILHAR = re.compile(r"^-?\d{1,3}(\.\d{3})+$")
 
 
@@ -125,26 +129,63 @@ def _janelas(hoje: date | None = None) -> list[tuple[str, str]]:
     return janelas
 
 
+def _pede_json(url: str, serie_id: str, onde: str) -> list | None:
+    """
+    GET no SGS, com retry sobre o erro MASCARADO, devolvendo a lista de observações.
+
+    Três resultados possíveis:
+      lista  -> o payload, podendo ser vazio
+      None   -> 404, que no SGS significa "intervalo sem dado" e não erro
+      exceção -> 406 (código inexistente) ou falha que persistiu nas tentativas
+
+    O retry existe porque o SGS, sob carga, responde 200 com uma página HTML de erro no
+    corpo. `comum.http_get` não consegue repetir nesse caso — para ele, 200 foi sucesso.
+    Só quem conhece o formato esperado da resposta pode decidir repetir, e é aqui.
+
+    Isto derrubou a publicação em 19/09/2026 (run 35460622823): a consulta aberta de dez
+    séries falhou durante uma instabilidade do BCB, a coleta caiu para janelas, e a
+    PRIMEIRA janela devolveu HTML com status 200. Sem retry, uma janela ruim abortava a
+    série inteira — e como `data/_cache/` não é versionado, no CI não há cache para
+    amparar: a série ia direto para `ausente` e disparava o guard de regressão.
+
+    Um 404 continua sendo pulado sem retry: é resposta legítima, não falha.
+    """
+    ultimo = "sem resposta"
+    for tentativa in range(TENTATIVAS_PAYLOAD):
+        resp = http_get(url)
+        if resp.status_code == 404:
+            return None
+        if resp.status_code == 406:
+            raise ErroColeta(f"{serie_id}: 406 — código inexistente ou inválido no SGS")
+        if resp.status_code != 200:
+            ultimo = f"HTTP {resp.status_code}"
+        else:
+            try:
+                dados = resp.json()
+            except ValueError:
+                ultimo = "resposta do SGS não é JSON (provável erro mascarado)"
+            else:
+                if isinstance(dados, list):
+                    return dados
+                # `{"erro":{}}` com status 200: pode ser a série recusando a consulta
+                # aberta (caso da 27703) ou instabilidade. Repetir distingue os dois.
+                ultimo = "payload não é lista de observações"
+
+        if tentativa < TENTATIVAS_PAYLOAD - 1:
+            time.sleep(PAUSA * 2 ** (tentativa + 1))
+
+    raise ErroColeta(f"{serie_id}: {ultimo} em {onde}")
+
+
 def _baixa_aberto(codigo: int | str, serie_id: str) -> list[dict]:
     """
     Consulta sem intervalo — o caminho normal de uma série mensal, trimestral ou anual.
 
-    Levanta `ErroColeta` em qualquer resposta que não seja uma lista não vazia de
-    observações, inclusive no `{"erro":{}}` com status 200 que algumas séries devolvem.
-    Quem chama decide se tenta de novo por janelas.
+    Levanta `ErroColeta` se, depois das tentativas, não vier uma lista não vazia de
+    observações. Quem chama decide se tenta de novo por janelas.
     """
-    resp = http_get(SGS_TUDO.format(codigo=codigo))
-    if resp.status_code == 406:
-        raise ErroColeta(f"{serie_id}: 406 — código {codigo} inexistente ou inválido no SGS")
-    if resp.status_code != 200:
-        raise ErroColeta(f"{serie_id}: HTTP {resp.status_code} no SGS")
-    try:
-        dados = resp.json()
-    except ValueError:
-        raise ErroColeta(f"{serie_id}: resposta do SGS não é JSON")
-    if not isinstance(dados, list) or not dados:
-        # `{"erro":{}}` com status 200, ou lista vazia. Não é erro de rede: é a série
-        # recusando a consulta aberta. A janela resolve.
+    dados = _pede_json(SGS_TUDO.format(codigo=codigo), serie_id, "consulta sem intervalo")
+    if not dados:
         raise ErroColeta(f"{serie_id}: consulta sem intervalo não devolveu observações")
     return dados
 
@@ -157,6 +198,11 @@ def _baixa(codigo: int | str, periodicidade: str, serie_id: str) -> list[dict]:
     ou mais nesse caso. As demais tentam primeiro a consulta aberta e só caem para as
     janelas se ela falhar — o que cobre tanto a indisponibilidade momentânea quanto as
     séries que simplesmente não respondem sem intervalo, como a 27703.
+
+    Uma janela que falha depois das tentativas aborta a série inteira, de propósito: a
+    alternativa seria devolver a série com um buraco silencioso no meio, e dado faltando
+    sem aviso é o que este projeto não pode fazer. Janela vazia (404) é outra coisa, e é
+    simplesmente pulada.
     """
     if periodicidade != "D":
         try:
@@ -169,19 +215,12 @@ def _baixa(codigo: int | str, periodicidade: str, serie_id: str) -> list[dict]:
 
     acumulado: list[dict] = []
     for inicio, fim in _janelas():
-        resp = http_get(SGS_JANELA.format(codigo=codigo, inicio=inicio, fim=fim))
-        if resp.status_code == 404:  # janela sem dado — o SGS responde 404, não lista vazia
-            time.sleep(PAUSA)
-            continue
-        if resp.status_code == 406:
-            raise ErroColeta(f"{serie_id}: 406 — código {codigo} inexistente ou inválido no SGS")
-        if resp.status_code != 200:
-            raise ErroColeta(f"{serie_id}: HTTP {resp.status_code} na janela {inicio}-{fim}")
-        try:
-            trecho = resp.json()
-        except ValueError:
-            raise ErroColeta(f"{serie_id}: resposta do SGS não é JSON na janela {inicio}-{fim}")
-        if isinstance(trecho, list):
+        trecho = _pede_json(
+            SGS_JANELA.format(codigo=codigo, inicio=inicio, fim=fim),
+            serie_id,
+            f"janela {inicio}-{fim}",
+        )
+        if trecho:
             acumulado.extend(trecho)
         time.sleep(PAUSA)
     return acumulado
