@@ -1,5 +1,5 @@
 """
-As quatro bases do seletor "Base de valores".
+As cinco bases do seletor "Base de valores".
 
 Este módulo é o único lugar do projeto onde um valor divulgado pela fonte vira outro
 número. Todas as regras estão escritas em `content/metodologia.md` e declaradas em
@@ -8,6 +8,7 @@ número. Todas as regras estão escritas em `content/metodologia.md` e declarada
     nominal   valor da fonte multiplicado pelo `fator` de exibição do catálogo
     real      nominal deflacionado pelo IPCA, a preços do mês-base móvel
     pib       saldo dividido pelo PIB acumulado em 12 meses, em porcentagem
+    var1m     variação percentual contra o mês anterior
     var12m    variação percentual contra o mesmo mês do ano anterior
 
 Três garantias, em todas elas:
@@ -33,7 +34,7 @@ MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "
 # Marcador que abas.yaml e o front usam para receber o mês-base do deflator.
 MARCADOR_BASE = "{base_ipca}"
 
-BASES = ("nominal", "real", "pib", "var12m")
+BASES = ("nominal", "real", "pib", "var1m", "var12m")
 
 
 class ErroTransformacao(RuntimeError):
@@ -59,6 +60,19 @@ def doze_meses_antes(data_iso: str) -> str:
     """
     ano, mes, dia = data_iso.split("-")
     return f"{int(ano) - 1:04d}-{mes}-{dia}"
+
+
+def mes_anterior(data_iso: str) -> str:
+    """
+    `2026-07-01` -> `2026-06-01`; `2026-01-01` -> `2025-12-01`.
+
+    Mesma razão de `doze_meses_antes` para ser subtração de calendário e não de posição:
+    série com mês faltando compararia com o mês errado, e a variação sairia errada sem
+    que nada avisasse.
+    """
+    ano, mes, dia = data_iso.split("-")
+    ano, mes = int(ano), int(mes)
+    return f"{ano - 1:04d}-12-{dia}" if mes == 1 else f"{ano:04d}-{mes - 1:02d}-{dia}"
 
 
 def indice_ipca(obs_variacao: list[list]) -> dict[str, float]:
@@ -159,6 +173,39 @@ def pib(obs: list[list], fator: float, pib_12m: dict[str, float]) -> list[list]:
     return [[d, v / pib_12m[d] * 100.0] for d, v in obs if d in pib_12m and pib_12m[d]]
 
 
+def _variacao(obs: list[list], anterior_de) -> list[list]:
+    """
+    Núcleo comum de `var1m` e `var12m`:  `(v(t)/v(anterior) - 1) x 100`.
+
+    Calculada sobre o valor nominal, e por isso independente do `fator` de exibição —
+    uma razão entre dois valores da mesma série cancela qualquer multiplicador.
+
+    Observação cujo par anterior não existe, ou é zero, fica de fora, sem preenchimento.
+    """
+    valores = dict(obs)
+    saida = []
+    for d, v in obs:
+        anterior = valores.get(anterior_de(d))
+        if anterior is None or anterior == 0:
+            continue
+        saida.append([d, (v / anterior - 1.0) * 100.0])
+    return saida
+
+
+def var1m(obs: list[list]) -> list[list]:
+    """
+    Variação percentual contra o mês anterior:  `(v(t)/v(t-1) - 1) x 100`.
+
+    A primeira observação de cada série fica de fora, sem preenchimento.
+
+    Diferença de leitura em relação à variação em 12 meses, que a Metodologia registra:
+    esta série NÃO é dessazonalizada, e os saldos de crédito têm sazonalidade marcada —
+    dezembro e janeiro se comportam de modo distinto do resto do ano. O pipeline não
+    aplica nem remove ajuste sazonal em série nenhuma.
+    """
+    return _variacao(obs, mes_anterior)
+
+
 def var12m(obs: list[list]) -> list[list]:
     """
     Variação percentual contra o mesmo mês do ano anterior:  `(v(t)/v(t-12) - 1) x 100`.
@@ -170,14 +217,7 @@ def var12m(obs: list[list]) -> list[list]:
     para qualquer mês cujo par de doze meses antes não exista ou seja zero. A comparação
     é por data de calendário, não por posição: série com buraco não compara mês errado.
     """
-    valores = dict(obs)
-    saida = []
-    for d, v in obs:
-        anterior = valores.get(doze_meses_antes(d))
-        if anterior is None or anterior == 0:
-            continue
-        saida.append([d, (v / anterior - 1.0) * 100.0])
-    return saida
+    return _variacao(obs, doze_meses_antes)
 
 
 # ---------------------------------------------------------------- orquestração
@@ -228,6 +268,8 @@ class Contexto:
             return f"{exibicao} de {rotulo_mes(self.data_base)}" if self.data_base else exibicao
         if base == "pib":
             return "% do PIB"
+        if base == "var1m":
+            return "% no mês"
         return "% em 12 meses"
 
     def calculo(self, base: str, codigo: str) -> str | None:
@@ -249,11 +291,16 @@ class Contexto:
                 f"código {codigo} dividido pelo PIB acumulado em 12 meses, código "
                 f"{self.codigo_pib}, em porcentagem"
             )
+        if base == "var1m":
+            return (
+                f"variação percentual do código {codigo} contra o mês anterior, "
+                "sem ajuste sazonal"
+            )
         return f"variação percentual do código {codigo} contra o mesmo mês do ano anterior"
 
 
 def aplica(base: str, obs: list[list], cfg: dict, ctx: Contexto) -> list[list]:
-    """Aplica uma das quatro bases a uma série. Levanta se a base não existe."""
+    """Aplica uma das cinco bases a uma série. Levanta se a base não existe."""
     fator = float(cfg.get("fator", 1))
     if base == "nominal":
         return nominal(obs, fator)
@@ -265,6 +312,8 @@ def aplica(base: str, obs: list[list], cfg: dict, ctx: Contexto) -> list[list]:
         if not ctx.disponivel("pib"):
             raise ErroTransformacao("série do PIB indisponível nesta execução")
         return pib(obs, fator, ctx.pib_12m)
+    if base == "var1m":
+        return var1m(obs)
     if base == "var12m":
         return var12m(obs)
     raise ErroTransformacao(f"base desconhecida: {base}")

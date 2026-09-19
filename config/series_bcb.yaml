@@ -23,9 +23,9 @@
 # fator é src/transformacoes.py, e a regra está em content/metodologia.md.
 #
 # BASES. `bases` declara quais opções do seletor "Base de valores" fazem sentido para a
-# série. Saldo aceita as quatro; série já em % não aceita nenhuma — taxa não se deflaciona
-# nem se divide pelo PIB. A variação em 12 meses de série em % (diferença em pontos
-# percentuais) está prevista mas NÃO implementada nesta entrega, por decisão de
+# série. Saldo aceita as cinco; série já em % não aceita nenhuma — taxa não se deflaciona
+# nem se divide pelo PIB. A variação (mensal ou em 12 meses) de série em % — que seria
+# diferença em pontos percentuais — está prevista mas NÃO implementada, por decisão de
 # 19/09/2026; por isso `bases: []` em toda série que já é percentual.
 #
 # Endpoint: https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json
@@ -33,7 +33,7 @@
 fonte: BCB/SGS
 
 # Âncora YAML reutilizada pelos saldos. Não é campo do catálogo.
-_bases_saldo: &bases_saldo [nominal, real, pib, var12m]
+_bases_saldo: &bases_saldo [nominal, real, pib, var1m, var12m]
 
 series:
 

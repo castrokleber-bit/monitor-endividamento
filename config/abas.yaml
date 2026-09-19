@@ -17,7 +17,7 @@
 #      à âncora correspondente na aba Metodologia, gerada a partir do catálogo.
 
 # ---------------------------------------------------------------------------
-# Seletor "Base de valores" — as quatro transformações de src/transformacoes.py.
+# Seletor "Base de valores" — as cinco transformações de src/transformacoes.py.
 #
 # `sufixo` é o que entra no nome da coluna na planilha de download, padronizado em
 # 19/09/2026: antes só existia `_real`.
@@ -38,6 +38,13 @@ bases:
     sufixo: _pib
     descricao: >-
       Saldo dividido pelo PIB acumulado em 12 meses a valores correntes (SGS 4382).
+  - id: var1m
+    rotulo: "Variação mensal"
+    sufixo: _var1m
+    descricao: >-
+      Variação percentual do valor nominal contra o mês anterior. A primeira observação
+      de cada série fica vazia, sem preenchimento. A série não é dessazonalizada, e os
+      saldos de crédito têm sazonalidade marcada.
   - id: var12m
     rotulo: "Variação em 12 meses"
     sufixo: _var12m
@@ -91,49 +98,49 @@ abas:
       - id: g1
         titulo: "Crédito ampliado ao setor não financeiro"
         series: [amplo_total, amplo_emprestimos, amplo_titulos, amplo_divida_externa]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-credito-ampliado
 
       - id: g2
         titulo: "Crédito ampliado às empresas"
         series: [amplo_emp_total, amplo_emp_emprestimos, amplo_emp_titulos, amplo_emp_divida_externa]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-credito-ampliado
 
       - id: g3
         titulo: "Crédito ampliado às famílias"
         series: [amplo_fam_total, amplo_fam_emprestimos, amplo_fam_titulos, amplo_fam_divida_externa]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-credito-ampliado
 
       - id: g4
         titulo: "Crédito do SFN por origem dos recursos"
         series: [sfn_total, sfn_direcionado, sfn_livre]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-livre-direcionado
 
       - id: g5
         titulo: "Crédito do SFN por tipo de tomador"
         series: [sfn_total, sfn_pj, sfn_pf]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-credito-sfn
 
       - id: g6
         titulo: "Crédito direcionado por tipo de tomador"
         series: [sfn_direcionado, sfn_direcionado_pj, sfn_direcionado_pf]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-livre-direcionado
 
       - id: g7
         titulo: "Crédito livre por tipo de tomador"
         series: [sfn_livre, sfn_livre_pj, sfn_livre_pf]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-livre-direcionado
 
@@ -153,7 +160,7 @@ abas:
         # melhor na legenda ao lado de "Capital de giro" e "Desconto de duplicatas".
         rotulos:
           sfn_livre_pj: "Total"
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-modalidades-pj
 
@@ -168,21 +175,21 @@ abas:
           - livre_pf_outros
         rotulos:
           sfn_livre_pf: "Total"
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-modalidades-pf
 
       - id: g14
         titulo: "Crédito às empresas por porte"
         series: [porte_total, porte_mpme, porte_grande]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-porte
 
       - id: g16
         titulo: "Crédito às empresas por atividade econômica"
         series: [ativ_total, ativ_agropecuaria, ativ_industria, ativ_servicos, ativ_outros]
-        bases: [nominal, real, pib, var12m]
+        bases: [nominal, real, pib, var1m, var12m]
         base_padrao: nominal
         metodologia: conceito-atividade
         # Segundo nível: o seletor troca a linha "Indústria" pelas dezesseis séries que

@@ -1,11 +1,11 @@
-/* Monitor de Endividamento — montagem da página.
+/* Monitor de Crédito e Endividamento — montagem da página.
  *
  * Sem build step: lê `window.MONITOR`, gerado por src/build_dataset.py e carregado por
  * dados.js. O payload vem embutido num <script> justamente para que a página funcione
  * tanto por file:// quanto servida no GitHub Pages, com o mesmo código.
  *
  * Este arquivo NÃO interpreta dado. Não deflaciona, não divide pelo PIB, não calcula
- * variação, não completa lacuna, não arredonda valor armazenado. As quatro bases do
+ * variação, não completa lacuna, não arredonda valor armazenado. As cinco bases do
  * seletor chegam prontas do pipeline, cada uma como um vetor alinhado ao eixo de datas
  * da série; aqui só se escolhe qual vetor desenhar, recorta o intervalo e formata.
  *
@@ -32,8 +32,8 @@
   var COR_GRID = token('--cinza-claro');
   var COR_FUNDO = token('--fundo');
 
-  /* Mais séries que cores. G8 tem oito curvas, a abertura da indústria em G16 tem vinte,
-     e a identidade visual fixa a paleta em cinco tokens — estendê-la seria inventar cor
+  /* Mais séries que cores. G8 tem oito curvas, a abertura da indústria em G16 tem
+     dezesseis, e a identidade visual fixa a paleta em cinco tokens — estendê-la seria inventar cor
      institucional, o que depende de decisão humana. A saída é variar o TRAÇO depois de
      esgotar as cores: sólido, tracejado, pontilhado. Distingue as curvas sem sair da
      paleta e, de quebra, continua legível em preto e branco, que é justamente a
@@ -200,27 +200,22 @@
 
   /* As séries de um gráfico, já considerando o detalhamento.
    *
-   * Ligar o detalhe TROCA o gráfico: em vez de acrescentar as dezesseis aberturas da
-   * indústria ao lado das demais atividades, ele passa a mostrar só a indústria e as
-   * suas aberturas. Acrescentar não funcionava — com o total de R$ 2,7 trilhões e
-   * serviços de R$ 1,7 trilhão no mesmo eixo, as aberturas de R$ 11 a R$ 259 bilhões
-   * viravam uma faixa colada no zero. Detalhar é entrar na indústria, não empilhar dois
-   * níveis de agregação na mesma escala.
+   * Ligar o detalhe TROCA o gráfico: ele passa a mostrar SÓ as aberturas do setor
+   * detalhado — nem as demais atividades, nem o total do próprio setor.
    *
-   * A série detalhada vem primeiro e recebe o traço grosso do agregado, como o Total
-   * recebe no modo normal. */
+   * Duas razões, nessa ordem. Misturar níveis de agregação na mesma escala não funciona:
+   * com o total de R$ 2,7 trilhões e serviços de R$ 1,7 trilhão no eixo, as aberturas de
+   * R$ 11 a R$ 259 bilhões viravam uma faixa colada no zero. E manter o total do setor
+   * detalhado ao lado das suas parcelas tem o mesmo efeito em menor escala: a curva da
+   * indústria, quatro vezes maior que a maior das aberturas, comprime todas elas na parte
+   * de baixo do gráfico. Detalhar é entrar no setor, não sobrepor o agregado às partes.
+   *
+   * Sem agregado, nenhuma série recebe o traço grosso: as dezesseis são pares entre si. */
   function seriesDoGrafico(grafico, detalheAtivo) {
-    var ids;
-    if (detalheAtivo && grafico.detalhe) {
-      ids = [grafico.detalhe.substitui].concat(grafico.detalhe.por);
-    } else {
-      ids = grafico.series.slice();
-    }
-    return ids.map(function (id, i) {
-      var serie = serieDoPayload(id, grafico);
-      if (detalheAtivo && grafico.detalhe && i === 0) serie.papel = 'total';
-      return serie;
-    });
+    var ids = (detalheAtivo && grafico.detalhe)
+      ? grafico.detalhe.por.slice()
+      : grafico.series.slice();
+    return ids.map(function (id) { return serieDoPayload(id, grafico); });
   }
 
   /* Pares [data, valor] de uma série numa base, já sem as lacunas.
@@ -289,11 +284,10 @@
     var periodicidade = series[0].periodicidade;
     var base = registro.base;
 
-    /* Referência nominal para o tooltip da variação em 12 meses: a orientação pede que
-       ele mostre também o valor de onde a variação saiu. Lido do mesmo payload, nunca
-       recalculado. */
+    /* Referência nominal no tooltip das duas variações: a orientação pede que ele mostre
+       também o valor de onde a variação saiu. Lido do mesmo payload, nunca recalculado. */
     var nominais = {};
-    if (base === 'var12m') {
+    if (base === 'var12m' || base === 'var1m') {
       series.forEach(function (s) {
         var mapa = {};
         pontos(s, 'nominal').forEach(function (p) { mapa[p[0]] = p[1]; });
@@ -440,7 +434,7 @@
       '# fonte: ' + fonteDoGrafico(series),
       '# intervalo exibido: ' + (faixa.de || 'início da série') + ' a ' + (faixa.ate || 'último dado'),
       '# a planilha XLSX traz cada série inteira, desde a primeira observação da fonte',
-      '# gerado do Monitor de Endividamento em ' + window.MONITOR.gerado_em
+      '# gerado do Monitor de Crédito e Endividamento em ' + window.MONITOR.gerado_em
     ].join('\n');
 
     return cabecalho + '\n' + linhas.join('\n') + '\n';

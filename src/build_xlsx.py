@@ -6,8 +6,8 @@ Estrutura da pasta:
   Dicionário    a ficha de cada série: nome na fonte, código, tabela, unidade, cobertura
   <aba>         uma aba por aba temática da página, datas em linhas e séries em colunas,
                 nos VALORES ORIGINAIS da fonte
-  base_*        uma aba por base do seletor (nominal, real, pib, var12m), com as séries
-                de saldo já transformadas e o sufixo padronizado no nome da coluna
+  base_*        uma aba por base do seletor (nominal, real, pib, var1m, var12m), com as
+                séries de saldo já transformadas e o sufixo padronizado na coluna
   dados_longo   o formato canônico inteiro, para quem for reprocessar
 
 CLAUDE.md, princípio 3 da orientação: a planilha traz cada série desde a PRIMEIRA
@@ -46,7 +46,7 @@ ARQUIVO = "monitor_endividamento.xlsx"
 AZUL = "164194"
 
 LEIA_ME = [
-    ("Monitor de Endividamento", ""),
+    ("Monitor de Crédito e Endividamento", ""),
     ("Desenvolvido por Kleber Pacheco de Castro", ""),
     ("", ""),
     (
@@ -104,6 +104,12 @@ LEIA_ME = [
         "base_pib",
         "Saldo dividido pelo PIB acumulado em 12 meses a valores correntes (SGS 4382), em "
         "porcentagem. Sufixo _pib.",
+    ),
+    (
+        "base_var1m",
+        "Variação percentual do valor nominal contra o mês anterior. A primeira observação "
+        "de cada série fica vazia. A série NÃO é dessazonalizada, e os saldos de crédito "
+        "têm sazonalidade marcada. Sufixo _var1m.",
     ),
     (
         "base_var12m",

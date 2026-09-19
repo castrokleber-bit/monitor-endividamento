@@ -7,7 +7,7 @@ escrito por pessoas.*
 
 ## Sobre o monitor {#sobre}
 
-O Monitor de Endividamento acompanha o estoque de crédito ao setor não financeiro
+O Monitor de Crédito e Endividamento acompanha o estoque de crédito ao setor não financeiro
 brasileiro, a inadimplência dessa carteira, e o endividamento e o comprometimento de
 renda das famílias, com um recorte de comparação internacional. O escopo é o de famílias
 e empresas não financeiras.
@@ -129,6 +129,24 @@ o total das tabelas de saldo por origem dos recursos e por tipo de tomador. Alé
 fonte não publica coluna de total para esta tabela — o total exibido é calculado pelo
 pipeline; ver a seção de séries derivadas.
 
+### Variação mensal e variação em 12 meses {#conceito-variacoes}
+
+O seletor de base oferece duas medidas de variação, e elas não são intercambiáveis.
+
+A **variação em 12 meses** compara o mês com o mesmo mês do ano anterior. Por comparar
+meses homólogos, ela neutraliza a sazonalidade sem precisar de ajuste estatístico, e é a
+medida usual para leitura de tendência. Os doze primeiros meses de cada série ficam
+vazios.
+
+A **variação mensal** compara o mês com o mês imediatamente anterior. Ela reage mais
+rápido a mudanças recentes, mas **não é dessazonalizada** — e os saldos de crédito têm
+sazonalidade marcada, com dezembro e janeiro se comportando de modo distinto do resto do
+ano. O pipeline não aplica nem remove ajuste sazonal em série nenhuma, aqui ou em
+qualquer outro lugar. Só a primeira observação de cada série fica vazia.
+
+As duas são calculadas sobre o valor nominal, nunca sobre o deflacionado: variação de
+série já deflacionada descontaria a inflação duas vezes.
+
 ### Atividade econômica {#conceito-atividade}
 
 Abertura do saldo de crédito a pessoas jurídicas pela atividade econômica do tomador,
@@ -137,9 +155,16 @@ agropecuária, indústria, serviços e outras atividades — com um segundo nív
 dentro da indústria.
 
 Mesma base SCR e mesma ressalva de abrangência do recorte por porte. A abertura da
-indústria em dezesseis segmentos está disponível no seletor "Detalhar indústria" de cada
-gráfico; os dezesseis somam exatamente o total da indústria em todos os meses em que as
-séries coexistem.
+indústria em dezesseis segmentos está disponível no seletor "Detalhar indústria"; os
+dezesseis somam exatamente o total da indústria em todos os meses em que as séries
+coexistem.
+
+Ligar o detalhamento **troca** o gráfico: ele passa a mostrar apenas os dezesseis
+segmentos, sem as demais atividades e sem o total da própria indústria. É uma escolha de
+legibilidade, não de conteúdo — o total da indústria é quatro vezes maior que o maior dos
+segmentos, e mantê-lo no mesmo eixo comprimiria todas as aberturas contra a base do
+gráfico. O total continua visível com o detalhamento desligado, e as dezesseis séries
+seguem inteiras na planilha.
 
 ### Inadimplência {#conceito-inadimplencia}
 

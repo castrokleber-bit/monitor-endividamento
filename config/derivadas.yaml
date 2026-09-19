@@ -50,7 +50,7 @@ series:
     fator: 0.001
     unidade_exibicao: "R$ bilhões"
     segmento: empresa
-    bases: [nominal, real, pib, var12m]
+    bases: [nominal, real, pib, var1m, var12m]
     descricao_esperada: "Saldo do crédito livre a pessoas jurídicas — modalidades não exibidas (residual)"
 
   # ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ series:
     fator: 0.001
     unidade_exibicao: "R$ bilhões"
     segmento: familia
-    bases: [nominal, real, pib, var12m]
+    bases: [nominal, real, pib, var1m, var12m]
     descricao_esperada: "Saldo do crédito livre a pessoas físicas — modalidades não exibidas (residual)"
 
   # ---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ series:
     unidade_exibicao: "R$ bilhões"
     segmento: empresa
     papel: total
-    bases: [nominal, real, pib, var12m]
+    bases: [nominal, real, pib, var1m, var12m]
     descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas — total por porte (soma calculada)"
 
   # ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ series:
     unidade_exibicao: "R$ bilhões"
     segmento: empresa
     papel: total
-    bases: [nominal, real, pib, var12m]
+    bases: [nominal, real, pib, var1m, var12m]
     descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas — total por atividade econômica (soma calculada)"
 
   # ---------------------------------------------------------------------------

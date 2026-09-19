@@ -1,4 +1,4 @@
-# Monitor de Endividamento
+# Monitor de Crédito e Endividamento
 
 Painel com o estoque de crédito, a inadimplência, o endividamento e o comprometimento de
 renda de famílias e empresas não financeiras. Dados oficiais, atualização automática
@@ -20,7 +20,7 @@ famílias, Comparação internacional e Metodologia.
 
 A página foi reconstruída sobre o catálogo G1–G20 descrito na orientação de 18/09/2026.
 
-**Seletor de base por gráfico.** Quatro maneiras de exibir um saldo, calculadas no
+**Seletor de base por gráfico.** Cinco maneiras de exibir um saldo, calculadas no
 pipeline (`src/transformacoes.py`) e declaradas por série no campo `bases`:
 
 | base | sufixo | regra |
@@ -28,11 +28,17 @@ pipeline (`src/transformacoes.py`) e declaradas por série no campo `bases`:
 | R$ correntes | `_nominal` | valor da fonte na unidade de exibição (R$ bilhões) |
 | R$ constantes | `_real` | deflacionado pelo IPCA (433), a preços do mês mais recente do índice |
 | % do PIB | `_pib` | dividido pelo PIB acumulado em 12 meses (4382) |
+| Variação mensal | `_var1m` | contra o mês anterior, sobre o valor nominal |
 | Variação em 12 meses | `_var12m` | contra o mesmo mês do ano anterior, sobre o valor nominal |
 
+As duas variações são calculadas sobre o valor nominal — variação de série deflacionada
+descontaria a inflação duas vezes — e **nenhuma é dessazonalizada**. A mensal é a que
+mais sofre com isso, e a Metodologia avisa. A comparação é sempre por data de calendário,
+nunca por posição na lista: série com mês faltando não compara o mês errado.
+
 Séries já em porcentagem não têm seletor: taxa não se deflaciona nem se divide pelo PIB.
-A variação em 12 meses em pontos percentuais para essas séries está prevista no catálogo
-e não implementada, por decisão.
+A variação em pontos percentuais para essas séries está prevista no catálogo e não
+implementada, por decisão.
 
 **Seletor de período.** Tudo / 10 / 5 / 3 / 1 ano, mais intervalo personalizado em dois
 campos mês/ano. Um seletor por gráfico e um por aba; o da aba sobrescreve os individuais.

@@ -1,11 +1,12 @@
 """
-Testes das quatro bases do seletor "Base de valores". Sem rede.
+Testes das cinco bases do seletor "Base de valores". Sem rede.
 
 Cada teste aqui é a tradução de um item do checklist de aceite da orientação de
 18/09/2026:
 
   - deflator: valor real do mês-base igual ao valor nominal do mês-base;
   - variação em 12 meses: primeiros doze meses vazios, sem preenchimento;
+  - variação mensal: primeira observação vazia, comparação por calendário;
   - % do PIB: o cálculo próprio reproduz o % do PIB oficial do BCB;
   - nenhuma transformação inventa, interpola ou repete observação.
 
@@ -169,6 +170,65 @@ class TestVar12m(unittest.TestCase):
     def test_valor_anterior_zero_e_omitido(self):
         obs = [["2025-01-01", 0.0], ["2026-01-01", 110.0]]
         self.assertEqual(transformacoes.var12m(obs), [])
+
+
+class TestVar1m(unittest.TestCase):
+    def test_variacao_contra_o_mes_anterior(self):
+        obs = [["2026-01-01", 100.0], ["2026-02-01", 110.0]]
+        self.assertAlmostEqual(dict(transformacoes.var1m(obs))["2026-02-01"], 10.0)
+
+    def test_primeira_observacao_fica_vazia(self):
+        obs = [[f"2026-{m:02d}-01", 100.0] for m in range(1, 7)]
+        saida = transformacoes.var1m(obs)
+        self.assertEqual(len(saida), 5)
+        self.assertEqual(saida[0][0], "2026-02-01")
+
+    def test_atravessa_a_virada_do_ano(self):
+        obs = [["2025-12-01", 100.0], ["2026-01-01", 105.0]]
+        self.assertAlmostEqual(dict(transformacoes.var1m(obs))["2026-01-01"], 5.0)
+
+    def test_independe_do_fator(self):
+        obs = [["2026-01-01", 100.0], ["2026-02-01", 110.0]]
+        escalada = [[d, v * 0.001] for d, v in obs]
+        self.assertAlmostEqual(
+            transformacoes.var1m(obs)[0][1], transformacoes.var1m(escalada)[0][1], places=9
+        )
+
+    def test_compara_por_calendario_e_nao_por_posicao(self):
+        """
+        Série com buraco não pode comparar com o ponto anterior da lista.
+
+        Aqui falta 2026-03. Se a comparação fosse por posição, 2026-04 acabaria comparado
+        com 2026-02 — uma variação de dois meses apresentada como mensal.
+        """
+        obs = [["2026-01-01", 100.0], ["2026-02-01", 110.0], ["2026-04-01", 120.0]]
+        saida = dict(transformacoes.var1m(obs))
+        self.assertIn("2026-02-01", saida)
+        self.assertNotIn("2026-04-01", saida)
+
+    def test_valor_anterior_zero_e_omitido(self):
+        obs = [["2026-01-01", 0.0], ["2026-02-01", 110.0]]
+        self.assertEqual(transformacoes.var1m(obs), [])
+
+    def test_nao_se_confunde_com_var12m(self):
+        """Doze meses de valores diferentes: as duas bases têm de discordar."""
+        obs = [[f"2025-{m:02d}-01", 100.0 + m] for m in range(1, 13)]
+        obs += [["2026-01-01", 200.0]]
+        self.assertNotAlmostEqual(
+            dict(transformacoes.var1m(obs))["2026-01-01"],
+            dict(transformacoes.var12m(obs))["2026-01-01"],
+        )
+
+
+class TestMesAnterior(unittest.TestCase):
+    def test_subtrai_um_mes(self):
+        self.assertEqual(transformacoes.mes_anterior("2026-07-01"), "2026-06-01")
+
+    def test_janeiro_volta_para_dezembro_do_ano_anterior(self):
+        self.assertEqual(transformacoes.mes_anterior("2026-01-01"), "2025-12-01")
+
+    def test_preserva_o_zero_a_esquerda(self):
+        self.assertEqual(transformacoes.mes_anterior("2026-10-01"), "2026-09-01")
 
 
 class TestDozeMesesAntes(unittest.TestCase):

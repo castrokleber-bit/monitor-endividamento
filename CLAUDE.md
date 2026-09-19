@@ -1,4 +1,4 @@
-# Monitor de Endividamento
+# Monitor de Crédito e Endividamento
 
 Painel público com o estoque de crédito, a inadimplência, o endividamento e o
 comprometimento de renda de **famílias** e **empresas não financeiras**, no Brasil e em
@@ -68,20 +68,27 @@ total de uma tabela do BCB que não tem coluna de total publicada (`soma`), e a
 inadimplência agregada por porte (`media_ponderada`). Cada uma é declarada em
 `config/derivadas.yaml` e ganha entrada própria no catálogo, no parquet e na planilha.
 
-`src/transformacoes.py` é outra coisa: são quatro maneiras de EXIBIR uma série que já
-existe — R$ correntes, R$ constantes, % do PIB e variação em 12 meses. Não criam série
-nova. Cada série declara em `bases` quais delas aceita, e `config/abas.yaml` declara
-quais o seletor de um gráfico oferece. Saldo aceita as quatro; série já em porcentagem
-não aceita nenhuma, porque taxa não se deflaciona nem se divide pelo PIB.
+`src/transformacoes.py` é outra coisa: são cinco maneiras de EXIBIR uma série que já
+existe — R$ correntes, R$ constantes, % do PIB, variação mensal e variação em 12 meses.
+Não criam série nova. Cada série declara em `bases` quais delas aceita, e
+`config/abas.yaml` declara quais o seletor de um gráfico oferece. Saldo aceita as cinco;
+série já em porcentagem não aceita nenhuma, porque taxa não se deflaciona nem se divide
+pelo PIB.
+
+As duas variações são calculadas sobre o valor NOMINAL, nunca sobre o deflacionado —
+variação de série já deflacionada descontaria a inflação duas vezes. E nenhuma delas é
+dessazonalizada: o pipeline não aplica nem remove ajuste sazonal em série nenhuma. A
+variação mensal (`var1m`, decisão de 19/09/2026) é a que mais sofre com isso, e a
+Metodologia avisa.
 
 As transformações são calculadas no **pipeline**, em Python, e viajam prontas no payload
 — não no navegador. Calcular no front economizaria tamanho de arquivo mas duplicaria a
 fórmula, uma cópia para a planilha e outra para o gráfico, e duas implementações da mesma
 regra divergem. O front não interpreta dado.
 
-**Variação em 12 meses para séries em %** (diferença em pontos percentuais) está prevista
-no catálogo e NÃO implementada, por decisão de 19/09/2026. Não implementar sem nova
-decisão humana.
+**Variação para séries em %** (diferença em pontos percentuais, mensal ou em 12 meses)
+está prevista no catálogo e NÃO implementada, por decisão de 19/09/2026. Não implementar
+sem nova decisão humana.
 
 ### Formato canônico
 
@@ -219,9 +226,11 @@ humana. Acima de seis séries a legenda vira `scroll`, de uma linha só: com dez
 curvas ela ocupava cinco linhas e invadia o eixo do tempo.
 
 **"Detalhar indústria" troca o gráfico, não acrescenta séries.** Ligar o detalhe em G16
-mostra a indústria e as suas dezesseis aberturas, e retira as demais atividades.
-Acrescentar não funcionava: com o total em R$ 2,7 trilhões no mesmo eixo, aberturas de
-R$ 11 a R$ 259 bilhões viravam uma faixa colada no zero.
+mostra SÓ as dezesseis aberturas da indústria — nem as demais atividades, nem o total da
+própria indústria (decisão de 19/09/2026). Acrescentar não funcionava: com o total em
+R$ 2,7 trilhões no mesmo eixo, aberturas de R$ 11 a R$ 259 bilhões viravam uma faixa
+colada no zero; e manter o total da indústria, quatro vezes maior que a maior abertura,
+reproduzia o problema em escala menor.
 
 ## Convenções de código
 
@@ -246,5 +255,5 @@ R$ 11 a R$ 259 bilhões viravam uma faixa colada no zero.
 - Incluir série cuja metodologia não esteja documentada em fonte oficial.
 - Construir indicador derivado (ex.: proxy de alavancagem) sem nota metodológica escrita.
 - Estender a paleta de cores além dos cinco tokens.
-- Implementar variação em 12 meses para séries já em porcentagem.
+- Implementar variação (mensal ou em 12 meses) para séries já em porcentagem.
 - Escrever à mão qualquer seção da aba Metodologia que hoje é gerada do catálogo.
