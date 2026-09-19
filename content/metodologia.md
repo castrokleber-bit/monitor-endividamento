@@ -1,163 +1,264 @@
-# Nota metodológica
+# Metodologia e metadados
 
-*Documento vivo. Toda série incluída no monitor precisa de um parágrafo aqui.*
+*As tabelas desta página — fontes, transformações, séries derivadas, ficha de série e
+histórico de atualizações — são geradas automaticamente do catálogo do pipeline a cada
+atualização, e por isso descrevem sempre o estado corrente dos dados. O texto corrido é
+escrito por pessoas.*
 
-## Abrangência das fontes
+## Sobre o monitor {#sobre}
 
-**Banco Central do Brasil (SGS).** Cobre exclusivamente operações do Sistema Financeiro
-Nacional. Não inclui dívida das famílias com o comércio, com fintechs não reguladas nem
-dívida das empresas captada no mercado de capitais ou no exterior.
+O Monitor de Endividamento acompanha o estoque de crédito ao setor não financeiro
+brasileiro, a inadimplência dessa carteira, e o endividamento e o comprometimento de
+renda das famílias, com um recorte de comparação internacional. O escopo é o de famílias
+e empresas não financeiras.
 
-**BIS (via FRED).** Cobre crédito ao setor de todas as fontes — bancos domésticos, mercado
-de capitais e credores externos. Por isso os níveis são estruturalmente mais altos que os
-do SFN e **não são comparáveis** com as demais abas, que cobrem o SFN.
+É um painel de dados. Apresenta séries públicas e notas metodológicas factuais; não
+apresenta leitura, diagnóstico, projeção nem recomendação. Não constitui posição
+institucional de nenhuma entidade sobre política monetária, crédito ou regulação
+bancária, nem recomendação de investimento.
 
-## Definições
+Autoria: Kleber Pacheco de Castro.
 
-**Endividamento das famílias** (SGS 29037). Relação entre o saldo das dívidas das famílias
-com o SFN e a renda acumulada nos últimos doze meses.
+O tratamento dos dados obedece a três regras sem exceção:
 
-**Endividamento exceto crédito habitacional** (SGS 29038). Mesma razão, com o mesmo
-denominador de renda, retirando o crédito habitacional do numerador. A distância entre as
-duas curvas é, por construção, a parcela habitacional do endividamento. O painel exibe as
-duas porque o crédito habitacional tem prazo e garantia distintos do restante da carteira;
-nenhuma das duas é derivada da outra pelo pipeline — as duas vêm prontas da fonte.
+- **Nenhum valor é interpolado, extrapolado ou estimado.** Observação que a fonte ainda
+  não divulgou é omitida, nunca preenchida.
+- **Nenhum arredondamento silencioso.** O valor calculado mantém a precisão do valor de
+  origem; o arredondamento existe só na exibição na tela.
+- **Toda conversão de unidade está registrada.** A ficha de série abaixo tem uma coluna
+  para isso, e nenhuma série é convertida sem ela.
 
-**Comprometimento de renda** (SGS 29034, com ajuste sazonal; 29265, sem ajuste). Relação
-entre os pagamentos esperados para o serviço da dívida com o SFN e a renda mensal das
-famílias, em média móvel trimestral. As duas séries medem o mesmo conceito e são divulgadas
-separadamente pela fonte: a série com ajuste sazonal é a principal do painel, e a sem
-ajuste aparece ao lado para tornar visível o componente sazonal. O pipeline não aplica nem
+{{fontes}}
+
+## Conceitos
+
+### Crédito ampliado ao setor não financeiro {#conceito-credito-ampliado}
+
+É a medida mais abrangente de dívida que o Banco Central publica. Soma, para o setor não
+financeiro residente, os empréstimos tomados junto ao Sistema Financeiro Nacional e a
+outras sociedades financeiras, os recursos de fundos governamentais, os títulos de dívida
+emitidos — públicos e privados —, os instrumentos securitizados e a dívida contraída no
+exterior.
+
+**O total deste conceito inclui o governo.** "Setor não financeiro" abrange governo
+geral, empresas não financeiras e famílias. Por isso o total do primeiro gráfico não é a
+soma dos gráficos de empresas e de famílias: a diferença é a dívida do setor público. Os
+três gráficos são recortes da mesma tabela da fonte, não parcelas um do outro.
+
+A decomposição pode ser conferida nas próprias séries de razão ao PIB publicadas pela
+fonte. Em julho de 2026: crédito ampliado às empresas 54,39% do PIB, às famílias 37,83%,
+ao governo geral 72,79% — que somam exatamente os 165,01% do total.
+
+A série começa em janeiro de 2013, que é quando a fonte passou a publicá-la.
+
+### Crédito do Sistema Financeiro Nacional {#conceito-credito-sfn}
+
+Saldo da carteira ativa de operações de crédito das instituições financeiras
+supervisionadas pelo Banco Central. É um conceito mais estreito que o crédito ampliado:
+não inclui títulos de dívida emitidos no mercado de capitais, dívida externa nem recursos
+de fundos governamentais que não passem pelo balanço de uma instituição do SFN. Também
+não inclui dívida das famílias com o comércio nem com empresas não reguladas.
+
+"Carteira ativa" quer dizer que operações já baixadas para prejuízo saem do saldo. Isso
+importa para a leitura da inadimplência: uma operação muito atrasada, ao ser baixada,
+deixa de contar tanto no numerador quanto no denominador da taxa.
+
+### Recursos livres e recursos direcionados {#conceito-livre-direcionado}
+
+**Recursos livres** são as operações em que a instituição e o tomador pactuam livremente
+taxa, prazo e destinação.
+
+**Recursos direcionados** são as operações cuja destinação e cujas condições são
+determinadas por regra — crédito rural, financiamento habitacional, financiamentos com
+recursos do BNDES e do FGTS, microcrédito. As taxas são reguladas ou referenciadas a
+indexadores definidos em norma.
+
+As duas parcelas somam o saldo total da carteira do SFN. A inadimplência dos recursos
+direcionados é estruturalmente mais baixa que a dos livres, sobretudo pela presença de
+garantia real no crédito habitacional.
+
+### Modalidades do crédito livre a pessoas jurídicas {#conceito-modalidades-pj}
+
+- **Capital de giro** — financiamento do ciclo operacional da empresa, aberto pela fonte
+  entre prazo de até 365 dias e prazo superior a 365 dias. As duas séries não esgotam a
+  modalidade: a fonte publica ainda o capital de giro rotativo, de saldo pequeno e
+  natureza distinta, que entra na parcela residual deste painel.
+- **Desconto de duplicatas e outros recebíveis** — antecipação, pela instituição, de
+  valores a receber já contratados pela empresa.
+- **Aquisição de veículos** — financiamento de veículos por pessoa jurídica.
+- **Financiamento a exportações** — crédito concedido para custeio ou investimento
+  vinculado a exportação.
+- **Adiantamento sobre contratos de câmbio (ACC)** — antecipação, em reais, do valor de
+  uma exportação já contratada mas ainda não embarcada ou não liquidada.
+
+Financiamento a exportações e ACC aparecem como **duas parcelas separadas**, e não
+somados numa única linha "Exportações". A decisão é de 19/09/2026 e vale igualmente para
+o gráfico de saldo e o de inadimplência: como taxa não é aditiva, somar no saldo e
+separar na inadimplência produziria dois gráficos com recortes diferentes sob o mesmo
+nome, e a comparação entre eles deixaria de ser direta.
+
+A parcela **Outras modalidades** deste gráfico é um residual calculado. Ver a seção de
+séries derivadas e o alerta sobre os dois "Outros".
+
+### Modalidades do crédito livre a pessoas físicas {#conceito-modalidades-pf}
+
+- **Crédito consignado** — crédito pessoal com desconto das parcelas em folha de
+  pagamento ou em benefício previdenciário.
+- **Crédito não consignado** — crédito pessoal sem esse desconto.
+- **Cartão de crédito** — inclui tanto o saldo à vista e parcelado sem juros quanto o
+  rotativo e o parcelado com juros.
+- **Aquisição de veículos** — financiamento de veículos por pessoa física.
+
+A parcela **Outras modalidades** é um residual calculado e reúne, entre outras,
+composição de dívidas, cheque especial, crédito com garantia, aquisição de outros bens,
+arrendamento mercantil e desconto de cheques.
+
+O nível de cada modalidade não é comparável linha a linha com o das demais: cheque
+especial e rotativo do cartão têm taxas de outra ordem de grandeza e participação pequena
+no saldo, enquanto o consignado tem taxa baixa e saldo grande.
+
+### Porte da empresa {#conceito-porte}
+
+A fonte classifica a empresa tomadora pelo porte e publica saldo e inadimplência para
+micro, pequenas e médias empresas em conjunto (MPME) e para grandes empresas. O critério
+de enquadramento é o do Banco Central, baseado na receita bruta anual declarada.
+
+**Atenção à abrangência.** Esta tabela vem do Sistema de Informações de Créditos (SCR) e
+exclui operações com entidades de intermediação financeira. O total dela não coincide com
+o total das tabelas de saldo por origem dos recursos e por tipo de tomador. Além disso, a
+fonte não publica coluna de total para esta tabela — o total exibido é calculado pelo
+pipeline; ver a seção de séries derivadas.
+
+### Atividade econômica {#conceito-atividade}
+
+Abertura do saldo de crédito a pessoas jurídicas pela atividade econômica do tomador,
+segundo a CNAE reclassificada pelo Banco Central em quatro grandes grupos —
+agropecuária, indústria, serviços e outras atividades — com um segundo nível de detalhe
+dentro da indústria.
+
+Mesma base SCR e mesma ressalva de abrangência do recorte por porte. A abertura da
+indústria em dezesseis segmentos está disponível no seletor "Detalhar indústria" de cada
+gráfico; os dezesseis somam exatamente o total da indústria em todos os meses em que as
+séries coexistem.
+
+### Inadimplência {#conceito-inadimplencia}
+
+Parcela da carteira ativa com pelo menos uma parcela em atraso superior a noventa dias,
+em porcentagem do saldo daquela carteira. Não inclui operações já baixadas para prejuízo,
+que saem da carteira ativa.
+
+**Taxa não é aditiva.** O total não é a soma nem a média simples das aberturas: é a média
+ponderada pelo saldo de cada recorte, e por isso fica entre as curvas das aberturas, mais
+próximo daquela que tem carteira maior. É também por isso que os gráficos de inadimplência
+não têm parcela residual e não têm seletor de base.
+
+### Endividamento das famílias {#conceito-endividamento-familias}
+
+Relação entre o saldo das dívidas das famílias com o Sistema Financeiro Nacional e a
+renda acumulada nos últimos doze meses. A série "exceto financiamento imobiliário" usa o
+mesmo denominador de renda e retira o crédito habitacional do numerador; a distância
+entre as duas curvas é, por construção, a parcela habitacional do endividamento. Nenhuma
+das duas é derivada da outra pelo pipeline — as duas vêm prontas da fonte.
+
+### Comprometimento de renda com o serviço da dívida {#conceito-comprometimento}
+
+Relação entre os pagamentos esperados das famílias com o serviço da dívida junto ao SFN —
+juros mais amortização, em média móvel trimestral — e a renda mensal das famílias. A
+série exibida é a com ajuste sazonal, como a fonte a divulga. O pipeline não aplica nem
 remove ajuste sazonal em série nenhuma.
 
-**Inadimplência.** Percentual da carteira com atraso superior a 90 dias, para pessoas
-físicas (SGS 21084) e pessoas jurídicas (SGS 21083). O total do SFN
-(SGS 21082) não é a média simples de pessoas físicas e jurídicas: é ponderado pelo peso
-de cada carteira, e por isso fica entre as duas curvas, mais próximo daquela que tem
-maior saldo.
+Endividamento e comprometimento têm denominadores diferentes: renda de doze meses num
+caso, renda mensal no outro. São dois painéis separados, e não dois eixos no mesmo
+gráfico, exatamente por isso — escalas diferentes em eixos duplos produzem leitura errada.
 
-**Aberturas da inadimplência de pessoas físicas** (SGS 21112 e 21113). A série 21112 cobre
-apenas as operações com **recursos livres** — não inclui o crédito direcionado (habitacional,
-rural e demais linhas com destinação e taxa reguladas), que está dentro do total de pessoas
-físicas (21084). Os dois recortes têm carteiras diferentes, então os níveis não são
-comparáveis entre si. A série 21113 é uma modalidade dentro de 21112, o cheque especial.
+### Séries do BIS {#conceito-bis}
 
-**Saldo da carteira de crédito.** Estoque de operações de crédito do SFN, em R$ milhões
-correntes, como divulgado pela fonte — sem deflacionamento e sem ajuste sazonal. O total
-(SGS 20539) corresponde à soma de pessoas jurídicas (20540) e pessoas físicas (20541); as
-três séries são arredondadas de forma independente na fonte, então a soma das aberturas
-pode divergir do total em até R$ 2 milhões em um mês — diferença de arredondamento, não de
-conceito. O total começa em junho de 1988 e as aberturas por tomador, em março de 2007.
-Parte do crescimento nominal do saldo é inflação; para leitura de alavancagem, usar as
-séries em proporção do PIB (20622, 20623, 20624).
+O Bank for International Settlements publica, para um conjunto amplo de países, o crédito
+ao setor privado não financeiro em porcentagem do PIB, com metodologia harmonizada que
+permite comparação internacional. Chegam aqui pela redistribuição do Federal Reserve Bank
+of St. Louis (FRED), são trimestrais e saem com defasagem de um a dois trimestres.
 
-**Saldo a preços constantes** (todas as séries terminadas em `_real`: os três saldos da
-carteira, os dois saldos de pessoas jurídicas por origem dos recursos e os dois de capital
-de giro por prazo). Não vêm da fonte: são calculadas no pipeline, e o deflacionamento é a
-única operação de cálculo do monitor. O saldo nominal de cada mês é deflacionado pelo IPCA e
-expresso a preços do mês mais recente do índice. O deflator é a variação mensal do IPCA
-(SGS 433), encadeada em um índice de preços — `I(t) = I(t-1) × (1 + variação/100)` —, e o
-valor real é `nominal(t) × I(base) / I(t)`, com a base no último mês de IPCA divulgado.
-A base é móvel: a cada atualização os valores passam a estar a preços do mês mais recente,
-e a unidade da série registra qual é esse mês. Mês de saldo sem IPCA correspondente fica
-de fora da série real — nada é extrapolado. Como o índice é encadeado a partir das
-variações mensais publicadas, que a fonte arredonda em duas casas, o nível pode diferir
-marginalmente do número-índice do IPCA calculado pelo IBGE. As séries nominais originais
-seguem inteiras em `data/` e na planilha.
+**Os níveis não são comparáveis com as demais abas.** As séries do BIS medem crédito de
+todas as fontes — bancos domésticos, mercado de capitais e credores externos —, enquanto
+as séries do Banco Central usadas nas outras abas medem apenas o crédito do Sistema
+Financeiro Nacional. A abrangência do BIS é estruturalmente mais ampla e os patamares,
+mais altos. Comparar um número desta aba com um número de outra é erro de leitura.
 
-**Crédito em proporção do PIB** (SGS 20622 total, 20623 pessoas jurídicas, 20624 pessoas
-físicas). Razão entre o saldo da carteira e o PIB, calculada e divulgada pela própria
-fonte. O pipeline não a recalcula nem escolhe o denominador: coleta a série pronta, como
-qualquer outra. Vale aqui a mesma ressalva do saldo — arredondamento independente faz a
-soma das aberturas divergir do total em até 0,01 ponto percentual —, e também o descompasso
-de início: o total começa em julho de 1995 e as aberturas, em março de 2007.
+Na definição do BIS, o setor privado não financeiro é a soma de famílias e empresas não
+financeiras. As três séries são divulgadas com arredondamento independente, então a soma
+das duas componentes pode diferir do total em até 0,5 ponto percentual num trimestre.
 
-**Crédito livre e crédito direcionado às pessoas jurídicas** (SGS 20543 recursos livres,
-20594 recursos direcionados). Recursos livres são as operações de crédito com taxa de juros
-livremente pactuada entre a empresa e a instituição financeira. Recursos direcionados são
-as operações com destinação e taxa reguladas — crédito rural, imobiliário, e as lastreadas
-em recursos do BNDES ou em recursos compulsórios e governamentais. As duas séries somam o
-saldo da carteira de pessoas jurídicas (20540): na observação de julho de 2026,
-R$ 1.590.492 milhões mais R$ 1.141.022 milhões contra um total de R$ 2.731.513 milhões, com
-diferença de R$ 1 milhão por arredondamento independente na fonte. Ambas começam em março
-de 2007.
+{{transformacoes}}
 
-**Capital de giro por prazo de contratação** (SGS 20547 até 365 dias, 20548 acima de 365
-dias). Capital de giro é uma modalidade **dentro** dos recursos livres às pessoas jurídicas
-(20543), não um recorte do crédito às empresas como um todo — os níveis não são comparáveis
-com os do gráfico anterior. As duas séries também não esgotam a modalidade: a fonte publica
-ainda o capital de giro rotativo (20549), que não entra no painel, e a soma das três é que
-corresponde ao capital de giro total (20550). Em julho de 2026, R$ 92.537 milhões mais
-R$ 382.840 milhões mais R$ 14.543 milhões contra um total de R$ 489.919 milhões. As duas
-séries por prazo começam em março de 2011, quando a fonte passou a publicar a abertura.
+{{derivadas}}
 
-**Taxa de juros do crédito às pessoas jurídicas e físicas, por origem dos recursos**
-(SGS 20718 PJ recursos livres, 20740 PF recursos livres, 20757 PJ recursos direcionados,
-20768 PF recursos direcionados). Taxa média de juros das operações contratadas no mês,
-em % ao ano, como divulgada pela fonte — sem cálculo no pipeline. A taxa de pessoas
-físicas com recursos livres é muito mais alta que a de pessoas jurídicas (60,04% a.a.
-contra 25,36% a.a. em julho de 2026) porque a modalidade mistura cheque especial e cartão
-de crédito rotativo — de juros altíssimos — com crédito pessoal comum; não há decomposição
-por modalidade nesta série, só nas aberturas de inadimplência PF acima. Não existe uma
-série "Total" aqui: ao contrário do saldo, a taxa média entre pessoas físicas e jurídicas
-combina carteiras de composição muito diferente, e o BCB não a apresenta como indicador
-de referência único. Todas as quatro começam em março de 2011.
+## Limitações e alertas {#limitacoes}
 
-**Composição do comprometimento.** As séries de juros (SGS 29033) e de amortização
-(SGS 29036), ambas com ajuste sazonal, somam exatamente o comprometimento com o serviço
-da dívida (SGS 29034). Não confundir 29033 com 29035, que é o comprometimento com o
-serviço da dívida **exceto crédito habitacional** — outra decomposição.
+### O total do crédito ampliado inclui o governo {#limitacao-amplo-governo}
 
-## Séries internacionais (BIS, via FRED)
+Já dito acima e repetido aqui porque é o mal-entendido mais provável do painel: o total do
+crédito ampliado ao setor não financeiro **não** é a soma do crédito ampliado às empresas
+com o crédito ampliado às famílias. A diferença é a dívida do setor público.
 
-**Crédito às famílias e às ISFLSF, % do PIB** (`QBRHAM770A`, `QUSHAM770A`, `QMXHAM770A`,
-`QCLHAM770A`). Crédito total às famílias e às instituições sem fins lucrativos a serviço
-das famílias, de todas as fontes credoras, ajustado por quebras de série, em percentual do
-PIB. Trimestral.
+### Os dois "Outros" não têm a mesma abrangência {#limitacao-dois-outros}
 
-**Crédito às empresas não financeiras, % do PIB** (`QBRNAM770A`, `QUSNAM770A`,
-`QMXNAM770A`, `QCLNAM770A`). Mesma definição, para o setor de empresas não financeiras.
-Trimestral.
+Nos gráficos de **saldo**, a parcela "Outras modalidades" é um residual calculado pelo
+pipeline: total publicado menos a soma das modalidades exibidas. Ela existe para que as
+parcelas do gráfico fechem exatamente no total da fonte, e por construção cobre tudo o
+que não está nas demais linhas.
 
-**Crédito ao setor privado não financeiro, % do PIB** (`QBRPAM770A`). Soma dos dois
-setores acima para o Brasil, na definição do BIS. As três séries são divulgadas
-arredondadas de forma independente, então a soma das componentes pode divergir do total
-em até 0,5 ponto percentual em um trimestre — diferença de arredondamento na fonte, não
-de conceito.
+Nos gráficos de **inadimplência**, "Outras modalidades" é a série "Outros créditos livres"
+publicada pelo próprio Banco Central. Não é um residual — taxa não é aditiva e um resíduo
+calculado sobre taxas não teria significado.
 
-Em 30/08/2026 saíram do monitor quatro séries do Federal Reserve que descreviam apenas os
-Estados Unidos, sem contraparte brasileira: serviço da dívida e obrigações financeiras das
-famílias (`TDSP` e `FODSP`) e inadimplência de cartão e de empresas nos bancos comerciais
-(`DRCCLACBS` e `DRBLACBS`). Os dois gráficos que as exibiam foram retirados e as séries
-deixaram de ser coletadas — não estão mais em `data/` nem na planilha. A aba
-Comparação internacional ficou restrita ao que é comparável com o Brasil, nas séries do BIS.
+**As duas não cobrem o mesmo conjunto de modalidades.** Ler a inadimplência de "Outras
+modalidades" como se fosse a inadimplência da parcela residual do gráfico de saldo é erro.
 
-## Tratamento dos valores na coleta
+### Totais que diferem entre tabelas da fonte {#limitacao-totais}
 
-Nenhum valor é interpolado, arredondado ou estimado em `data/`. Observação sem valor
-divulgado é omitida: string vazia no SGS, ponto (`.`) no FRED.
+As tabelas de saldo e inadimplência por porte da empresa e por atividade econômica vêm do
+SCR e excluem operações com entidades de intermediação financeira. Os totais delas são
+menores que os das tabelas por origem dos recursos e por tipo de tomador. As duas tabelas
+do SCR, por outro lado, fecham entre si: a soma por porte e a soma por atividade econômica
+dão o mesmo número, com diferença máxima de R$ 5 milhões sobre um estoque de R$ 2,7
+trilhões — o que é o arredondamento independente de cada coluna na fonte.
 
-O SGS não é consistente no separador decimal entre séries. A regra aplicada em
-`src/fetch_bcb.py` é determinística: havendo vírgula, a vírgula é o decimal e o ponto é
-separador de milhar; sem vírgula, o ponto só é tratado como milhar quando forma grupos de
-exatamente três dígitos; nos demais casos o ponto é o separador decimal.
+### Revisões retroativas {#limitacao-revisoes}
 
-O painel exibe duas casas decimais nos valores percentuais e nenhuma nos valores em
-R$ milhões, e reduz a precisão dos rótulos do eixo. Isso é formatação de exibição: o
-valor da fonte segue íntegro no parquet, no JSON, na planilha e no CSV de cada gráfico.
+O Banco Central revisa dados já divulgados. O pipeline por isso baixa sempre a série
+inteira e **substitui** a base local, em vez de apenas acrescentar o mês novo. Quando uma
+revisão muda o histórico sem avançar a última observação, o fato fica registrado na
+coluna "Revisadas" do histórico de atualizações.
 
-## Indicadores derivados
+O mês mais recente de várias séries de crédito é preliminar na fonte e pode mudar na
+divulgação seguinte.
 
-O monitor tem uma única operação de cálculo: o deflacionamento do saldo da carteira de
-crédito pelo IPCA, descrito acima em *Saldo a preços constantes*. A regra vive em
-`config/derivadas.yaml` e a implementação, em `src/derivadas.py`. Toda série calculada
-aparece na página com a linha de procedência trocada — em vez do código na fonte, a
-descrição do cálculo — para que não seja confundida com valor divulgado pelo BCB.
+### Séries curtas e ausência de emenda com a metodologia antiga {#limitacao-inicio}
 
-Nenhum outro indicador derivado entra no painel sem regra em `config/` e parágrafo aqui.
+As séries de crédito ampliado começam em 2013; as de saldo e inadimplência por porte e
+por atividade econômica, em 2012; as de inadimplência do SFN, em 2011. Isso torna o
+intervalo "Tudo" curto em vários gráficos, e é assim de propósito: **o painel não emenda
+essas séries com as da metodologia anterior do Banco Central**, que não são comparáveis.
 
-## Defasagem de divulgação
+Um caso merece nota específica. A série de saldo total do SFN tem observações desde junho
+de 1988, mas todas as suas aberturas começam em março de 2007, e os valores anteriores a
+1994 estão reexpressos em reais a ponto de serem numericamente degenerados — junho de
+1988 aparece como R$ 0. Por isso os gráficos que combinam esse total com suas aberturas
+abrem na primeira data em que **todas** as séries do gráfico existem, e não na primeira
+observação da mais antiga delas. O recorte é apenas de exibição: a planilha de download e
+os arquivos em `data/` trazem cada série desde a primeira observação da fonte.
 
-Os indicadores de endividamento e comprometimento de renda são publicados pelo BCB em até
-oito semanas após o mês de referência. As séries do BIS têm defasagem de um a dois
-trimestres. O painel exibe a data da última observação de cada série.
+### O que o painel não cobre {#limitacao-cobertura}
+
+Fora do Sistema Financeiro Nacional, o painel não enxerga dívida das famílias com o
+comércio, com prestadores de serviço ou com instituições não reguladas, nem dívida de
+empresas com fornecedores. Os gráficos de crédito ampliado cobrem parte disso — títulos de
+dívida e dívida externa —, mas não o crédito comercial.
+
+O Banco Central não publica, para empresas não financeiras, indicador doméstico
+equivalente ao endividamento e ao comprometimento de renda das famílias. A aba de dívida
+das famílias, por isso, cobre apenas famílias.
+
+{{ficha}}
+
+{{historico}}

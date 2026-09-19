@@ -6,7 +6,16 @@ Armadilhas tratadas aqui (ver CLAUDE.md):
   - data vem como `dd/MM/yyyy` em string;
   - valor vem em string, com separador decimal ora ponto, ora vírgula;
   - `406` = código inexistente; `429` = rajada -> retry com backoff em `comum.http_get`;
-  - a API pode devolver HTML de erro com status 200 -> o payload é validado antes do parse.
+  - a API pode devolver HTML de erro com status 200 -> o payload é validado antes do parse;
+  - há série que RECUSA a consulta sem intervalo -> queda automática para janelas de data.
+
+Sobre a última. Descoberta em 19/09/2026 na série 27703 (inadimplência de micro, pequenas
+e médias empresas): a consulta sem `dataInicial`/`dataFinal` devolve `{"erro":{}}` com
+status HTTP 200, e `/dados/ultimos/N` responde 400 para N maior que 20. A mesma série
+entrega os 175 meses normalmente quando a consulta traz um intervalo. Como não há como
+saber de antemão quais códigos têm esse comportamento — e ele pode aparecer em qualquer
+série a qualquer momento —, a queda para janelas é automática: se a consulta aberta
+falhar por qualquer motivo, a coleta repete por janelas antes de desistir.
 
 Nenhuma observação é interpolada, arredondada ou preenchida. Observação sem valor
 numérico é simplesmente omitida.
@@ -28,9 +37,11 @@ SGS_JANELA = (
 
 FONTE = "BCB/SGS"
 
-# Ano inicial da paginação de séries diárias. Anterior a isso o SGS não tem série
-# relevante para este monitor; a janela é fechada no ano corrente.
-ANO_INICIAL = 1990
+# Ano inicial da paginação por janelas. Cobre a série mais antiga do catálogo — o IPCA
+# (SGS 433) começa em 01/1980 e o saldo do SFN (20539) em 06/1988. Janela sem dado
+# responde 404 e é pulada, então sobra só o custo de algumas requisições vazias no
+# caminho de exceção. A janela é fechada no ano corrente.
+ANO_INICIAL = 1980
 JANELA_ANOS = 9  # < 10 anos, com folga, porque o limite do SGS é exclusivo na borda
 
 _MILHAR = re.compile(r"^-?\d{1,3}(\.\d{3})+$")
@@ -114,18 +125,47 @@ def _janelas(hoje: date | None = None) -> list[tuple[str, str]]:
     return janelas
 
 
+def _baixa_aberto(codigo: int | str, serie_id: str) -> list[dict]:
+    """
+    Consulta sem intervalo — o caminho normal de uma série mensal, trimestral ou anual.
+
+    Levanta `ErroColeta` em qualquer resposta que não seja uma lista não vazia de
+    observações, inclusive no `{"erro":{}}` com status 200 que algumas séries devolvem.
+    Quem chama decide se tenta de novo por janelas.
+    """
+    resp = http_get(SGS_TUDO.format(codigo=codigo))
+    if resp.status_code == 406:
+        raise ErroColeta(f"{serie_id}: 406 — código {codigo} inexistente ou inválido no SGS")
+    if resp.status_code != 200:
+        raise ErroColeta(f"{serie_id}: HTTP {resp.status_code} no SGS")
+    try:
+        dados = resp.json()
+    except ValueError:
+        raise ErroColeta(f"{serie_id}: resposta do SGS não é JSON")
+    if not isinstance(dados, list) or not dados:
+        # `{"erro":{}}` com status 200, ou lista vazia. Não é erro de rede: é a série
+        # recusando a consulta aberta. A janela resolve.
+        raise ErroColeta(f"{serie_id}: consulta sem intervalo não devolveu observações")
+    return dados
+
+
 def _baixa(codigo: int | str, periodicidade: str, serie_id: str) -> list[dict]:
-    """Baixa o payload bruto do SGS, paginando quando a série é diária."""
+    """
+    Baixa o payload bruto do SGS.
+
+    Série diária vai direto para a paginação, porque o SGS recusa intervalos de dez anos
+    ou mais nesse caso. As demais tentam primeiro a consulta aberta e só caem para as
+    janelas se ela falhar — o que cobre tanto a indisponibilidade momentânea quanto as
+    séries que simplesmente não respondem sem intervalo, como a 27703.
+    """
     if periodicidade != "D":
-        resp = http_get(SGS_TUDO.format(codigo=codigo))
-        if resp.status_code == 406:
-            raise ErroColeta(f"{serie_id}: 406 — código {codigo} inexistente ou inválido no SGS")
-        if resp.status_code != 200:
-            raise ErroColeta(f"{serie_id}: HTTP {resp.status_code} no SGS")
         try:
-            return resp.json()
-        except ValueError:
-            raise ErroColeta(f"{serie_id}: resposta do SGS não é JSON")
+            return _baixa_aberto(codigo, serie_id)
+        except ErroColeta as exc:
+            if "406" in str(exc):
+                raise  # código inexistente: janela nenhuma vai salvar
+            print(f"         .. {serie_id}: consulta aberta falhou, tentando por janelas")
+            time.sleep(PAUSA)
 
     acumulado: list[dict] = []
     for inicio, fim in _janelas():

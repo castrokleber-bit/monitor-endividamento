@@ -1,347 +1,1437 @@
 # Catálogo de séries — Banco Central do Brasil / SGS
 #
-# validar: true  -> código ainda NÃO conferido contra a API.
-#                   Rodar `python src/validate_series.py` e corrigir antes de coletar.
-# validar: false -> código conferido (nome retornado bate com descricao_esperada).
+# Fonte única da verdade da coleta. Nenhum código de série vive em Python.
 #
-# `rotulo` é o texto curto usado na legenda do gráfico. `descricao_esperada` é o nome
-# oficial na fonte, usado pela validação e pela planilha — não encurtar.
+# Campos:
+#   serie_id            slug interno, estável; é a chave em todo o pipeline
+#   codigo              código no SGS
+#   rotulo              texto curto da legenda do gráfico
+#   descricao_esperada  nome da série na tabela de origem do BCB, sem encurtar
+#   tabela              tabela das "Estatísticas monetárias e de crédito" de origem
+#   unidade             unidade ORIGINAL da fonte — é nela que o valor é armazenado
+#   fator               multiplicador para a unidade de exibição (ver abaixo)
+#   unidade_exibicao    unidade mostrada na página depois de aplicado o fator
+#   periodicidade       M, T ou A
+#   segmento            familia | empresa | ambos
+#   bases               transformações aplicáveis (config/graficos.yaml escolhe quais usar)
+#   validar             true = código ainda NÃO conferido contra a API
 #
-# `aba` diz em qual aba da página (config/abas.yaml) e em qual aba da planilha a série
-# aparece. `segmento` diz a quem ela se refere — `familia`, `empresa` ou `ambos` (soma ou
-# total agregado que cobre os dois) — e é o que alimenta o filtro Família/Empresas/Ambos
-# de cada aba no front. Nenhuma série entra em gráfico sem os dois campos.
+# CONVERSÃO DE UNIDADE. O SGS publica todos os saldos de crédito em R$ milhões. A página
+# exibe em R$ bilhões, então `fator: 0.001`. A conversão é de EXIBIÇÃO: o valor gravado
+# em data/series.parquet, em data/series.json e nas abas temáticas da planilha segue na
+# unidade original da fonte, como manda o formato canônico do CLAUDE.md. Quem aplica o
+# fator é src/transformacoes.py, e a regra está em content/metodologia.md.
+#
+# BASES. `bases` declara quais opções do seletor "Base de valores" fazem sentido para a
+# série. Saldo aceita as quatro; série já em % não aceita nenhuma — taxa não se deflaciona
+# nem se divide pelo PIB. A variação em 12 meses de série em % (diferença em pontos
+# percentuais) está prevista mas NÃO implementada nesta entrega, por decisão de
+# 19/09/2026; por isso `bases: []` em toda série que já é percentual.
 #
 # Endpoint: https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json
 
 fonte: BCB/SGS
 
+# Âncora YAML reutilizada pelos saldos. Não é campo do catálogo.
+_bases_saldo: &bases_saldo [nominal, real, pib, var12m]
+
 series:
 
-  # ---------------------------------------------------------------
-  # ABA "Dívida e comprometimento" — só famílias: o BCB não publica indicador
-  # doméstico equivalente de endividamento ou de comprometimento de renda para
-  # empresas não financeiras (ver a nota da aba em config/abas.yaml).
-  # ---------------------------------------------------------------
+  # =================================================================
+  # AUXILIARES — não vão a gráfico nenhum. Existem para as transformações.
+  # =================================================================
+
+  # O SGS não publica número-índice do IPCA utilizável: o código 1737 devolve HTML com
+  # status 200, exatamente a armadilha registrada no CLAUDE.md. O índice de preços é
+  # encadeado no pipeline a partir da variação mensal, em src/transformacoes.py.
+  - serie_id: ipca_variacao_mensal
+    codigo: 433
+    rotulo: "IPCA — variação mensal"
+    descricao_esperada: "Índice nacional de preços ao consumidor-amplo (IPCA) - variação mensal"
+    tabela: "SGS — índices de preços"
+    unidade: "% ao mês"
+    fator: 1
+    unidade_exibicao: "% ao mês"
+    periodicidade: M
+    segmento: ambos
+    papel: deflator
+    bases: []
+    validar: false
+
+  # Denominador de todas as séries em % do PIB. Publicada em R$ milhões correntes,
+  # acumulada em 12 meses — o mesmo vintage que o BCB usa nos seus próprios % do PIB.
+  # Conferido em 19/09/2026: saldo/4382 reproduz o % PIB oficial do BCB (20622, 20623,
+  # 20624, 28215, 28867, 28868) com diferença máxima de 0,005 pp, que é o arredondamento
+  # de duas casas da própria fonte.
+  - serie_id: pib_12m
+    codigo: 4382
+    rotulo: "PIB acumulado em 12 meses"
+    descricao_esperada: "PIB acumulado dos últimos 12 meses - Valores correntes (R$ milhões)"
+    tabela: "SGS — contas nacionais"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    papel: denominador_pib
+    bases: []
+    validar: false
+
+  # =================================================================
+  # G1 — Crédito ampliado ao setor não financeiro (Tabela 1)
+  #
+  # Identidade conferida contra a API em 19/09/2026: 28184 + 28188 + 28192 = 28183,
+  # exata em todos os 163 meses de 01/2013 a 07/2026.
+  # =================================================================
+
+  - serie_id: amplo_total
+    codigo: 28183
+    rotulo: "Total"
+    descricao_esperada: "Crédito ampliado ao setor não financeiro - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    papel: total
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_emprestimos
+    codigo: 28184
+    rotulo: "Empréstimos"
+    descricao_esperada: "Crédito ampliado ao setor não financeiro - Empréstimos - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_titulos
+    codigo: 28188
+    rotulo: "Títulos de dívida"
+    descricao_esperada: "Crédito ampliado ao setor não financeiro - Títulos de dívida - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_divida_externa
+    codigo: 28192
+    rotulo: "Dívida externa"
+    descricao_esperada: "Crédito ampliado ao setor não financeiro - Dívida externa - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G2 — Crédito ampliado às empresas (Tabela 1)
+  # Identidade conferida: 28847 + 28851 + 28854 = 28846, exata em todos os meses.
+  # =================================================================
+
+  - serie_id: amplo_emp_total
+    codigo: 28846
+    rotulo: "Total"
+    descricao_esperada: "Crédito ampliado às empresas - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    papel: total
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_emp_emprestimos
+    codigo: 28847
+    rotulo: "Empréstimos"
+    descricao_esperada: "Crédito ampliado às empresas - Empréstimos - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_emp_titulos
+    codigo: 28851
+    rotulo: "Títulos de dívida"
+    descricao_esperada: "Crédito ampliado às empresas - Títulos de dívida - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_emp_divida_externa
+    codigo: 28854
+    rotulo: "Dívida externa"
+    descricao_esperada: "Crédito ampliado às empresas - Dívida externa"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G3 — Crédito ampliado às famílias (Tabela 1)
+  # Identidade conferida: 28859 + 28863 + 28864 = 28858, exata em todos os meses.
+  #
+  # ARMADILHA DE API: 28859 responde `{"erro":{}}` com status 200 de forma intermitente
+  # na consulta sem intervalo. O fetch trata isso caindo para janelas de data.
+  # =================================================================
+
+  - serie_id: amplo_fam_total
+    codigo: 28858
+    rotulo: "Total"
+    descricao_esperada: "Crédito ampliado às famílias - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    papel: total
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_fam_emprestimos
+    codigo: 28859
+    rotulo: "Empréstimos"
+    descricao_esperada: "Crédito ampliado às famílias - Empréstimos - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  # A Tabela 1 chama esta coluna de "Títulos securitizados" no recorte das famílias; é a
+  # contraparte da coluna "Títulos de dívida" do recorte das empresas.
+  - serie_id: amplo_fam_titulos
+    codigo: 28863
+    rotulo: "Títulos securitizados"
+    descricao_esperada: "Crédito ampliado às famílias - Títulos securitizados"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: amplo_fam_divida_externa
+    codigo: 28864
+    rotulo: "Dívida externa"
+    descricao_esperada: "Crédito ampliado às famílias - Dívida externa"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G4 a G7 — Saldo de crédito do SFN (Tabelas 2 a 5)
+  #
+  # Identidades conferidas em 19/09/2026, de 03/2007 a 07/2026, com divergência máxima
+  # de 0,0007% (arredondamento independente na fonte, não diferença de conceito):
+  #   20593 + 20542 = 20539   (direcionado + livre = total)
+  #   20540 + 20541 = 20539   (PJ + PF = total)
+  #   20594 + 20606 = 20593   (direcionado PJ + PF)
+  #   20543 + 20570 = 20542   (livre PJ + PF)
+  #
+  # QUEBRA DE COBERTURA: 20539 tem observações desde 06/1988, mas todas as aberturas
+  # começam em 03/2007. Os valores anteriores a 1994 estão reexpressos em reais e são
+  # numericamente degenerados (06/1988 = R$ 0; 01/1990 = R$ 1 milhão). Por isso os
+  # gráficos que combinam o total com suas aberturas abrem no início COMUM das séries —
+  # ver `inicio: comum` em config/graficos.yaml. A série inteira segue na planilha.
+  # =================================================================
+
+  - serie_id: sfn_total
+    codigo: 20539
+    rotulo: "Total"
+    descricao_esperada: "Saldo da carteira de crédito - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    papel: total
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_direcionado
+    codigo: 20593
+    rotulo: "Recursos direcionados"
+    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_livre
+    codigo: 20542
+    rotulo: "Recursos livres"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_pj
+    codigo: 20540
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total"
+    tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_pf
+    codigo: 20541
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total"
+    tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_direcionado_pj
+    codigo: 20594
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total"
+    tabela: "Tabela 5 — Saldo da carteira de crédito direcionado"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_direcionado_pf
+    codigo: 20606
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas físicas - Total"
+    tabela: "Tabela 5 — Saldo da carteira de crédito direcionado"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_livre_pj
+    codigo: 20543
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
+    tabela: "Tabela 4 — Saldo da carteira de crédito livre"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    papel: total
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: sfn_livre_pf
+    codigo: 20570
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Total"
+    tabela: "Tabela 4 — Saldo da carteira de crédito livre"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    papel: total
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G8 — Saldo de crédito livre PJ por modalidade (Tabela 6)
+  #
+  # Financiamento a exportações (20567) e ACC (20565) entram como PARCELAS SEPARADAS,
+  # por decisão de 19/09/2026 — a mesma decisão vale para a inadimplência (G12), onde
+  # somar seria errado porque taxa não é aditiva. Manter as duas separadas nos dois
+  # gráficos mantém a leitura simétrica entre saldo e inadimplência.
+  #
+  # As modalidades exibidas somam 65% do total em 07/2026; o resto (capital de giro
+  # rotativo, conta garantida, cheque especial PJ, cartão PJ, importações, repasses e
+  # outros) entra na parcela residual `livre_pj_outros`, em config/derivadas.yaml.
+  # =================================================================
+
+  - serie_id: livre_pj_capital_giro_acima_365d
+    codigo: 20548
+    rotulo: "Capital de giro — acima de 365 dias"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
+    tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pj_capital_giro_ate_365d
+    codigo: 20547
+    rotulo: "Capital de giro — até 365 dias"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
+    tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pj_duplicatas
+    codigo: 20544
+    rotulo: "Desconto de duplicatas e recebíveis"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e outros recebíveis"
+    tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pj_veiculos
+    codigo: 20553
+    rotulo: "Aquisição de veículos"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Aquisição de veículos"
+    tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pj_exportacoes
+    codigo: 20567
+    rotulo: "Financiamento a exportações"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Financiamento a exportações"
+    tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pj_acc
+    codigo: 20565
+    rotulo: "Adiantamento sobre contratos de câmbio"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Adiantamento sobre contratos de câmbio (ACC)"
+    tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G9 — Saldo de crédito livre PF por modalidade (Tabela 7)
+  #
+  # As modalidades exibidas somam 91% do total em 07/2026; o resto (composição de
+  # dívidas, cheque especial, outros bens, arrendamento e demais) entra na parcela
+  # residual `livre_pf_outros`, em config/derivadas.yaml.
+  # =================================================================
+
+  - serie_id: livre_pf_consignado
+    codigo: 20579
+    rotulo: "Crédito consignado"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal consignado total"
+    tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pf_nao_consignado
+    codigo: 20574
+    rotulo: "Crédito não consignado"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal não consignado total"
+    tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pf_cartao
+    codigo: 20590
+    rotulo: "Cartão de crédito"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Cartão de crédito total"
+    tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: livre_pf_veiculos
+    codigo: 20581
+    rotulo: "Aquisição de veículos"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas físicas - Aquisição de veículos"
+    tabela: "Tabela 7 — Saldo do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G14 — Saldo de crédito PJ por porte (Tabela 23)
+  #
+  # A Tabela 23 vem do SCR e exclui operações com entidades de intermediação financeira:
+  # o total dela NÃO coincide com o das Tabelas 2 e 3. Não existe código de "Total" no
+  # SGS para esta tabela — varridos 22020-22026, 22045-22055 e 27695-27710 em 19/09/2026
+  # sem encontrar. O total é calculado como soma (config/derivadas.yaml) e validado
+  # contra a soma independente da Tabela 24: as duas fecham com diferença máxima de
+  # R$ 5 milhões em 175 meses, sobre um estoque de R$ 2,7 trilhões.
+  # =================================================================
+
+  - serie_id: porte_mpme
+    codigo: 27701
+    rotulo: "Micro, pequenas e médias"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Micro, pequena e média empresa"
+    tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: porte_grande
+    codigo: 27702
+    rotulo: "Grandes"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Grande empresa"
+    tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G16 — Saldo de crédito PJ por atividade econômica (Tabela 24)
+  #
+  # Mesma base SCR e mesmo universo da Tabela 23. Sem código de "Total" no SGS; o total
+  # é somado em config/derivadas.yaml e cruzado contra o da Tabela 23.
+  # =================================================================
+
+  - serie_id: ativ_agropecuaria
+    codigo: 22027
+    rotulo: "Agropecuária"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Agricultura, pecuária, produção florestal, pesca e aquicultura"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ativ_industria
+    codigo: 22043
+    rotulo: "Indústria"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Total"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ativ_servicos
+    codigo: 22044
+    rotulo: "Serviços"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Serviços - Total"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ativ_outros
+    codigo: 22042
+    rotulo: "Outras atividades"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Outros serviços"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  # -----------------------------------------------------------------
+  # G16, segundo nível — abertura da indústria (seletor "Detalhar indústria")
+  #
+  # Identidade conferida em 19/09/2026: as dezesseis séries abaixo somam exatamente
+  # 22043 (Indústria - Total) em todos os 174 meses comuns, de 02/2012 a 07/2026.
+  # Por isso a abertura não precisa de parcela residual.
+  # -----------------------------------------------------------------
+
+  - serie_id: ind_siup
+    codigo: 22034
+    rotulo: "Serviços industriais de utilidade pública"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Serviços industriais de utilidade pública"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_construcao
+    codigo: 22030
+    rotulo: "Construção"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Construção"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_alimentos
+    codigo: 27743
+    rotulo: "Alimentos e bebidas"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Alimentos e bebidas"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_acucar
+    codigo: 27744
+    rotulo: "Açúcar e álcool"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Açúcar e álcool"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_textil
+    codigo: 27745
+    rotulo: "Têxtil, couro e calçados"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Têxtil, couro e calçados"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_papel
+    codigo: 27746
+    rotulo: "Papel e celulose"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Papel e celulose"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_petroleo
+    codigo: 27747
+    rotulo: "Petróleo, gás e combustíveis"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Petróleo, gás e combustíveis"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_metalurgia
+    codigo: 27748
+    rotulo: "Metalurgia e siderurgia"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Metalurgia e siderurgia"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_quimica
+    codigo: 27722
+    rotulo: "Química e farmacêutica"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Química e farmacêutica"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_bens_capital
+    codigo: 27723
+    rotulo: "Bens de capital"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Bens de capital"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_automobilistica
+    codigo: 27724
+    rotulo: "Automobilística"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Automobilística"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_mineracao
+    codigo: 27749
+    rotulo: "Mineração"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Mineração"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_infraestrutura
+    codigo: 27725
+    rotulo: "Infraestrutura"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Infraestrutura"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_outros_duraveis
+    codigo: 27726
+    rotulo: "Outros bens duráveis"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Outros bens duráveis"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_embalagens
+    codigo: 27727
+    rotulo: "Embalagens"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Embalagens"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  - serie_id: ind_nao_duraveis
+    codigo: 27728
+    rotulo: "Outros bens não duráveis"
+    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Outros bens não duráveis"
+    tabela: "Tabela 24 — Saldo por atividade econômica"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G10 e G11 — Inadimplência do SFN (Tabelas 2 e 3)
+  #
+  # Todas em % da carteira com atraso superior a 90 dias. Taxa não é aditiva: o total
+  # não é a soma nem a média simples das aberturas, e sim a média ponderada pelos
+  # saldos. Conferido em 19/09/2026 na observação de 07/2026: a ponderação de 21083 e
+  # 21084 pelos saldos 20540 e 20541 dá 4,8837 contra 4,88 oficial (21082).
+  # =================================================================
+
+  - serie_id: inad_sfn_total
+    codigo: 21082
+    rotulo: "Total"
+    descricao_esperada: "Inadimplência da carteira de crédito - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: ambos
+    papel: total
+    bases: []
+    validar: false
+
+  - serie_id: inad_sfn_direcionado
+    codigo: 21132
+    rotulo: "Recursos direcionados"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos direcionados - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: ambos
+    bases: []
+    validar: false
+
+  - serie_id: inad_sfn_livre
+    codigo: 21085
+    rotulo: "Recursos livres"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: ambos
+    bases: []
+    validar: false
+
+  - serie_id: inad_sfn_pj
+    codigo: 21083
+    rotulo: "Pessoas jurídicas"
+    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
+    tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_sfn_pf
+    codigo: 21084
+    rotulo: "Pessoas físicas"
+    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas físicas - Total"
+    tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  # =================================================================
+  # G12 — Inadimplência do crédito livre PJ por modalidade (Tabela 19)
+  #
+  # "Outros" aqui é a série 21111 do próprio BCB, NÃO um residual: taxa não é aditiva,
+  # e um resíduo calculado sobre taxas não teria significado. A abrangência deste
+  # "Outros" é diferente da do `livre_pj_outros` do gráfico de saldo, e a Metodologia
+  # avisa disso. Financiamento a exportações e ACC entram separados, como em G8.
+  # =================================================================
+
+  - serie_id: inad_livre_pj_total
+    codigo: 21086
+    rotulo: "Total"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    papel: total
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_capital_giro_acima_365d
+    codigo: 21091
+    rotulo: "Capital de giro — acima de 365 dias"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_capital_giro_ate_365d
+    codigo: 21090
+    rotulo: "Capital de giro — até 365 dias"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_duplicatas
+    codigo: 21087
+    rotulo: "Desconto de duplicatas e recebíveis"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e outros recebíveis"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_veiculos
+    codigo: 21096
+    rotulo: "Aquisição de veículos"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Aquisição de veículos"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_exportacoes
+    codigo: 21109
+    rotulo: "Financiamento a exportações"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Financiamento a exportações"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_acc
+    codigo: 21107
+    rotulo: "Adiantamento sobre contratos de câmbio"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Adiantamento sobre contratos de câmbio (ACC)"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pj_outros
+    codigo: 21111
+    rotulo: "Outras modalidades"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Outros créditos livres"
+    tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  # =================================================================
+  # G13 — Inadimplência do crédito livre PF por modalidade (Tabela 20)
+  # "Outros" é 21131, série do BCB, pelo mesmo motivo de G12.
+  # =================================================================
+
+  - serie_id: inad_livre_pf_total
+    codigo: 21112
+    rotulo: "Total"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Total"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    papel: total
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pf_consignado
+    codigo: 21119
+    rotulo: "Crédito consignado"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal consignado total"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pf_nao_consignado
+    codigo: 21114
+    rotulo: "Crédito não consignado"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Crédito pessoal não consignado total"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pf_cartao
+    codigo: 21129
+    rotulo: "Cartão de crédito"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cartão de crédito total"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pf_veiculos
+    codigo: 21121
+    rotulo: "Aquisição de veículos"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Aquisição de veículos"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  - serie_id: inad_livre_pf_outros
+    codigo: 21131
+    rotulo: "Outras modalidades"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Outros créditos livres"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  # =================================================================
+  # G15 — Inadimplência PJ por porte (Tabela 23)
+  #
+  # ARMADILHA DE API registrada em 19/09/2026: a série 27703 é a única do catálogo que
+  # RECUSA a consulta sem intervalo — devolve `{"erro":{}}` com status HTTP 200, e
+  # `/dados/ultimos/N` responde 400 para N > 20. Só entrega a série completa quando a
+  # consulta traz dataInicial e dataFinal. `src/fetch_bcb.py` cai para janelas de data
+  # sempre que a consulta aberta falha, o que resolve este caso e qualquer outro igual.
+  # =================================================================
+
+  - serie_id: inad_porte_mpme
+    codigo: 27703
+    rotulo: "Micro, pequenas e médias"
+    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Micro, pequena e média empresa"
+    tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  - serie_id: inad_porte_grande
+    codigo: 27704
+    rotulo: "Grandes"
+    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Grande empresa"
+    tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: empresa
+    bases: []
+    validar: false
+
+  # =================================================================
+  # G17 — Endividamento e comprometimento de renda das famílias (Tabela 27)
+  #
+  # As duas medidas têm escalas e denominadores diferentes — endividamento é saldo sobre
+  # renda de doze meses, comprometimento é serviço da dívida sobre renda mensal. Por isso
+  # vão em dois painéis separados, nunca em dois eixos no mesmo gráfico.
+  # =================================================================
+
   - serie_id: endividamento_familias_total
     codigo: 29037
     rotulo: "Total"
     descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda acumulada em 12 meses"
     periodicidade: M
-    aba: divida_comprometimento
     segmento: familia
+    bases: []
     validar: false
 
   - serie_id: endividamento_familias_ex_habitacional
     codigo: 29038
-    rotulo: "Exceto crédito habitacional"
+    rotulo: "Exceto financiamento imobiliário"
     descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda acumulada em 12 meses"
     periodicidade: M
-    aba: divida_comprometimento
     segmento: familia
+    bases: []
     validar: false
 
-  - serie_id: comprometimento_renda_sa
+  - serie_id: comprometimento_renda_total
     codigo: 29034
-    rotulo: "Com ajuste sazonal"
+    rotulo: "Total"
     descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda mensal"
     periodicidade: M
-    aba: divida_comprometimento
     segmento: familia
+    bases: []
     validar: false
 
-  - serie_id: comprometimento_renda_nsa
-    codigo: 29265
-    rotulo: "Sem ajuste sazonal"
-    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal"
+  - serie_id: comprometimento_renda_ex_habitacional
+    codigo: 29035
+    rotulo: "Exceto financiamento imobiliário"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional exceto crédito habitacional - Com ajuste sazonal"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda mensal"
     periodicidade: M
-    aba: divida_comprometimento
     segmento: familia
+    bases: []
     validar: false
 
-  # CORREÇÃO 2026-08-29: este serie_id apontava para 29035, que é o comprometimento com o
-  # SERVIÇO da dívida exceto crédito habitacional — não é juros. O código de juros com
-  # ajuste sazonal é 29033 (sem ajuste sazonal: 29264). Com 29035 no lugar, o gráfico
-  # "juros + amortização" não somava o comprometimento total.
-  - serie_id: comprometimento_juros
-    codigo: 29033
-    rotulo: "Juros"
-    descricao_esperada: "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
-    unidade: "%"
-    periodicidade: M
-    aba: divida_comprometimento
-    segmento: familia
-    validar: false
+  # =================================================================
+  # SÉRIES DE REFERÊNCIA — coletadas, publicadas na planilha, SEM gráfico
+  #
+  # Duas funções: alimentar os testes automáticos de validação do pipeline (as séries
+  # de % do PIB oficiais) e preservar, na planilha, séries que estiveram no painel
+  # antes da reformulação de 19/09/2026 e que continuam sendo dado público útil.
+  # Nenhuma delas aparece em config/graficos.yaml, por decisão de 19/09/2026.
+  # =================================================================
 
-  - serie_id: comprometimento_amortizacao
-    codigo: 29036
-    rotulo: "Amortização"
-    descricao_esperada: "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
-    unidade: "%"
-    periodicidade: M
-    aba: divida_comprometimento
-    segmento: familia
-    validar: false
-
-  # ---------------------------------------------------------------
-  # ABA "Inadimplência"
-  # ---------------------------------------------------------------
-  - serie_id: inadimplencia_pf_total
-    codigo: 21084
-    rotulo: "Pessoas físicas — total"
-    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas físicas - Total"
-    unidade: "%"
-    periodicidade: M
-    aba: inadimplencia
-    segmento: familia
-    validar: false
-
-  # Aberturas de inadimplência PF por modalidade — nomes conferidos na fonte em 2026-08-29.
-  - serie_id: inadimplencia_pf_abertura_1
-    codigo: 21112
-    rotulo: "PF — recursos livres"
-    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Total"
-    unidade: "%"
-    periodicidade: M
-    aba: inadimplencia
-    segmento: familia
-    validar: false
-
-  - serie_id: inadimplencia_pf_abertura_2
-    codigo: 21113
-    rotulo: "PF — cheque especial"
-    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cheque especial"
-    unidade: "%"
-    periodicidade: M
-    aba: inadimplencia
-    segmento: familia
-    validar: false
-
-  - serie_id: inadimplencia_pj_total
-    codigo: 21083
-    rotulo: "Pessoas jurídicas"
-    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Total"
-    unidade: "%"
-    periodicidade: M
-    aba: inadimplencia
-    segmento: empresa
-    validar: false
-
-  - serie_id: inadimplencia_total_sfn
-    codigo: 21082
-    rotulo: "Total do SFN"
-    descricao_esperada: "Inadimplência da carteira de crédito - Total"
-    unidade: "%"
-    periodicidade: M
-    aba: inadimplencia
-    segmento: ambos
-    validar: false
-
-  # ---------------------------------------------------------------
-  # ABA "Mercado de crédito" — estoque
-  # ---------------------------------------------------------------
-  - serie_id: saldo_credito_total
-    codigo: 20539
-    rotulo: "Total"
-    descricao_esperada: "Saldo da carteira de crédito - Total"
-    unidade: "R$ milhões"
-    periodicidade: M
-    aba: mercado_credito
-    segmento: ambos
-    validar: false
-
-  - serie_id: saldo_credito_pj
-    codigo: 20540
-    rotulo: "Pessoas jurídicas"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total"
-    unidade: "R$ milhões"
-    periodicidade: M
-    aba: mercado_credito
-    segmento: empresa
-    validar: false
-
-  - serie_id: saldo_credito_pf
-    codigo: 20541
-    rotulo: "Pessoas físicas"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total"
-    unidade: "R$ milhões"
-    periodicidade: M
-    aba: mercado_credito
-    segmento: familia
-    validar: false
-
-  - serie_id: credito_pib_pj
-    codigo: 20623
-    rotulo: "Pessoas jurídicas"
-    descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas em relação ao PIB"
-    unidade: "% do PIB"
-    periodicidade: M
-    aba: mercado_credito
-    segmento: empresa
-    validar: false
-
-  - serie_id: credito_pib_pf
-    codigo: 20624
-    rotulo: "Pessoas físicas"
-    descricao_esperada: "Saldo da carteira de crédito a pessoas físicas em relação ao PIB"
-    unidade: "% do PIB"
-    periodicidade: M
-    aba: mercado_credito
-    segmento: familia
-    validar: false
-
-  - serie_id: credito_pib_total
+  # % do PIB oficiais. São o padrão-ouro contra o qual tests/test_transformacoes.py
+  # confere a transformação "% do PIB" calculada com 4382.
+  - serie_id: ref_pib_sfn_total
     codigo: 20622
-    rotulo: "Total"
-    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB"
+    rotulo: "Crédito do SFN em % do PIB — oficial"
+    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB - Total"
+    tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "% do PIB"
+    fator: 1
+    unidade_exibicao: "% do PIB"
     periodicidade: M
-    aba: mercado_credito
     segmento: ambos
+    papel: referencia_pib
+    referencia_de: sfn_total
+    bases: []
     validar: false
 
-  # ---------------------------------------------------------------
-  # ABA "Mercado de crédito" — composição do crédito às empresas
-  #
-  # Todas em R$ milhões correntes, como a fonte divulga. O gráfico exibe a versão
-  # deflacionada (config/derivadas.yaml); as nominais seguem em data/ e na planilha.
-  #
-  # Identidades conferidas contra a API em 02/09/2026, na observação de 07/2026:
-  #   20543 + 20594 = 20540 (saldo PJ total)          1.590.492 + 1.141.022 = 2.731.513
-  #   20547 + 20548 + 20549 = 20550 (capital de giro)    92.537 + 382.840 + 14.543 = 489.919
-  # A divergência de R$ 1 milhão em cada identidade é arredondamento independente na
-  # fonte, não diferença de conceito.
-  # ---------------------------------------------------------------
-  - serie_id: saldo_credito_pj_livre
-    codigo: 20543
-    rotulo: "Recursos livres"
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total"
-    unidade: "R$ milhões"
+  - serie_id: ref_pib_sfn_pj
+    codigo: 20623
+    rotulo: "Crédito PJ em % do PIB — oficial"
+    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB - Pessoas jurídicas - Total"
+    tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
+    unidade: "% do PIB"
+    fator: 1
+    unidade_exibicao: "% do PIB"
     periodicidade: M
-    aba: mercado_credito
     segmento: empresa
+    papel: referencia_pib
+    referencia_de: sfn_pj
+    bases: []
     validar: false
 
-  - serie_id: saldo_credito_pj_direcionado
-    codigo: 20594
-    rotulo: "Recursos direcionados"
-    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total"
-    unidade: "R$ milhões"
+  - serie_id: ref_pib_sfn_pf
+    codigo: 20624
+    rotulo: "Crédito PF em % do PIB — oficial"
+    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB - Pessoas físicas - Total"
+    tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
+    unidade: "% do PIB"
+    fator: 1
+    unidade_exibicao: "% do PIB"
     periodicidade: M
-    aba: mercado_credito
-    segmento: empresa
+    segmento: familia
+    papel: referencia_pib
+    referencia_de: sfn_pf
+    bases: []
     validar: false
 
-  # Capital de giro é modalidade DENTRO de recursos livres (20543), não um recorte do
-  # crédito PJ inteiro. As duas séries abaixo não esgotam a modalidade: falta o capital
-  # de giro rotativo (20549), fora do painel por ser pequeno e de natureza distinta.
-  - serie_id: capital_giro_ate_365d
-    codigo: 20547
-    rotulo: "Prazo de até 365 dias"
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
-    unidade: "R$ milhões"
+  - serie_id: ref_pib_amplo_total
+    codigo: 28215
+    rotulo: "Crédito ampliado em % do PIB — oficial"
+    descricao_esperada: "Crédito ampliado ao setor não financeiro em relação ao PIB - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "% do PIB"
+    fator: 1
+    unidade_exibicao: "% do PIB"
     periodicidade: M
-    aba: mercado_credito
-    segmento: empresa
+    segmento: ambos
+    papel: referencia_pib
+    referencia_de: amplo_total
+    bases: []
     validar: false
 
-  - serie_id: capital_giro_acima_365d
-    codigo: 20548
-    rotulo: "Prazo superior a 365 dias"
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
-    unidade: "R$ milhões"
+  - serie_id: ref_pib_amplo_emp
+    codigo: 28867
+    rotulo: "Crédito ampliado às empresas em % do PIB — oficial"
+    descricao_esperada: "Crédito ampliado às empresas em relação ao PIB - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "% do PIB"
+    fator: 1
+    unidade_exibicao: "% do PIB"
     periodicidade: M
-    aba: mercado_credito
     segmento: empresa
+    papel: referencia_pib
+    referencia_de: amplo_emp_total
+    bases: []
     validar: false
 
-  # ---------------------------------------------------------------
-  # ABA "Mercado de crédito" — taxa de juros por origem dos recursos
-  #
-  # Códigos conferidos contra a API em 11/09/2026, na observação de 07/2026: PJ livre
-  # 25,36% a.a., PJ direcionado 13,88% a.a., PF livre 60,04% a.a., PF direcionado
-  # 11,46% a.a. O nível de PF livre é muito mais alto que os demais porque a modalidade
-  # mistura cheque especial e cartão de crédito rotativo — de juros altíssimos — com
-  # crédito pessoal comum; não é erro de coleta nem de unidade, e está registrado em
-  # content/metodologia.md. Não existe um "Total" nacional útil aqui: ao contrário do
-  # saldo, uma taxa média entre pessoas físicas e jurídicas mistura carteiras de
-  # composição muito diferente e não tem leitura simples — por isso cada gráfico traz só
-  # as duas séries por origem, sem série "ambos".
-  # ---------------------------------------------------------------
+  - serie_id: ref_pib_amplo_fam
+    codigo: 28868
+    rotulo: "Crédito ampliado às famílias em % do PIB — oficial"
+    descricao_esperada: "Crédito ampliado às famílias em relação ao PIB - Total"
+    tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
+    unidade: "% do PIB"
+    fator: 1
+    unidade_exibicao: "% do PIB"
+    periodicidade: M
+    segmento: familia
+    papel: referencia_pib
+    referencia_de: amplo_fam_total
+    bases: []
+    validar: false
+
+  # Taxas médias de juros. Estiveram no painel até 19/09/2026 e saíram junto com os
+  # demais gráficos fora do catálogo G1-G17. Seguem coletadas e na planilha.
   - serie_id: taxa_juros_pj_livre
     codigo: 20718
-    rotulo: "Pessoas jurídicas"
+    rotulo: "Taxa de juros — PJ, recursos livres"
     descricao_esperada: "Taxa média de juros das operações de crédito com recursos livres - Pessoas jurídicas - Total"
+    tabela: "Tabela 8 — Taxa média de juros do crédito livre"
     unidade: "% ao ano"
+    fator: 1
+    unidade_exibicao: "% ao ano"
     periodicidade: M
-    aba: mercado_credito
     segmento: empresa
+    bases: []
     validar: false
 
   - serie_id: taxa_juros_pf_livre
     codigo: 20740
-    rotulo: "Pessoas físicas"
+    rotulo: "Taxa de juros — PF, recursos livres"
     descricao_esperada: "Taxa média de juros das operações de crédito com recursos livres - Pessoas físicas - Total"
+    tabela: "Tabela 8 — Taxa média de juros do crédito livre"
     unidade: "% ao ano"
+    fator: 1
+    unidade_exibicao: "% ao ano"
     periodicidade: M
-    aba: mercado_credito
     segmento: familia
+    bases: []
     validar: false
 
   - serie_id: taxa_juros_pj_direcionado
     codigo: 20757
-    rotulo: "Pessoas jurídicas"
+    rotulo: "Taxa de juros — PJ, recursos direcionados"
     descricao_esperada: "Taxa média de juros das operações de crédito com recursos direcionados - Pessoas jurídicas - Total"
+    tabela: "Tabela 9 — Taxa média de juros do crédito direcionado"
     unidade: "% ao ano"
+    fator: 1
+    unidade_exibicao: "% ao ano"
     periodicidade: M
-    aba: mercado_credito
     segmento: empresa
+    bases: []
     validar: false
 
   - serie_id: taxa_juros_pf_direcionado
     codigo: 20768
-    rotulo: "Pessoas físicas"
+    rotulo: "Taxa de juros — PF, recursos direcionados"
     descricao_esperada: "Taxa média de juros das operações de crédito com recursos direcionados - Pessoas físicas - Total"
+    tabela: "Tabela 9 — Taxa média de juros do crédito direcionado"
     unidade: "% ao ano"
+    fator: 1
+    unidade_exibicao: "% ao ano"
     periodicidade: M
-    aba: mercado_credito
     segmento: familia
+    bases: []
     validar: false
 
-  # ---------------------------------------------------------------
-  # DEFLATOR — não vai a gráfico nenhum
-  #
-  # Existe para converter o saldo nominal em valores a preços do último mês, na regra
-  # declarada em config/derivadas.yaml. O SGS publica a variação mensal; o índice de
-  # preços é encadeado no pipeline. Não há série de número-índice do IPCA no SGS: o
-  # código 1737 responde HTML com status 200, exatamente a armadilha do CLAUDE.md.
-  # ---------------------------------------------------------------
-  - serie_id: ipca_variacao_mensal
-    codigo: 433
-    rotulo: "IPCA — variação mensal"
-    descricao_esperada: "Índice nacional de preços ao consumidor-amplo (IPCA)"
-    unidade: "% ao mês"
+  # Aberturas do comprometimento de renda e contraparte sem ajuste sazonal. Também
+  # saíram do painel em 19/09/2026 e seguem na planilha.
+  - serie_id: comprometimento_renda_nsa
+    codigo: 29265
+    rotulo: "Comprometimento de renda — sem ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda mensal"
     periodicidade: M
-    aba: mercado_credito
-    segmento: ambos
-    # Código conferido pelos dados (07/2026 = 0,07%, o IPCA do mês). O portal de dados
-    # abertos não devolve o pacote desta série na busca por código, então `nome_oficial`
-    # fica nulo em _validacao.json e a planilha usa a descrição acima.
+    segmento: familia
+    bases: []
     validar: false
 
-# ---------------------------------------------------------------
-# A INCLUIR — pendente de identificação do código no SGS
-# ---------------------------------------------------------------
-# - Custo médio do crédito PJ (ICC) e spread do ICC por porte
-# - Concessões de crédito PJ (indústria, se houver abertura setorial)
-# - Prazo médio das operações PJ
-#
-# Contrapartes sem ajuste sazonal das séries de comprometimento, se forem necessárias:
-#   29264 juros | 29263 amortização | 29266 serviço exceto habitacional
-#
-# Buscar em: https://www3.bcb.gov.br/sgspub/  (localizar séries por texto)
-# ou https://dadosabertos.bcb.gov.br/dataset/?q=<termo>
+  - serie_id: comprometimento_juros
+    codigo: 29033
+    rotulo: "Comprometimento com juros"
+    descricao_esperada: "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda mensal"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  - serie_id: comprometimento_amortizacao
+    codigo: 29036
+    rotulo: "Comprometimento com amortização"
+    descricao_esperada: "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da renda mensal"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false
+
+  - serie_id: inad_pf_cheque_especial
+    codigo: 21113
+    rotulo: "Inadimplência PF — cheque especial"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas físicas - Cheque especial"
+    tabela: "Tabela 20 — Inadimplência do crédito livre a pessoas físicas"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
+    periodicidade: M
+    segmento: familia
+    bases: []
+    validar: false

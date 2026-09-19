@@ -8,6 +8,7 @@ Uso:
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import tempfile
@@ -191,6 +192,41 @@ class TestFormatoLongoJson(unittest.TestCase):
         json.dumps(self.saida)  # levanta se sobrar numpy
         self.assertIsInstance(self.saida["dados"]["valor"][0], float)
         self.assertIsInstance(self.saida["dados"]["serie_id"][0], str)
+
+
+class TestQuebraDeLinhaDosArtefatos(unittest.TestCase):
+    r"""
+    Todo artefato versionado tem de sair com LF, em qualquer sistema operacional.
+
+    O pipeline roda na máquina local (Windows) e no GitHub Actions (Ubuntu). Se a escrita
+    deixar o Python traduzir `\n` para a quebra de linha da plataforma, cada alternância
+    entre os dois reescreve o arquivo INTEIRO com a outra quebra — e `docs/dados.js`
+    sozinho é mais de um megabyte de diff falso por atualização. `.gitattributes` é a
+    segunda trava; esta é a primeira.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_escreve_texto_usa_lf(self):
+        destino = self.tmp / "saida.txt"
+        comum.escreve_texto(destino, "uma\nduas\ntres\n")
+        self.assertNotIn(b"\r\n", destino.read_bytes())
+
+    def test_grava_json_usa_lf(self):
+        destino = self.tmp / "saida.json"
+        comum.grava_json(destino, {"a": [1, 2], "b": "acentuação"})
+        self.assertNotIn(b"\r\n", destino.read_bytes())
+        # e continua sendo JSON UTF-8 legível
+        self.assertEqual(json.loads(destino.read_text(encoding="utf-8"))["b"], "acentuação")
+
+    def test_cria_o_diretorio_se_preciso(self):
+        destino = self.tmp / "fundo" / "do" / "poco.txt"
+        comum.escreve_texto(destino, "ok\n")
+        self.assertEqual(destino.read_text(encoding="utf-8"), "ok\n")
 
 
 if __name__ == "__main__":

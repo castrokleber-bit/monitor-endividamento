@@ -1,8 +1,8 @@
 # Monitor de Endividamento
 
-Painel com as trajetórias de endividamento, inadimplência, comprometimento de renda
-e alavancagem de famílias e empresas não financeiras. Dados oficiais, atualização automática
-diária e download em XLSX.
+Painel com o estoque de crédito, a inadimplência, o endividamento e o comprometimento de
+renda de famílias e empresas não financeiras. Dados oficiais, atualização automática
+quinzenal e download em XLSX.
 
 Kleber Pacheco de Castro
 
@@ -12,48 +12,76 @@ Kleber Pacheco de Castro
 
 ## Estado do projeto
 
-ETL e front construídos e rodando ponta a ponta: 42 séries (26 do BCB/SGS, 9 do FRED/BIS,
-7 calculadas), 14 gráficos em 4 abas. `build_dataset.py` falha se `abas.yaml` citar série
-inexistente, ou se citar série sem `segmento` (família/empresa/ambos) definido.
+ETL e front rodando ponta a ponta: **108 séries** (94 do BCB/SGS, 9 do FRED/BIS, 5
+calculadas) e **20 gráficos em 5 abas** — Mercado de crédito, Inadimplência, Dívida das
+famílias, Comparação internacional e Metodologia.
 
-Em 11/09/2026 a página deixou de empilhar tudo numa página contínua e passou a ter abas —
-Mercado de crédito, Inadimplência, Dívida e comprometimento, Comparação internacional —,
-cada uma com um filtro Família / Empresas / Ambos. `config/blocos.yaml` virou
-`config/abas.yaml`, e toda série do catálogo ganhou o campo `segmento` que alimenta esse
-filtro. Entraram também quatro séries novas: a taxa de juros do crédito livre e do crédito
-direcionado, para pessoas físicas e jurídicas (SGS 20718, 20740, 20757, 20768).
+### Reformulação de 19/09/2026
 
-Em 02/09/2026 entrou o que hoje é a aba *Mercado de crédito* — composição por origem dos
-recursos e por prazo do crédito às empresas: crédito livre contra crédito direcionado a
-pessoas jurídicas (SGS 20543 e 20594) e capital de giro por prazo de contratação
-(SGS 20547 e 20548). Os saldos são coletados em valores nominais e exibidos a preços
-constantes, como os demais saldos do painel. Na mesma data a página passou a dispor os
-gráficos de uma mesma seção em duas colunas — isso continua valendo dentro de cada aba.
+A página foi reconstruída sobre o catálogo G1–G20 descrito na orientação de 18/09/2026.
 
-Em 30/08/2026 saíram do catálogo as quatro séries do FRED que só descreviam os Estados
-Unidos (`TDSP`, `FODSP`, `DRCCLACBS`, `DRBLACBS`), junto com os dois gráficos que as
-exibiam. A única série coletada sem gráfico é o IPCA (SGS 433), que entra como deflator.
+**Seletor de base por gráfico.** Quatro maneiras de exibir um saldo, calculadas no
+pipeline (`src/transformacoes.py`) e declaradas por série no campo `bases`:
 
-Séries ainda não incluídas no catálogo estão listadas ao final de `config/series_bcb.yaml`
-(custo médio do crédito PJ, concessões, prazo médio). Cada uma exige localizar o código no
-SGS e escrever a nota metodológica antes de entrar.
+| base | sufixo | regra |
+|---|---|---|
+| R$ correntes | `_nominal` | valor da fonte na unidade de exibição (R$ bilhões) |
+| R$ constantes | `_real` | deflacionado pelo IPCA (433), a preços do mês mais recente do índice |
+| % do PIB | `_pib` | dividido pelo PIB acumulado em 12 meses (4382) |
+| Variação em 12 meses | `_var12m` | contra o mesmo mês do ano anterior, sobre o valor nominal |
 
-Os gráficos são recortados a partir de 2005 (`recorte.inicio` em `config/abas.yaml`).
-O recorte é só de exibição — `data/` e a planilha mantêm cada série inteira.
+Séries já em porcentagem não têm seletor: taxa não se deflaciona nem se divide pelo PIB.
+A variação em 12 meses em pontos percentuais para essas séries está prevista no catálogo
+e não implementada, por decisão.
 
-## Séries calculadas
+**Seletor de período.** Tudo / 10 / 5 / 3 / 1 ano, mais intervalo personalizado em dois
+campos mês/ano. Um seletor por gráfico e um por aba; o da aba sobrescreve os individuais.
+O recorte fixo a partir de 2005 deixou de existir — por padrão cada gráfico mostra a série
+completa (ver `inicio: comum` em `config/abas.yaml` para o único caso em que isso é
+limitado, e por quê).
 
-`config/derivadas.yaml` declara as séries que não vêm da fonte, e `src/derivadas.py` as
-calcula dentro do `build_dataset.py`, depois da coleta. Hoje há uma só operação: o saldo
-da carteira de crédito deflacionado pelo IPCA (SGS 433), a preços do mês mais recente do
-índice. A base é móvel — acompanha o último IPCA divulgado — e a unidade de cada série
-diz qual é o mês (`R$ milhões de jul/2026`). Nos gráficos, `{base_ipca}` na unidade
-declarada em `abas.yaml` é substituído por esse mês no build.
+**Aba Metodologia gerada do catálogo.** As explicações saíram dos cartões; cada gráfico
+tem um ícone "i" que leva à âncora certa. Fontes, transformações, séries derivadas, ficha
+de série e histórico de atualizações são produzidos por `src/build_metodologia.py` a cada
+build. O texto corrido continua humano, em `content/metodologia.md`.
 
-As séries nominais continuam publicadas ao lado das calculadas. Na página, série
-calculada troca a linha de procedência pela descrição do cálculo, para não ser confundida
-com valor divulgado pela fonte. A regra está escrita em `content/metodologia.md`; nenhuma
-outra série derivada entra sem esse par de YAML e nota.
+**O filtro Família / Empresas / Ambos saiu**, substituído por gráficos específicos. O
+campo `segmento` continua obrigatório no catálogo e virou metadado da ficha de série.
+
+### Validações que o build faz contra a fonte
+
+`build_dataset.py` sai com **código 1** se qualquer uma falhar:
+
+| verificação | resultado em 19/09/2026 |
+|---|---|
+| parcela residual fecha no total publicado | exato, a menos de erro de ponto flutuante |
+| % do PIB calculado reproduz o % do PIB oficial do BCB | ≤ 0,005 pp em 6 pares de séries |
+| gráfico citando série inexistente no catálogo | — |
+| base pedida por um gráfico e não declarada pela série | — |
+| série em gráfico sem `segmento` | — |
+| série do Brasil fora da primeira posição (identidade visual) | — |
+
+Identidades conferidas na construção do catálogo, todas passando: G1/G2/G3 (partes =
+total, exato); G4–G7 (≤ 0,0007%, arredondamento da fonte); os dezesseis subsetores somando
+a indústria (exato); e as tabelas 23 e 24 do BCB fechando entre si com diferença máxima de
+R$ 5 milhões sobre R$ 2,7 trilhões.
+
+### Totais que o BCB não publica
+
+As tabelas 23 (porte) e 24 (atividade econômica) não têm código de "Total" no SGS —
+varridos 22020–22026, 22045–22055 e 27695–27710 sem encontrar. Os totais são calculados em
+`config/derivadas.yaml` (`soma` para os saldos, `media_ponderada` para a inadimplência) e
+validados por cruzamento entre as duas tabelas. A fórmula da média ponderada foi verificada
+onde existe série oficial para comparar: ponderando 21083 e 21084 pelos saldos 20540 e
+20541, o resultado reproduz o total oficial 21082 com diferença de 0,004 pp.
+
+### Séries coletadas sem gráfico
+
+Seguem no catálogo, no parquet e na aba "Referência" da planilha: os % do PIB oficiais do
+BCB (usados como padrão-ouro do teste automático), as taxas médias de juros, as aberturas
+do comprometimento de renda e a inadimplência do cheque especial — todas retiradas do
+painel em 19/09/2026, quando a página passou a seguir só o catálogo G1–G20. Mais o IPCA
+(433) e o PIB acumulado em 12 meses (4382), que são insumo das transformações.
 
 ## Ordem de execução
 
@@ -66,9 +94,12 @@ export FRED_API_KEY=...            # https://fredaccount.stlouisfed.org/apikeys
 
 python -m unittest discover -s tests   # transformações, sem rede
 python src/validate_series.py      # PRIMEIRO PASSO. Confere todo código contra a API.
-python src/build_dataset.py        # coleta, normaliza, gera data/ e docs/dados.js
+python src/build_dataset.py        # coleta, deriva, transforma, gera data/ e docs/dados.js
 python src/build_xlsx.py           # gera a planilha em data/ e copia para docs/
 python -m http.server -d docs      # abre o painel em localhost:8000
+
+# Iterar no front sem repetir as 108 requisições:
+python src/build_dataset.py --do-cache
 ```
 
 O painel também abre com duplo clique em `docs/index.html`, por `file://`. É por isso
@@ -82,6 +113,8 @@ JSON lido por `fetch()`: sob `file://` o navegador bloqueia `fetch()` de arquivo
 | `data/series.parquet` | formato longo canônico, uma linha por observação |
 | `data/series.json` | o mesmo formato longo em JSON colunar — `pandas.DataFrame(payload["dados"])` |
 | `data/manifest.json` | procedência e frescor de cada série (`ok`, `stale` ou `ausente`) |
+| `data/historico.json` | o que mudou a cada execução — alimenta a aba Metodologia |
+| `data/estado.json` | última coleta boa, mês-base do deflator, vintage do PIB, próxima coleta |
 | `data/_cache/` | último payload por série, fora do versionamento |
 | `docs/dados.js` | payload embutido que a página consome |
 | `docs/monitor_endividamento.xlsx` | planilha pública (cópia de `data/`) |
@@ -112,19 +145,29 @@ cobertura.
 
 ## Publicação
 
-O job `publica` do workflow está **desligado por padrão**: ele só roda se existir a
-variável de repositório `PUBLICAR_PAGES` com valor `true`. A coleta diária e o commit
-dos dados seguem funcionando normalmente com a publicação desligada.
+A página está no ar em <https://castrokleber-bit.github.io/monitor-endividamento/>,
+publicada por decisão de 19/09/2026.
 
-Ligar a publicação é, por construção, um ato explícito nas configurações do repositório
-— não uma edição de arquivo — para que a decisão de go live fique registrada e visível:
+O job `publica` do workflow só roda se existir a variável de repositório
+`PUBLICAR_PAGES` com valor `true`. Ligar ou desligar a publicação é, por construção, um
+ato explícito nas configurações do repositório — não uma edição de arquivo — para que a
+decisão fique registrada e visível:
 
 1. *Settings → Secrets and variables → Actions → Variables* → `PUBLICAR_PAGES` = `true`
 2. *Settings → Pages → Source: GitHub Actions*
 
+## Atualização
+
+Quinzenal, pelo cron do GitHub Actions nos dias **1 e 16** às 21:00 UTC (18:00 de
+Brasília), mais `workflow_dispatch` para forçar após uma divulgação. Se a coleta falhar, o
+job para antes do commit — nada de dado parcial — e abre (ou comenta em) uma issue
+rotulada `pipeline`.
+
 ## Antes de publicar
 
-- [ ] `config/_validacao.json` sem falhas e com os nomes oficiais conferidos manualmente
+- [x] `config/_validacao.json` sem falhas. O nome oficial não é conferido contra a API:
+      o SGS não expõe metadados por código (ver CLAUDE.md). Quem valida o código são as
+      identidades contábeis do build, que são teste mais forte que um nome
 - [x] `content/metodologia.md` com um parágrafo por série incluída — as séries do
       catálogo aparecem citadas pelo código na fonte
 - [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório)

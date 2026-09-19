@@ -1,187 +1,340 @@
-# Organização temática da página. Define as abas (tabs) da navegação, e dentro de cada
-# uma, os gráficos e sua ordem. O front lê este arquivo (via data/series.json) para
-# montar a página; `build_xlsx.py` usa a mesma lista para nomear as abas da planilha.
+# Organização da página: abas, gráficos e controles.
 #
-# Cada gráfico é filtrável por Família / Empresas / Ambos no front. Quem decide o que
-# aparece em cada filtro não é este arquivo: é o campo `segmento` de cada série, em
-# config/series_bcb.yaml, config/series_fred.yaml e config/derivadas.yaml. Um gráfico
-# cujas séries fiquem todas fora do filtro escolhido simplesmente não aparece na aba.
+# Fonte única da verdade da montagem do painel. O front lê este arquivo (via
+# docs/dados.js) e monta as abas, os cartões, o seletor de base e o seletor de período.
+# `build_xlsx.py` usa a mesma lista para agrupar as séries nas abas da planilha, e
+# `build_metodologia.py` para dizer, na ficha de cada série, em que gráficos ela aparece.
 #
-# Renomeado de blocos.yaml em 11/09/2026, quando a página deixou de empilhar tudo numa
-# página contínua e passou a ter abas — ver a decisão em CLAUDE.md.
+# REFORMULAÇÃO DE 19/09/2026. Três mudanças estruturais em relação à versão anterior:
+#
+#   1. O recorte fixo de exibição a partir de 2005 acabou. Cada gráfico abre na série
+#      completa e o leitor escolhe o intervalo. Ver `periodos` abaixo.
+#   2. O filtro Família / Empresas / Ambos foi retirado. O recorte por tomador agora é
+#      feito por gráficos específicos (G2 e G3, G5, G6, G7), não por um filtro global.
+#      O campo `segmento` do catálogo continua existindo: virou metadado da ficha de
+#      série na aba Metodologia.
+#   3. As notas explicativas saíram dos cartões. Cada gráfico tem um ícone "i" que leva
+#      à âncora correspondente na aba Metodologia, gerada a partir do catálogo.
 
-# Recorte temporal da EXIBIÇÃO. Vale para todos os gráficos; um gráfico pode
-# sobrescrever com seu próprio `inicio`.
+# ---------------------------------------------------------------------------
+# Seletor "Base de valores" — as quatro transformações de src/transformacoes.py.
 #
-# Não afeta a camada de dados: data/series.parquet, data/series.json e a planilha
-# seguem com a série inteira, desde a primeira observação da fonte. O recorte existe
-# porque as séries do BIS para os EUA começam em 1947 e as do Brasil em 1994 — sem ele,
-# a trajetória brasileira fica espremida no canto direito do gráfico.
-recorte:
-  inicio: "2005-01-01"
+# `sufixo` é o que entra no nome da coluna na planilha de download, padronizado em
+# 19/09/2026: antes só existia `_real`.
+# ---------------------------------------------------------------------------
+bases:
+  - id: nominal
+    rotulo: "R$ correntes"
+    sufixo: _nominal
+    descricao: "Valor como a fonte divulga, convertido para a unidade de exibição."
+  - id: real
+    rotulo: "R$ constantes"
+    sufixo: _real
+    descricao: >-
+      Valor deflacionado pelo IPCA e expresso a preços do mês mais recente do índice.
+      O mês-base é móvel e aparece no rótulo do eixo.
+  - id: pib
+    rotulo: "% do PIB"
+    sufixo: _pib
+    descricao: >-
+      Saldo dividido pelo PIB acumulado em 12 meses a valores correntes (SGS 4382).
+  - id: var12m
+    rotulo: "Variação em 12 meses"
+    sufixo: _var12m
+    descricao: >-
+      Variação percentual do valor nominal contra o mesmo mês do ano anterior. Os doze
+      primeiros meses de cada série ficam vazios, sem preenchimento.
+
+# ---------------------------------------------------------------------------
+# Seletor de período. `anos: null` é "Tudo" — da primeira observação ao último dado.
+# O leitor pode ainda digitar um intervalo personalizado em dois campos mês/ano.
+# Cada gráfico tem o seu seletor; cada aba tem um seletor global que sobrescreve os
+# individuais quando acionado.
+# ---------------------------------------------------------------------------
+periodos:
+  - { id: tudo, rotulo: "Tudo", anos: null }
+  - { id: a10, rotulo: "10 anos", anos: 10 }
+  - { id: a5, rotulo: "5 anos", anos: 5 }
+  - { id: a3, rotulo: "3 anos", anos: 3 }
+  - { id: a1, rotulo: "1 ano", anos: 1 }
+periodo_padrao: tudo
+
+# ---------------------------------------------------------------------------
+# `inicio` de um gráfico define onde "Tudo" começa:
+#
+#   comum          (padrão) a primeira data em que TODAS as séries do gráfico têm
+#                  observação. Evita exibir um total sozinho, sem as aberturas que o
+#                  compõem, num trecho em que a soma das parcelas não fecha no total.
+#   uniao          a primeira observação de qualquer série do gráfico.
+#   "AAAA-MM-DD"   data fixa, quando houver motivo documentado na Metodologia.
+#
+# O padrão é `comum` por causa de um caso concreto: a série 20539 (total do SFN) tem
+# observações desde 06/1988, mas todas as suas aberturas começam em 03/2007, e os
+# valores anteriores a 1994 estão reexpressos em reais a ponto de serem degenerados
+# (06/1988 = R$ 0). Com `uniao`, G4 e G5 abririam numa linha reta no zero por vinte anos.
+# O recorte é só de exibição: data/, a planilha e o CSV do gráfico seguem com a série
+# inteira desde a primeira observação da fonte.
+inicio_padrao: comum
 
 abas:
+
+  # =========================================================================
+  # ABA 1 — MERCADO DE CRÉDITO
+  # =========================================================================
   - id: mercado_credito
     titulo: "Mercado de crédito"
-    subtitulo: "Estoque, origem dos recursos e taxa de juros do crédito do Sistema Financeiro Nacional"
+    subtitulo: >-
+      Estoque de crédito ao setor não financeiro, por origem dos recursos, por tomador,
+      por modalidade, por porte da empresa e por atividade econômica.
     graficos:
-      # O total vem primeiro para receber o azul institucional, como nos demais gráficos
-      # da aba: agregado na primeira cor, aberturas depois.
-      - titulo: "Saldo da carteira de crédito em relação ao PIB"
-        series: [credito_pib_total, credito_pib_pj, credito_pib_pf]
-        unidade: "% do PIB"
-        fonte: "Banco Central do Brasil"
 
-      # `{base_ipca}` é substituído no build pelo mês-base do deflator — a base é móvel,
-      # acompanha o último IPCA divulgado. Ver config/derivadas.yaml.
-      - titulo: "Saldo da carteira de crédito, a preços constantes"
-        series: [saldo_credito_total_real, saldo_credito_pj_real, saldo_credito_pf_real]
+      - id: g1
+        titulo: "Crédito ampliado ao setor não financeiro"
+        series: [amplo_total, amplo_emprestimos, amplo_titulos, amplo_divida_externa]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-credito-ampliado
+
+      - id: g2
+        titulo: "Crédito ampliado às empresas"
+        series: [amplo_emp_total, amplo_emp_emprestimos, amplo_emp_titulos, amplo_emp_divida_externa]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-credito-ampliado
+
+      - id: g3
+        titulo: "Crédito ampliado às famílias"
+        series: [amplo_fam_total, amplo_fam_emprestimos, amplo_fam_titulos, amplo_fam_divida_externa]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-credito-ampliado
+
+      - id: g4
+        titulo: "Crédito do SFN por origem dos recursos"
+        series: [sfn_total, sfn_direcionado, sfn_livre]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-livre-direcionado
+
+      - id: g5
+        titulo: "Crédito do SFN por tipo de tomador"
+        series: [sfn_total, sfn_pj, sfn_pf]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-credito-sfn
+
+      - id: g6
+        titulo: "Crédito direcionado por tipo de tomador"
+        series: [sfn_direcionado, sfn_direcionado_pj, sfn_direcionado_pf]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-livre-direcionado
+
+      - id: g7
+        titulo: "Crédito livre por tipo de tomador"
+        series: [sfn_livre, sfn_livre_pj, sfn_livre_pf]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-livre-direcionado
+
+      - id: g8
+        titulo: "Crédito livre às empresas por modalidade"
+        series:
+          - sfn_livre_pj
+          - livre_pj_capital_giro_acima_365d
+          - livre_pj_capital_giro_ate_365d
+          - livre_pj_duplicatas
+          - livre_pj_veiculos
+          - livre_pj_exportacoes
+          - livre_pj_acc
+          - livre_pj_outros
+        # O rótulo do catálogo para 20543 é "Pessoas jurídicas", que é o que ele significa
+        # nos gráficos por tomador. Aqui ele é o agregado das modalidades, e "Total" lê
+        # melhor na legenda ao lado de "Capital de giro" e "Desconto de duplicatas".
         rotulos:
-          saldo_credito_total_real: "Total"
-          saldo_credito_pj_real: "Pessoas jurídicas"
-          saldo_credito_pf_real: "Pessoas físicas"
-        unidade: "R$ milhões de {base_ipca}"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          Saldo deflacionado pelo IPCA e expresso a preços do mês mais recente do índice,
-          para separar expansão real do crédito de variação de preços. A fonte divulga o
-          saldo em valores nominais; o deflacionamento é calculado no pipeline, pela regra
-          descrita na nota metodológica. A planilha traz as duas versões, nominal e a
-          preços constantes.
+          sfn_livre_pj: "Total"
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-modalidades-pj
 
-      - titulo: "Crédito às empresas por origem dos recursos"
-        series: [saldo_credito_pj_livre_real, saldo_credito_pj_direcionado_real]
-        unidade: "R$ milhões de {base_ipca}"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          Recursos livres são as operações com taxa livremente pactuada; recursos
-          direcionados são as de destinação e taxa reguladas, incluídas as lastreadas
-          em recursos do BNDES. As duas somam o saldo da carteira de pessoas jurídicas.
-          Séries deflacionadas pelo IPCA, pela regra da nota metodológica; a planilha
-          traz também os valores nominais.
+      - id: g9
+        titulo: "Crédito livre às famílias por modalidade"
+        series:
+          - sfn_livre_pf
+          - livre_pf_consignado
+          - livre_pf_nao_consignado
+          - livre_pf_cartao
+          - livre_pf_veiculos
+          - livre_pf_outros
+        rotulos:
+          sfn_livre_pf: "Total"
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-modalidades-pf
 
-      - titulo: "Capital de giro por prazo de contratação"
-        series: [capital_giro_ate_365d_real, capital_giro_acima_365d_real]
-        unidade: "R$ milhões de {base_ipca}"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          Capital de giro é uma modalidade dentro dos recursos livres, não um recorte do
-          crédito às empresas como um todo. As duas séries não esgotam a modalidade: a
-          fonte publica ainda o capital de giro rotativo, de saldo pequeno e natureza
-          distinta, que não entra neste gráfico. Ambas começam em março de 2011, quando
-          a fonte passou a publicar a abertura por prazo. Deflacionadas pelo IPCA.
+      - id: g14
+        titulo: "Crédito às empresas por porte"
+        series: [porte_total, porte_mpme, porte_grande]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-porte
 
-      - titulo: "Taxa de juros — crédito livre"
-        series: [taxa_juros_pj_livre, taxa_juros_pf_livre]
-        unidade: "% ao ano"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          Recursos livres são as operações com taxa livremente pactuada. A taxa de
-          pessoas físicas é muito mais alta que a de pessoas jurídicas porque a
-          modalidade mistura cheque especial e cartão de crédito rotativo — de juros
-          altíssimos — com crédito pessoal comum; os dois recortes não são comparáveis
-          entre si linha a linha, só como trajetória.
+      - id: g16
+        titulo: "Crédito às empresas por atividade econômica"
+        series: [ativ_total, ativ_agropecuaria, ativ_industria, ativ_servicos, ativ_outros]
+        bases: [nominal, real, pib, var12m]
+        base_padrao: nominal
+        metodologia: conceito-atividade
+        # Segundo nível: o seletor troca a linha "Indústria" pelas dezesseis séries que
+        # a compõem. As dezesseis somam exatamente 22043 em todos os meses comuns — a
+        # abertura não precisa de parcela residual.
+        detalhe:
+          rotulo: "Detalhar indústria"
+          substitui: ativ_industria
+          por:
+            - ind_siup
+            - ind_construcao
+            - ind_alimentos
+            - ind_acucar
+            - ind_textil
+            - ind_papel
+            - ind_petroleo
+            - ind_metalurgia
+            - ind_quimica
+            - ind_bens_capital
+            - ind_automobilistica
+            - ind_mineracao
+            - ind_infraestrutura
+            - ind_outros_duraveis
+            - ind_embalagens
+            - ind_nao_duraveis
 
-      - titulo: "Taxa de juros — crédito direcionado"
-        series: [taxa_juros_pj_direcionado, taxa_juros_pf_direcionado]
-        unidade: "% ao ano"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          Recursos direcionados são as operações de destinação e taxa reguladas: para
-          pessoas jurídicas, sobretudo crédito rural e financiamento com recursos do
-          BNDES; para pessoas físicas, sobretudo crédito habitacional e rural.
-
+  # =========================================================================
+  # ABA 2 — INADIMPLÊNCIA
+  #
+  # Todas as séries em % da carteira com atraso superior a 90 dias. Sem seletor de base:
+  # taxa não se deflaciona nem se divide pelo PIB.
+  # =========================================================================
   - id: inadimplencia
     titulo: "Inadimplência"
-    subtitulo: "Atraso na carteira de crédito do Sistema Financeiro Nacional, por tomador e por modalidade"
+    subtitulo: >-
+      Parcela da carteira ativa com atraso superior a noventa dias, por origem dos
+      recursos, por tomador, por modalidade e por porte da empresa.
     graficos:
-      - titulo: "Inadimplência da carteira de crédito"
-        series: [inadimplencia_total_sfn, inadimplencia_pj_total, inadimplencia_pf_total]
-        rotulos:
-          inadimplencia_total_sfn: "Total"
-          inadimplencia_pj_total: "Pessoas jurídicas"
-          inadimplencia_pf_total: "Pessoas físicas"
-        unidade: "% da carteira"
-        fonte: "Banco Central do Brasil"
 
-      - titulo: "Inadimplência das pessoas físicas por modalidade"
-        series: [inadimplencia_pf_total, inadimplencia_pf_abertura_1, inadimplencia_pf_abertura_2]
-        rotulos:
-          inadimplencia_pf_total: "Total"
-          inadimplencia_pf_abertura_1: "Recursos livres"
-          inadimplencia_pf_abertura_2: "Cheque especial"
-        unidade: "% da carteira"
-        fonte: "Banco Central do Brasil"
-        nota: >-
-          As três séries são aninhadas, não somáveis: o cheque especial está dentro dos
-          recursos livres, que estão dentro do total. O total inclui ainda o crédito
-          direcionado — habitacional e rural —, de inadimplência estruturalmente baixa,
-          o que puxa a curva agregada para baixo. O nível do cheque especial é uma ordem
-          de grandeza maior que o das demais e ocupa parcela pequena da carteira.
+      - id: g10
+        titulo: "Inadimplência por origem dos recursos"
+        series: [inad_sfn_total, inad_sfn_direcionado, inad_sfn_livre]
+        bases: []
+        metodologia: conceito-inadimplencia
 
-  - id: divida_comprometimento
-    titulo: "Dívida e comprometimento"
-    subtitulo: "Quanto as famílias devem em relação à renda e quanto da renda mensal vai para o serviço da dívida"
+      - id: g11
+        titulo: "Inadimplência por tipo de tomador"
+        series: [inad_sfn_total, inad_sfn_pj, inad_sfn_pf]
+        bases: []
+        metodologia: conceito-inadimplencia
+
+      - id: g12
+        titulo: "Inadimplência do crédito livre às empresas por modalidade"
+        series:
+          - inad_livre_pj_total
+          - inad_livre_pj_capital_giro_acima_365d
+          - inad_livre_pj_capital_giro_ate_365d
+          - inad_livre_pj_duplicatas
+          - inad_livre_pj_veiculos
+          - inad_livre_pj_exportacoes
+          - inad_livre_pj_acc
+          - inad_livre_pj_outros
+        bases: []
+        metodologia: limitacao-dois-outros
+
+      - id: g13
+        titulo: "Inadimplência do crédito livre às famílias por modalidade"
+        series:
+          - inad_livre_pf_total
+          - inad_livre_pf_consignado
+          - inad_livre_pf_nao_consignado
+          - inad_livre_pf_cartao
+          - inad_livre_pf_veiculos
+          - inad_livre_pf_outros
+        bases: []
+        metodologia: limitacao-dois-outros
+
+      - id: g15
+        titulo: "Inadimplência das empresas por porte"
+        series: [inad_porte_total, inad_porte_mpme, inad_porte_grande]
+        bases: []
+        metodologia: conceito-porte
+
+  # =========================================================================
+  # ABA 3 — DÍVIDA DAS FAMÍLIAS
+  #
+  # Dois painéis, não dois eixos no mesmo gráfico: endividamento é saldo sobre renda de
+  # doze meses e comprometimento é serviço da dívida sobre renda mensal. Escalas
+  # diferentes num eixo duplo produzem leitura errada.
+  # =========================================================================
+  - id: divida_familias
+    titulo: "Dívida das famílias"
+    subtitulo: >-
+      Quanto as famílias devem em relação à renda anual e quanto da renda mensal vai
+      para o serviço da dívida.
     nota_metodologica: >-
       Esta aba cobre apenas famílias: o Banco Central não publica, para empresas não
-      financeiras, um indicador doméstico equivalente de endividamento em relação à renda
-      ou de comprometimento de renda com o serviço da dívida. A alavancagem das empresas
-      em comparação internacional está na aba Comparação internacional.
+      financeiras, indicador doméstico equivalente de endividamento em relação à renda
+      ou de comprometimento de renda. A composição e a inadimplência do crédito livre a
+      pessoas físicas estão nas abas Mercado de crédito e Inadimplência.
     graficos:
-      - titulo: "Endividamento das famílias"
+
+      - id: g17a
+        titulo: "Endividamento das famílias"
         series: [endividamento_familias_total, endividamento_familias_ex_habitacional]
-        unidade: "% da renda acumulada em 12 meses"
-        fonte: "Banco Central do Brasil"
+        bases: []
+        metodologia: conceito-endividamento-familias
 
-      - titulo: "Comprometimento de renda com o serviço da dívida"
-        series: [comprometimento_renda_sa, comprometimento_renda_nsa]
-        unidade: "% da renda mensal"
-        fonte: "Banco Central do Brasil"
+      - id: g17b
+        titulo: "Comprometimento de renda com o serviço da dívida"
+        series: [comprometimento_renda_total, comprometimento_renda_ex_habitacional]
+        bases: []
+        metodologia: conceito-comprometimento
 
-      - titulo: "Composição do comprometimento: juros e amortização"
-        series: [comprometimento_juros, comprometimento_amortizacao]
-        unidade: "% da renda mensal"
-        fonte: "Banco Central do Brasil"
-
+  # =========================================================================
+  # ABA 4 — COMPARAÇÃO INTERNACIONAL
+  #
+  # Conteúdo inalterado na reformulação de 19/09/2026, por orientação explícita. O que
+  # mudou foi só o entorno: seletor de período no padrão novo e texto explicativo
+  # movido para a aba Metodologia.
+  # =========================================================================
   - id: internacional
     titulo: "Comparação internacional"
-    subtitulo: "Dívida de famílias e empresas em % do PIB — base BIS, abrangência mais ampla que a do SFN"
+    subtitulo: >-
+      Dívida de famílias e de empresas não financeiras em % do PIB, base BIS,
+      abrangência mais ampla que a do Sistema Financeiro Nacional.
     nota_metodologica: >-
-      As séries do BIS incluem crédito de todas as fontes (bancos, mercado de capitais e
-      credores externos). As séries do BCB apresentadas nas demais abas cobrem apenas o
-      Sistema Financeiro Nacional. Os níveis não são diretamente comparáveis entre abas.
+      As séries do BIS incluem crédito de todas as fontes — bancos, mercado de capitais
+      e credores externos. As séries do Banco Central nas demais abas cobrem apenas o
+      Sistema Financeiro Nacional. Os níveis não são comparáveis entre abas.
     graficos:
-      - titulo: "Dívida das famílias — Brasil e comparáveis"
+
+      - id: g18
+        titulo: "Dívida das famílias — Brasil e comparáveis"
         series: [bis_familias_br, bis_familias_us, bis_familias_mx, bis_familias_cl]
-        unidade: "% do PIB"
-        fonte: "BIS, via FRED"
-      - titulo: "Dívida das empresas não financeiras — Brasil e comparáveis"
+        bases: []
+        metodologia: conceito-bis
+
+      - id: g19
+        titulo: "Dívida das empresas não financeiras — Brasil e comparáveis"
         series: [bis_empresas_br, bis_empresas_us, bis_empresas_mx, bis_empresas_cl]
-        unidade: "% do PIB"
-        fonte: "BIS, via FRED"
+        bases: []
+        metodologia: conceito-bis
 
       # `rotulos` sobrescreve o rótulo do catálogo dentro deste gráfico. Aqui é
       # necessário: as três séries são do Brasil e o rótulo padrão de todas é "Brasil".
-      - titulo: "Composição da dívida privada — Brasil"
+      - id: g20
+        titulo: "Composição da dívida privada — Brasil"
         series: [bis_privado_br, bis_familias_br, bis_empresas_br]
         rotulos:
           bis_privado_br: "Setor privado não financeiro"
           bis_familias_br: "Famílias"
           bis_empresas_br: "Empresas não financeiras"
-        unidade: "% do PIB"
-        fonte: "BIS, via FRED"
-        nota: >-
-          O setor privado não financeiro é, na definição do BIS, a soma de famílias e
-          empresas não financeiras. As três séries são divulgadas arredondadas de forma
-          independente, então a soma das duas componentes pode diferir do total em até
-          0,5 ponto percentual em um trimestre. Mesma abrangência ampla da aba: inclui
-          crédito bancário, mercado de capitais e credores externos.
-
-# ---------------------------------------------------------------------------
-# Retirados do painel em 30/08/2026, a pedido: os dois gráficos que só traziam dados
-# dos Estados Unidos, sem contraparte brasileira —
-#   "Serviço da dívida das famílias — Estados Unidos"    (TDSP, FODSP)
-#   "Inadimplência nos bancos comerciais — Estados Unidos" (DRCCLACBS, DRBLACBS)
-# As quatro séries seguem no catálogo, coletadas e publicadas na planilha e em data/.
-# Só deixaram de ter gráfico.
-# ---------------------------------------------------------------------------
+        bases: []
+        metodologia: conceito-bis

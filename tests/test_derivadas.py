@@ -1,8 +1,15 @@
 """
-Testes do deflacionamento — a única operação de cálculo do monitor. Sem rede.
+Testes das séries derivadas — residual, soma e média ponderada. Sem rede.
 
-O que estes testes protegem: o índice encadeado, a escolha do mês-base, a omissão (nunca
-o preenchimento) de mês sem deflator e a unidade que declara a base.
+O que estes testes protegem, em ordem de importância:
+
+  - o residual FECHA: total = soma das parcelas exibidas + residual, em todas as datas.
+    É o item mais duro do checklist de aceite, e é a razão de a parcela "Outros" dos
+    gráficos de saldo ser calculada em vez de coletada;
+  - a média ponderada agrega taxa do jeito certo, ponderando pelo saldo, e não pela
+    média simples;
+  - data em que falta um insumo não entra no resultado — nada é interpolado ou repetido;
+  - o catálogo em config/derivadas.yaml não referencia série que não existe.
 
 Uso:
     python -m unittest discover -s tests -v
@@ -14,152 +21,193 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+import yaml
+
+RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "src"))
 
 import derivadas  # noqa: E402
 
 
-def _payload(serie_id: str, obs: list[list], unidade: str, codigo: str) -> dict:
+def _payload(serie_id: str, obs: list[list], unidade: str = "R$ milhões", codigo: str = "1") -> dict:
     return {
         "serie_id": serie_id,
         "fonte": "BCB/SGS",
         "codigo_fonte": codigo,
         "unidade": unidade,
         "periodicidade": "M",
-        "coletado_em": "2026-08-30T00:00:00+00:00",
+        "coletado_em": "2026-09-19T00:00:00+00:00",
         "obs": obs,
     }
 
 
-# IPCA de brinquedo: 10% no primeiro mês, 0% no segundo, 10% no terceiro.
-IPCA = [["2026-01-01", 10.0], ["2026-02-01", 0.0], ["2026-03-01", 10.0]]
+class TestResidual(unittest.TestCase):
+    def test_total_menos_componentes(self):
+        total = [["2026-01-01", 100.0], ["2026-02-01", 110.0]]
+        a = [["2026-01-01", 30.0], ["2026-02-01", 35.0]]
+        b = [["2026-01-01", 20.0], ["2026-02-01", 25.0]]
+        self.assertEqual(
+            derivadas.residual(total, [a, b]),
+            [["2026-01-01", 50.0], ["2026-02-01", 50.0]],
+        )
+
+    def test_fecha_exatamente(self):
+        """A soma das parcelas exibidas mais o residual reproduz o total publicado."""
+        total = [["2026-01-01", 1590492.0]]
+        partes = [[["2026-01-01", v]] for v in (382840.0, 92537.0, 176069.0, 133936.0)]
+        resto = derivadas.residual(total, partes)
+        soma = sum(p[0][1] for p in partes) + resto[0][1]
+        self.assertAlmostEqual(soma, total[0][1], places=6)
+
+    def test_data_sem_componente_fica_de_fora(self):
+        total = [["2026-01-01", 100.0], ["2026-02-01", 110.0]]
+        a = [["2026-01-01", 30.0]]
+        self.assertEqual(derivadas.residual(total, [a]), [["2026-01-01", 70.0]])
+
+    def test_residual_pode_ser_negativo_e_nao_e_zerado(self):
+        """
+        Componentes que somam mais que o total produzem residual negativo.
+
+        Não é para acontecer, mas se acontecer o número tem de aparecer como está: zerar
+        em silêncio esconderia um erro de catálogo — uma série no gráfico errado, por
+        exemplo — que o leitor veria como composição que não fecha.
+        """
+        total = [["2026-01-01", 100.0]]
+        a = [["2026-01-01", 130.0]]
+        self.assertEqual(derivadas.residual(total, [a]), [["2026-01-01", -30.0]])
 
 
-class TestIndiceEncadeado(unittest.TestCase):
-    def test_encadeia_multiplicando(self):
-        indice = derivadas.indice_encadeado(IPCA)
-        self.assertAlmostEqual(indice["2026-01-01"], 1.10)
-        self.assertAlmostEqual(indice["2026-02-01"], 1.10)
-        self.assertAlmostEqual(indice["2026-03-01"], 1.21)
+class TestSoma(unittest.TestCase):
+    def test_soma_componentes(self):
+        a = [["2026-01-01", 1324220.0]]
+        b = [["2026-01-01", 1417828.0]]
+        self.assertEqual(derivadas.soma([a, b]), [["2026-01-01", 2742048.0]])
 
-    def test_variacao_negativa_reduz_o_indice(self):
-        indice = derivadas.indice_encadeado([["2026-01-01", 10.0], ["2026-02-01", -10.0]])
-        self.assertAlmostEqual(indice["2026-02-01"], 1.10 * 0.9)
-
-    def test_deflator_vazio_e_recusado(self):
-        with self.assertRaises(derivadas.ErroDerivada):
-            derivadas.indice_encadeado([])
+    def test_so_datas_comuns(self):
+        a = [["2026-01-01", 1.0], ["2026-02-01", 2.0]]
+        b = [["2026-02-01", 3.0]]
+        self.assertEqual(derivadas.soma([a, b]), [["2026-02-01", 5.0]])
 
 
-class TestDeflaciona(unittest.TestCase):
-    def setUp(self):
-        self.indice = derivadas.indice_encadeado(IPCA)
+class TestMediaPonderada(unittest.TestCase):
+    def test_pondera_pelo_peso_e_nao_pela_media_simples(self):
+        taxa_a = [["2026-01-01", 6.0]]
+        peso_a = [["2026-01-01", 1324220.0]]
+        taxa_b = [["2026-01-01", 0.8]]
+        peso_b = [["2026-01-01", 1417828.0]]
+        resultado = derivadas.media_ponderada([(taxa_a, peso_a), (taxa_b, peso_b)])[0][1]
+        esperado = (6.0 * 1324220.0 + 0.8 * 1417828.0) / (1324220.0 + 1417828.0)
+        self.assertAlmostEqual(resultado, esperado)
+        self.assertNotAlmostEqual(resultado, (6.0 + 0.8) / 2)
 
-    def test_mes_base_fica_com_o_valor_nominal(self):
-        obs = derivadas.deflaciona([["2026-03-01", 100.0]], self.indice, "2026-03-01")
-        self.assertAlmostEqual(obs[0][1], 100.0)
+    def test_reproduz_um_total_oficial_conhecido(self):
+        """
+        Caso real, conferido contra a API em 19/09/2026, observação de 07/2026.
 
-    def test_valor_anterior_e_corrigido_pela_inflacao_do_periodo(self):
-        # De janeiro a março o índice sobe 10% (1,10 -> 1,21).
-        obs = derivadas.deflaciona([["2026-01-01", 100.0]], self.indice, "2026-03-01")
-        self.assertAlmostEqual(obs[0][1], 110.0)
+        Ponderando a inadimplência de pessoas jurídicas (21083 = 3,31%) e de pessoas
+        físicas (21084 = 5,81%) pelos saldos correspondentes (20540 e 20541), o resultado
+        tem de reproduzir o total oficial do SFN (21082 = 4,88%). É a prova de que a
+        fórmula usada para construir o total por porte — que a fonte não publica — é a
+        mesma que o Banco Central usa onde ele publica.
+        """
+        pj = ([["2026-07-01", 3.31]], [["2026-07-01", 2731513.0]])
+        pf = ([["2026-07-01", 5.81]], [["2026-07-01", 4640730.0]])
+        resultado = derivadas.media_ponderada([pj, pf])[0][1]
+        self.assertAlmostEqual(resultado, 4.88, places=2)
 
-    def test_mes_sem_deflator_e_omitido_nunca_preenchido(self):
-        nominal = [["2026-03-01", 100.0], ["2026-04-01", 100.0]]
-        obs = derivadas.deflaciona(nominal, self.indice, "2026-03-01")
-        self.assertEqual([o[0] for o in obs], ["2026-03-01"])
-
-    def test_base_fora_do_deflator_e_recusada(self):
-        with self.assertRaises(derivadas.ErroDerivada):
-            derivadas.deflaciona([["2026-01-01", 100.0]], self.indice, "2026-09-01")
+    def test_peso_total_zero_fica_de_fora(self):
+        taxa = [["2026-01-01", 5.0]]
+        peso = [["2026-01-01", 0.0]]
+        self.assertEqual(derivadas.media_ponderada([(taxa, peso)]), [])
 
 
 class TestConstroi(unittest.TestCase):
     def setUp(self):
         self.config = {
-            "deflacionamento": {"deflator": "ipca", "base": "ultima_do_deflator"},
+            "fonte": "Derivado",
             "series": [
                 {
-                    "serie_id": "saldo_real",
-                    "origem": "saldo",
-                    "operacao": "deflaciona_ipca",
-                    "rotulo": "Total",
+                    "serie_id": "resto",
+                    "operacao": "residual",
+                    "total": "t",
+                    "componentes": ["a"],
+                    "rotulo": "Outras",
+                    "unidade": "R$ milhões",
+                    "fator": 0.001,
+                    "unidade_exibicao": "R$ bilhões",
+                    "segmento": "empresa",
+                    "bases": ["nominal"],
                 }
             ],
         }
         self.payloads = {
-            "ipca": _payload("ipca", list(IPCA), "% ao mês", "433"),
-            "saldo": _payload(
-                "saldo",
-                [["2026-01-01", 100.0], ["2026-03-01", 200.0]],
-                "R$ milhões",
-                "20539",
-            ),
+            "t": _payload("t", [["2026-01-01", 100.0]], codigo="20543"),
+            "a": _payload("a", [["2026-01-01", 30.0]], codigo="20547"),
         }
 
-    def test_base_e_a_ultima_observacao_do_deflator(self):
-        _, _, base = derivadas.constroi(self.config, self.payloads, {})
-        self.assertEqual(base, "2026-03-01")
+    def test_produz_a_serie_e_a_entrada_de_catalogo(self):
+        novos, entradas = derivadas.constroi(self.config, self.payloads, {})
+        self.assertEqual(novos["resto"]["obs"], [["2026-01-01", 70.0]])
+        self.assertIn("20543", entradas["resto"]["calculo"])
+        self.assertIn("20547", entradas["resto"]["calculo"])
 
-    def test_unidade_declara_o_mes_base(self):
-        novos, entradas, _ = derivadas.constroi(self.config, self.payloads, {})
-        self.assertEqual(novos["saldo_real"]["unidade"], "R$ milhões de mar/2026")
-        self.assertEqual(entradas["saldo_real"]["unidade"], "R$ milhões de mar/2026")
-
-    def test_procedencia_cita_origem_e_deflator(self):
-        _, entradas, _ = derivadas.constroi(self.config, self.payloads, {})
-        calculo = entradas["saldo_real"]["calculo"]
-        self.assertIn("20539", calculo)
-        self.assertIn("433", calculo)
-
-    def test_sem_deflator_nao_deriva_nada(self):
-        del self.payloads["ipca"]
-        novos, entradas, base = derivadas.constroi(self.config, self.payloads, {})
-        self.assertEqual((novos, entradas, base), ({}, {}, None))
-
-    def test_origem_ausente_apenas_nao_gera_a_derivada(self):
-        del self.payloads["saldo"]
-        novos, _, base = derivadas.constroi(self.config, self.payloads, {})
+    def test_insumo_ausente_apenas_nao_gera_a_derivada(self):
+        """Fonte fora do ar não pode derrubar o build: a derivada some, o resto segue."""
+        del self.payloads["a"]
+        novos, _ = derivadas.constroi(self.config, self.payloads, {})
         self.assertEqual(novos, {})
-        self.assertEqual(base, "2026-03-01")
 
-    def test_operacao_desconhecida_falha(self):
+    def test_operacao_desconhecida_e_recusada(self):
         self.config["series"][0]["operacao"] = "inventada"
         with self.assertRaises(derivadas.ErroDerivada):
             derivadas.constroi(self.config, self.payloads, {})
 
+    def test_confere_fechamento_aprova_o_residual_correto(self):
+        novos, _ = derivadas.constroi(self.config, self.payloads, {})
+        self.payloads.update(novos)
+        self.assertEqual(derivadas.confere_fechamento(self.config, self.payloads), [])
 
-class TestMarcadorDeUnidade(unittest.TestCase):
-    def test_substitui_pelo_mes_base(self):
-        self.assertEqual(
-            derivadas.aplica_marcador("R$ milhões de {base_ipca}", "2026-07-01"),
-            "R$ milhões de jul/2026",
+    def test_confere_fechamento_pega_residual_adulterado(self):
+        novos, _ = derivadas.constroi(self.config, self.payloads, {})
+        novos["resto"]["obs"] = [["2026-01-01", 69.0]]
+        self.payloads.update(novos)
+        self.assertTrue(derivadas.confere_fechamento(self.config, self.payloads))
+
+
+class TestCatalogoReal(unittest.TestCase):
+    """O YAML de produção precisa ser coerente com os catálogos de coleta."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.derivadas = yaml.safe_load(
+            (RAIZ / "config" / "derivadas.yaml").read_text(encoding="utf-8")
         )
+        cls.coletadas = set()
+        for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+            cat = yaml.safe_load((RAIZ / "config" / arquivo).read_text(encoding="utf-8"))
+            cls.coletadas.update(s["serie_id"] for s in cat["series"])
 
-    def test_texto_sem_marcador_passa_intacto(self):
-        self.assertEqual(derivadas.aplica_marcador("% do PIB", "2026-07-01"), "% do PIB")
+    def test_toda_operacao_e_conhecida(self):
+        for serie in self.derivadas["series"]:
+            self.assertIn(serie["operacao"], derivadas.OPERACOES, serie["serie_id"])
 
-    def test_sem_base_nao_inventa_mes(self):
-        saida = derivadas.aplica_marcador("R$ milhões de {base_ipca}", None)
-        self.assertNotIn("{base_ipca}", saida)
-        self.assertIn("indisponível", saida)
+    def test_todo_insumo_existe_no_catalogo_de_coleta(self):
+        for serie in self.derivadas["series"]:
+            for insumo in derivadas._insumos(serie):
+                self.assertIn(
+                    insumo,
+                    self.coletadas,
+                    f"{serie['serie_id']} depende de {insumo}, que não é coletada",
+                )
 
+    def test_toda_derivada_declara_unidade_segmento_e_bases(self):
+        for serie in self.derivadas["series"]:
+            for campo in ("unidade", "unidade_exibicao", "segmento", "bases", "rotulo"):
+                self.assertIn(campo, serie, f"{serie['serie_id']} sem {campo}")
 
-class TestCatalogoDerivadas(unittest.TestCase):
-    """O YAML real precisa casar com o que o código sabe executar."""
-
-    def test_toda_serie_declara_operacao_conhecida_e_origem_do_catalogo(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-        from build_dataset import catalogo_completo  # noqa: PLC0415
-        from comum import carrega_catalogo  # noqa: PLC0415
-
-        config = carrega_catalogo("derivadas.yaml")
-        catalogo = catalogo_completo()
-
-        self.assertIn(config["deflacionamento"]["deflator"], catalogo)
-        for serie in config["series"]:
-            self.assertEqual(serie["operacao"], "deflaciona_ipca")
-            self.assertIn(serie["origem"], catalogo)
+    def test_nenhuma_derivada_colide_com_serie_coletada(self):
+        for serie in self.derivadas["series"]:
+            self.assertNotIn(serie["serie_id"], self.coletadas)
 
 
 if __name__ == "__main__":

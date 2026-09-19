@@ -1,13 +1,23 @@
 name: Atualiza dados e publica
 
+# QUINZENAL desde 19/09/2026 (antes era diário, dias úteis).
+#
+# As séries de crédito do Banco Central são mensais e saem uma vez por mês, no fim do mês
+# seguinte ao de referência; as do BIS são trimestrais, com um a dois trimestres de
+# defasagem. Rodar todo dia útil recommitava artefatos idênticos vinte vezes por mês e
+# enchia o histórico do repositório de ruído. Dias 1 e 16 pegam a divulgação mensal com
+# folga e mantêm o painel com no máximo quinze dias de atraso em relação à fonte.
 on:
   schedule:
-    # 14:00 UTC = 11:00 BRT, dias úteis — após a janela usual de divulgação do BCB
-    - cron: "0 14 * * 1-5"
+    # 21:00 UTC = 18:00 BRT, dias 1 e 16 — fim da tarde de Brasília, depois da janela
+    # usual de divulgação do BCB. O Brasil não adota horário de verão desde 2019, então
+    # o offset é fixo e o horário local não muda ao longo do ano.
+    - cron: "0 21 1,16 * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  issues: write
   pages: write
   id-token: write
 
@@ -32,8 +42,10 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python src/validate_series.py
 
-      # build_dataset.py sai com 2 se a cobertura regredir (série que tinha dado sumiu).
-      # O step falha, o job para e nada é commitado — é o gate contra publicar um dia ruim.
+      # build_dataset.py sai com 1 se o catálogo ficou inconsistente (série citada e não
+      # declarada, residual que não fecha, % do PIB divergindo do oficial do BCB) e com 2
+      # se a cobertura regrediu — série que tinha dado e sumiu. Nos dois casos o step
+      # falha, o job para e NADA é commitado: é o gate contra publicar dado parcial.
       - name: Coleta e consolida
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
@@ -50,19 +62,68 @@ jobs:
           git diff --staged --quiet || git commit -m "dados: atualização automática $(date -u +%Y-%m-%d)"
           git push
 
-  # PUBLICAÇÃO DESLIGADA POR PADRÃO.
+      # Falha de coleta não pode passar em silêncio: o painel continuaria no ar com o
+      # snapshot anterior e ninguém saberia. A issue é aberta uma vez e reaproveitada
+      # enquanto estiver aberta, para que uma fonte fora do ar por uma semana não gere
+      # uma issue por execução.
+      - name: Abre issue se a atualização falhou
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const titulo = 'Atualização automática falhou';
+            const corpo = [
+              'A execução quinzenal do pipeline falhou e **nada foi publicado** — o site',
+              'segue com o snapshot anterior, como manda a política de não publicar dado',
+              'parcial.',
+              '',
+              `Execução: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Causas prováveis, em ordem de frequência:',
+              '- fonte fora do ar ou devolvendo erro mascarado (HTTP 200 com corpo de erro);',
+              '- código de série retirado ou renomeado no SGS;',
+              '- identidade contábil que deixou de fechar após revisão da fonte;',
+              '- `FRED_API_KEY` ausente ou expirada.',
+              '',
+              'Esta issue é reaproveitada enquanto estiver aberta. Feche-a quando a',
+              'atualização voltar a passar.',
+            ].join('\n');
+
+            const abertas = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'pipeline',
+            });
+            const existente = abertas.data.find(i => i.title === titulo);
+
+            if (existente) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existente.number,
+                body: `Falhou de novo em ${new Date().toISOString()}. ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: titulo,
+                body: corpo,
+                labels: ['pipeline'],
+              });
+            }
+
+  # PUBLICAÇÃO NO GITHUB PAGES.
   #
-  # O go live depende de decisão humana (ver CLAUDE.md). Enquanto ela não for tomada,
-  # esta etapa não roda.
+  # Controlada pela variável de repositório PUBLICAR_PAGES. O go live é decisão humana
+  # (ver CLAUDE.md), e a chave é uma variável nas configurações — e não uma edição neste
+  # arquivo — de propósito: ligar a publicação vira um ato explícito e auditável, em vez
+  # de um commit que passa despercebido numa revisão.
   #
-  # Para ligar, quando a decisão estiver tomada:
-  #   Settings -> Secrets and variables -> Actions -> Variables -> New repository variable
+  #   Settings -> Secrets and variables -> Actions -> Variables
   #   nome: PUBLICAR_PAGES   valor: true
-  # e habilitar Settings -> Pages -> Source: GitHub Actions.
-  #
-  # A chave é uma variável de repositório, e não uma edição neste arquivo, de propósito:
-  # ligar a publicação vira um ato explícito e auditável nas configurações, em vez de um
-  # commit que passa despercebido numa revisão.
+  #   e Settings -> Pages -> Source: GitHub Actions.
   publica:
     needs: atualiza
     if: vars.PUBLICAR_PAGES == 'true'

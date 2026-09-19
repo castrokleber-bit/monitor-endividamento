@@ -1,249 +1,476 @@
-/* Monitor de Endividamento — identidade visual
-   Azul #164194 | Ciano #008BD2 | Cinza #595959 | Arial
-   Os tokens abaixo são a única fonte de cor do projeto. Não introduzir hex solto no JS. */
+/* Monitor de Endividamento — identidade visual.
+ *
+ * Todas as cores vivem aqui, como custom properties. app.js lê os tokens e nunca
+ * escreve hex. Padrão sóbrio e institucional: sem sombra, sem gradiente, sem
+ * arredondamento decorativo.
+ *
+ * Paleta das linhas, na ordem de uso obrigatória (o Total sempre na primeira). Da
+ * terceira em diante a paleta sai da família azul — a regra anterior, de derivar tudo
+ * dos dois azuis, produzia curvas indistinguíveis nos gráficos de três e quatro séries
+ * e ilegíveis em preto e branco (decisão de 30/08/2026). Vermelho segue reservado a
+ * alertas. Quando um gráfico tem mais séries que cores, app.js varia o traço em vez de
+ * inventar cor nova.
+ */
 
 :root {
-  --azul:        #164194;
-  --ciano:       #008BD2;
-  --cinza:       #595959;
+  --azul: #164194;
+  --ciano: #008BD2;
+  --cinza: #595959;
   --cinza-claro: #D9D9D9;
-  --cinza-fundo: #F5F6F8;
-  --alerta:          #C0392B;   /* reservado a avisos de dado desatualizado */
-  --fundo:           #FFFFFF;
+  --fundo: #FFFFFF;
 
-  /* Paleta de séries. Ordem de uso obrigatória — Brasil sempre na primeira posição.
+  --serie-1: #164194;
+  --serie-2: #008BD2;
+  --serie-3: #00785F;
+  --serie-4: #C77F00;
+  --serie-5: #595959;
 
-     As duas primeiras são os azuis institucionais. Da terceira em diante a paleta sai
-     da família azul, por decisão de 30/08/2026: com três e quatro séries no mesmo
-     gráfico, as variações de azul ficavam indistinguíveis entre si e na impressão em
-     preto e branco. Verde-petróleo e ocre são escuros o bastante para manter contraste
-     com o fundo branco. Vermelho segue reservado a alertas. */
-  --serie-1: #164194;   /* azul institucional */
-  --serie-2: #008BD2;   /* ciano institucional */
-  --serie-3: #00785F;   /* verde-petróleo */
-  --serie-4: #C77F00;   /* ocre */
-  --serie-5: #595959;   /* cinza */
+  --alerta: #A4262C;
 
-  --escala-1: 0.75rem;   /* rótulos, fonte, data de atualização */
-  --escala-2: 0.875rem;  /* subtítulo de gráfico */
-  --escala-3: 1rem;      /* corpo */
-  --escala-4: 1.25rem;   /* título de gráfico */
-  --escala-5: 1.75rem;   /* título de aba */
-
-  --gap: 1.5rem;
-  --largura-max: 1180px;
+  --fonte: Arial, Helvetica, sans-serif;
 }
 
 * { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
   background: var(--fundo);
   color: var(--cinza);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: var(--escala-3);
+  font-family: var(--fonte);
+  font-size: 15px;
   line-height: 1.5;
 }
 
-h1, h2, h3 { color: var(--azul); font-weight: bold; margin: 0 0 0.5rem; }
-h1 { font-size: var(--escala-5); }
-h2 { font-size: var(--escala-4); }
+.conteudo {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
 
-.conteudo { max-width: var(--largura-max); margin: 0 auto; padding: var(--gap); }
+/* ------------------------------------------------------------------ cabeçalho */
 
-.cabecalho { padding-bottom: var(--gap); }
-.cabecalho__linha { max-width: 60ch; margin: 0 0 0.75rem; }
-.cabecalho__meta { font-size: var(--escala-1); margin: 0 0 0.75rem; }
+.cabecalho h1 {
+  margin: 0 0 6px;
+  color: var(--azul);
+  font-size: 30px;
+  line-height: 1.2;
+}
 
-/* ------------------------------------------------------------ navegação por abas */
+.cabecalho__linha {
+  margin: 0 0 12px;
+  max-width: 72ch;
+}
 
-/* Barra de abas no lugar da pilha de blocos: uma aba de cada vez, trocada por app.js
-   sem recarregar a página. A borda inferior do container e a borda inferior do botão
-   ativo (mesma cor, mesma espessura, ligadas pela margem negativa) formam uma linha
-   contínua só interrompida onde a aba ativa "gruda" no conteúdo abaixo dela. */
+.cabecalho__meta {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------ abas */
+
 .abas-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  border-bottom: 3px solid var(--azul);
-  margin-bottom: var(--gap);
+  gap: 2px;
+  margin: 24px 0 0;
+  border-bottom: 2px solid var(--cinza-claro);
 }
+
 .abas-nav__botao {
-  font-family: inherit;
-  font-size: var(--escala-3);
-  font-weight: bold;
-  background: var(--fundo);
-  color: var(--cinza);
+  appearance: none;
   border: none;
   border-bottom: 3px solid transparent;
-  margin-bottom: -3px;
-  padding: 0.6rem 1rem;
+  margin-bottom: -2px;
+  background: none;
+  padding: 10px 16px;
+  color: var(--cinza);
+  font-family: var(--fonte);
+  font-size: 15px;
   cursor: pointer;
 }
+
 .abas-nav__botao:hover { color: var(--azul); }
-.abas-nav__botao:focus-visible { outline: 2px solid var(--ciano); outline-offset: 2px; }
-.abas-nav__botao--ativo { color: var(--azul); border-bottom-color: var(--azul); }
 
-.aba-painel[hidden] { display: none; }
-.aba__subtitulo { max-width: 70ch; margin: 0 0 var(--gap); }
-
-/* ------------------------------------------------------------ filtro de segmento */
-
-/* Família / Empresas / Ambos, por aba. Mesma linguagem visual do botão `.baixar`
-   (borda azul, fundo branco em repouso) para não introduzir um terceiro estilo de
-   botão na página — só troca o que marca o estado: aqui é seleção (fundo cheio),
-   não hover. */
-.filtro-segmento {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: var(--gap);
-}
-.filtro-segmento__botao {
-  font-family: inherit;
-  font-size: var(--escala-1);
-  background: var(--fundo);
+.abas-nav__botao--ativo {
   color: var(--azul);
-  border: 1px solid var(--azul);
-  padding: 0.35rem 0.9rem;
-  cursor: pointer;
+  border-bottom-color: var(--azul);
+  font-weight: bold;
 }
-.filtro-segmento__botao:hover { background: var(--cinza-fundo); }
-.filtro-segmento__botao:focus-visible { outline: 2px solid var(--ciano); outline-offset: 2px; }
-.filtro-segmento__botao--ativo { background: var(--azul); color: var(--fundo); }
-.filtro-segmento__botao--ativo:hover { background: var(--azul); }
 
-.aba__vazio { font-size: var(--escala-2); color: var(--cinza); font-style: italic; margin-bottom: var(--gap); }
+.aba-painel { padding-top: 24px; }
 
-/* ------------------------------------------------------------ grade de gráficos */
+.aba-painel h1 {
+  margin: 0 0 6px;
+  color: var(--azul);
+  font-size: 22px;
+}
 
-/* Dois gráficos por linha. Os cartões esticam até a altura da linha, de modo que as
-   bordas dos dois vizinhos fiquem alinhadas mesmo com notas de tamanhos diferentes. */
-/* `row-gap: 0` na grade, e não no cartão: o espaçamento entre as faixas do `subgrid`
-   abaixo é o da grade da aba, e ele apareceria entre título, subtítulo e gráfico
-   dentro de cada cartão. Quem separa uma linha de cartões da seguinte é a margem do
-   próprio cartão. */
+.aba__subtitulo {
+  margin: 0 0 12px;
+  max-width: 80ch;
+}
+
+.nota--aba {
+  margin: 0 0 16px;
+  max-width: 80ch;
+  padding-left: 12px;
+  border-left: 3px solid var(--cinza-claro);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------ controles da aba */
+
+.aba__controles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 10px 12px;
+  background: #FAFAFA;
+  border: 1px solid var(--cinza-claro);
+}
+
+.aba__controles-rotulo { font-size: 13px; }
+
+/* ------------------------------------------------------------------ grade */
+
+/* Duas colunas dentro de uma aba; um gráfico sozinho na última linha ocupa a largura
+   inteira (a classe é aplicada por app.js, não por `:nth-child` — ver o comentário lá).
+   Abaixo de 900px a grade volta a uma coluna. */
 .aba__graficos {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: var(--gap);
-  row-gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 24px;
 }
 
-/* Gráfico sozinho na última linha ocupa as duas colunas: meia linha vazia ao lado de um
-   cartão fica pior do que o cartão inteiro. Não é `:nth-child(odd):last-child` porque o
-   filtro de segmento pode ocultar cartões no meio da grade, e os seletores de posição
-   do CSS contam os irmãos ocultos também — quem decide é app.js, sobre os cartões
-   visíveis, e marca esta classe. */
+/* Os cartões de uma mesma linha alinham topo, subtítulo, área de gráfico e rodapé por
+   `subgrid`. É disso que depende as duas curvas ficarem na mesma altura: sem o subgrid,
+   um cartão com título de duas linhas empurraria o próprio gráfico para baixo. Por isso
+   o cartão tem SEMPRE quatro filhos — quem mexer nesta estrutura em app.js precisa
+   manter a contagem. */
+.aba__graficos > .grafico {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+}
+
+@supports not (grid-template-rows: subgrid) {
+  .aba__graficos > .grafico {
+    display: flex;
+    flex-direction: column;
+  }
+  .grafico__area { flex: 1; }
+}
+
 .grafico--linha-inteira { grid-column: 1 / -1; }
 
-.grafico { border: 1px solid var(--cinza-claro); padding: var(--gap); margin-bottom: var(--gap); display: flex; flex-direction: column; }
-.grafico[hidden] { display: none; }
-
-/* Alinhamento horizontal entre os dois cartões de uma mesma linha. Sem ele, um título
-   que quebra em duas linhas — ou uma nota presente em só um dos lados — desloca a área
-   do gráfico do vizinho, e as duas curvas ficam em alturas diferentes.
-
-   Com `subgrid`, os cinco elementos do cartão (título, subtítulo, vão da nota, gráfico
-   e meta) passam a compartilhar as mesmas faixas horizontais: cada faixa tem a altura
-   do maior dos dois cartões.
-
-   O número de filhos do cartão é fixo — por isso o vão da nota existe mesmo vazio. Em
-   navegador sem `subgrid` vale o empilhamento em flex acima, sem o alinhamento. */
-@supports (grid-template-rows: subgrid) {
-  .grafico {
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-row: span 5;
-  }
+@media (max-width: 900px) {
+  .aba__graficos { grid-template-columns: minmax(0, 1fr); }
+  .aba__graficos > .grafico { grid-column: 1; }
 }
 
-/* Vazio, o vão não ocupa altura própria: quem a define é a nota do cartão vizinho. */
-.grafico__nota:not(:empty) { margin-bottom: var(--gap); }
-.grafico__area { width: 100%; height: 260px; }
-.grafico--linha-inteira .grafico__area { height: 320px; }
-.grafico__subtitulo { font-size: var(--escala-2); margin: 0 0 var(--gap); }
+/* ------------------------------------------------------------------ cartão */
 
-/* `margin-top: auto` empurra a meta para o rodapé do cartão: nos dois vizinhos de uma
-   mesma linha, os botões de download ficam na mesma altura. */
-.grafico__meta {
-  font-size: var(--escala-1);
+.grafico {
+  border: 1px solid var(--cinza-claro);
+  padding: 14px 16px 12px;
+  min-width: 0;
+}
+
+/* Título numa linha, controles na seguinte, alinhados à direita.
+ *
+ * A orientação pede os controles "no canto superior direito", e é o que acontece — mas
+ * numa linha própria, não ao lado do título. Lado a lado, numa coluna de ~450px, um
+ * título de duas linhas espremia os seletores e o ícone "i" caía sozinho numa terceira
+ * linha. Com a linha própria, o alinhamento à direita se mantém e a altura do topo fica
+ * previsível, que é do que o `subgrid` precisa para alinhar os cartões vizinhos.
+ */
+.grafico__topo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grafico__titulo {
+  margin: 0;
+  color: var(--azul);
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.grafico__controles {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.grafico__subtitulo {
+  margin: 4px 0 8px;
+  font-size: 12px;
   color: var(--cinza);
-  margin-top: auto;
-  padding-top: 0.75rem;
-}
-.grafico__meta > div { margin-bottom: 0.25rem; }
-
-/* Nota metodológica: obrigatória onde a abrangência da fonte muda a leitura do gráfico. */
-.nota {
-  font-size: var(--escala-1);
-  background: var(--cinza-fundo);
-  border-left: 3px solid var(--ciano);
-  padding: 0.6rem 0.9rem;
-}
-.nota--aba { max-width: 80ch; margin: 0 0 var(--gap); }
-.nota--grafico { max-width: 80ch; margin: 0; }
-
-.metodologia {
-  border-top: 3px solid var(--azul);
-  padding-top: var(--gap);
-  margin-bottom: 3rem;
-}
-.metodologia h2 { font-size: var(--escala-5); }
-.metodologia h3 { font-size: var(--escala-4); margin-top: var(--gap); }
-.metodologia h4 { font-size: var(--escala-3); margin-top: var(--gap); }
-.metodologia__p { max-width: 70ch; }
-
-/* Código de série e caminho de arquivo dentro do texto corrido. */
-code {
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 0.9em;
-  background: var(--cinza-fundo);
-  padding: 0 0.2em;
 }
 
-/* Botões e links de download de um mesmo gráfico. */
+.grafico__area {
+  width: 100%;
+  min-width: 0;
+  height: 300px;
+}
+
+.grafico--linha-inteira .grafico__area { height: 340px; }
+
+.grafico__rodape {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--cinza-claro);
+}
+
+.grafico__meta {
+  font-size: 11px;
+  line-height: 1.4;
+  min-width: 0;
+}
+
 .grafico__acoes {
-  display: flex; flex-wrap: wrap; gap: 0.5rem;
-  margin-top: 0.75rem;
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.carregando { font-size: var(--escala-1); }
+/* ------------------------------------------------------------------ controles discretos */
+
+.controle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.controle__rotulo { color: var(--cinza); }
+
+.controle__campo {
+  appearance: none;
+  border: 1px solid var(--cinza-claro);
+  background: var(--fundo);
+  color: var(--cinza);
+  font-family: var(--fonte);
+  font-size: 11px;
+  padding: 3px 6px;
+  max-width: 140px;
+}
+
+.controle__campo:focus-visible { outline: 2px solid var(--ciano); }
+
+.controle--caixa { gap: 4px; cursor: pointer; }
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+/* `display: flex` numa regra de classe vence o `[hidden] { display: none }` da folha do
+   navegador, que é de origem mais fraca. Sem esta linha os campos do intervalo
+   personalizado aparecem sempre, apesar de `el.hidden = true`. */
+.custom[hidden] { display: none; }
+
+.custom__rotulo { color: var(--cinza); }
+
+.custom__campo {
+  border: 1px solid var(--cinza-claro);
+  background: var(--fundo);
+  color: var(--cinza);
+  font-family: var(--fonte);
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+/* Ícone "i": leva à âncora da aba Metodologia. É o único lugar do cartão que fala de
+   método — a explicação toda vive lá, não aqui. */
+.info {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1px solid var(--ciano);
+  border-radius: 50%;
+  background: var(--fundo);
+  color: var(--ciano);
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.info:hover { background: var(--ciano); color: var(--fundo); }
+
+/* ------------------------------------------------------------------ botões e links */
 
 .baixar {
-  display: inline-block; text-decoration: none;
-  font-family: inherit; font-size: var(--escala-1);
-  background: var(--fundo); color: var(--azul);
-  border: 1px solid var(--azul); padding: 0.4rem 0.9rem; cursor: pointer;
+  appearance: none;
+  border: 1px solid var(--ciano);
+  background: var(--fundo);
+  color: var(--ciano);
+  font-family: var(--fonte);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
 }
-.baixar:hover { background: var(--azul); color: var(--fundo); }
-.baixar:focus-visible { outline: 2px solid var(--ciano); outline-offset: 2px; }
 
-.aviso-desatualizado { color: var(--alerta); font-size: var(--escala-1); font-weight: bold; }
+.baixar:hover { background: var(--ciano); color: var(--fundo); }
+
+.carregando {
+  color: var(--cinza);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.aviso-desatualizado {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--alerta);
+  background: #FDF4F4;
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------------ metodologia */
+
+.aba-painel--texto { max-width: 100%; }
+
+.metodologia { max-width: 100%; }
+
+.metodologia h2 {
+  margin: 32px 0 8px;
+  color: var(--azul);
+  font-size: 19px;
+  border-bottom: 1px solid var(--cinza-claro);
+  padding-bottom: 4px;
+}
+
+.metodologia h3 {
+  margin: 22px 0 4px;
+  color: var(--azul);
+  font-size: 15px;
+}
+
+.metodologia h4 {
+  margin: 16px 0 4px;
+  font-size: 14px;
+}
+
+.metodologia__p {
+  margin: 0 0 10px;
+  max-width: 88ch;
+}
+
+.metodologia__lista {
+  margin: 0 0 10px;
+  max-width: 88ch;
+  padding-left: 20px;
+}
+
+.metodologia__lista li { margin-bottom: 4px; }
+
+/* Realce momentâneo de onde o ícone "i" levou o leitor. Sem isto, numa aba longa, a
+   âncora certa chega e o leitor não sabe qual parágrafo é o dele. */
+.destacado {
+  background: #FFF8E1;
+  transition: background 1.2s ease-out;
+}
+
+.bloco { margin-top: 32px; }
+
+.bloco h2 {
+  margin: 0 0 8px;
+  color: var(--azul);
+  font-size: 19px;
+  border-bottom: 1px solid var(--cinza-claro);
+  padding-bottom: 4px;
+}
+
+/* Tabela larga rola dentro do próprio contêiner. A página nunca rola na horizontal. */
+.tabela-rolavel {
+  overflow-x: auto;
+  border: 1px solid var(--cinza-claro);
+  margin-bottom: 12px;
+}
+
+.tabela {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.tabela--ficha { font-size: 11px; }
+
+.tabela th,
+.tabela td {
+  border-bottom: 1px solid var(--cinza-claro);
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tabela th {
+  background: #FAFAFA;
+  color: var(--azul);
+  font-weight: bold;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.tabela tbody tr:hover { background: #FAFAFA; }
+
+.mono {
+  font-family: Consolas, "Courier New", monospace;
+  white-space: nowrap;
+}
+
+.tooltip__ref { color: var(--cinza); font-size: 11px; }
+
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.92em;
+}
+
+/* ------------------------------------------------------------------ rodapé */
 
 .rodape {
+  margin-top: 48px;
+  padding-top: 16px;
   border-top: 1px solid var(--cinza-claro);
-  margin-top: 3rem; padding-top: var(--gap);
-  font-size: var(--escala-1);
-}
-/* Crédito discreto: mesma escala do rodapé, sem destaque de cor ou peso. */
-.rodape__credito { margin-top: var(--gap); }
-
-/* Abaixo de 900px a metade da largura não comporta eixo, legenda e curva legíveis:
-   volta a uma coluna, com a altura de antes. */
-@media (max-width: 900px) {
-  .aba__graficos { grid-template-columns: 1fr; }
-  .grafico__area,
-  .grafico--linha-inteira .grafico__area { height: 320px; }
+  font-size: 12px;
 }
 
-@media (max-width: 640px) {
-  .grafico__area,
-  .grafico--linha-inteira .grafico__area { height: 280px; }
-  :root { --gap: 1rem; }
-  .abas-nav__botao { font-size: var(--escala-3); padding: 0.5rem 0.75rem; }
+.rodape p { margin: 0 0 8px; max-width: 90ch; }
+
+.rodape__credito { color: var(--azul); }
+
+@media print {
+  .abas-nav, .aba__controles, .grafico__controles, .grafico__acoes { display: none; }
+  .aba-painel[hidden] { display: none; }
+  .aba__graficos { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
+/* Tabela longa — a ficha de série e o histórico — ganha painel próprio com rolagem
+   vertical. O cabeçalho já é `position: sticky`, então ele gruda no topo do painel em
+   vez de no topo da janela, que é o comportamento certo aqui. */
+.tabela-rolavel--alta {
+  max-height: 70vh;
+  overflow-y: auto;
 }

@@ -1,0 +1,16 @@
+# Quebra de linha normalizada em LF para todo arquivo de texto, no repositório e na
+# árvore de trabalho.
+#
+# Existe por um motivo concreto: o pipeline gera os artefatos versionados (docs/dados.js,
+# data/*.json) tanto na máquina local, no Windows, quanto no GitHub Actions, no Ubuntu.
+# Sem esta normalização, cada alternância entre os dois reescreve o arquivo inteiro com a
+# outra quebra de linha, e `docs/dados.js` sozinho são mais de um megabyte de diff falso
+# por atualização. O pipeline também escreve com LF explícito (`comum.escreve_texto`);
+# isto aqui é a segunda trava, para o caso de alguém editar um arquivo à mão.
+* text=auto eol=lf
+
+# Binários: nunca tocar.
+*.xlsx binary
+*.parquet binary
+*.png binary
+*.jpg binary

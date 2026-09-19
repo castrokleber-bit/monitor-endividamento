@@ -1,12 +1,17 @@
 """
 Valida todo código de série do catálogo contra a API de origem ANTES da coleta.
 
-Roda em dois níveis:
-  1. Dados  — a série responde? Tem observações? Qual o intervalo e o último valor?
-  2. Nome   — o título registrado na fonte bate com `descricao_esperada`?
+Pergunta uma coisa só, e é a que importa como porteiro: a série responde, tem
+observações, e qual é a última delas? Nenhum código entra no pipeline sem passar nisso.
 
-Nenhum código entra no pipeline sem passar no nível 1. O nível 2 é informativo:
-imprime o nome oficial para conferência humana e sinaliza divergência.
+O nome oficial NÃO é conferido contra a API porque o SGS não expõe metadados por código
+— a consulta do sgspub exige sessão de navegador e o portal de dados abertos busca só
+por texto livre, devolvendo pacotes de outros assuntos (o código 433 traz "Ouvidorias
+dos bancos" na primeira posição). Conferido de novo em 19/09/2026. O que faz o papel de
+validação semântica do código é outra coisa, mais forte que um nome: as identidades
+contábeis conferidas em `src/build_dataset.py` — soma das parcelas igual ao total,
+residual que fecha, % do PIB calculado batendo com o % do PIB oficial do BCB. Um código
+trocado por engano passaria num teste de nome; não passa nesses.
 
 Uso:
     python src/validate_series.py                # valida tudo
@@ -30,13 +35,12 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from comum import carrega_env, http_get  # noqa: E402
+from comum import carrega_env, escreve_texto, http_get  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 CONFIG = RAIZ / "config"
 
 SGS_DADOS = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/{n}?formato=json"
-SGS_META = "https://dadosabertos.bcb.gov.br/api/3/action/package_search"
 FRED_META = "https://api.stlouisfed.org/fred/series"
 
 TIMEOUT = 30
@@ -77,30 +81,24 @@ def valida_bcb(serie: dict) -> dict:
         return {**res, "ok": False, "erro": "série sem observações"}
 
     ultima = dados[-1]
-    res.update({"ok": True, "ultima_data": ultima.get("data"), "ultimo_valor": ultima.get("valor")})
-    res["nome_oficial"] = nome_oficial_bcb(codigo, serie.get("descricao_esperada"))
+    res.update(
+        {
+            "ok": True,
+            "ultima_data": ultima.get("data"),
+            "ultimo_valor": ultima.get("valor"),
+            # O SGS não tem endpoint público de metadados por código: a consulta do
+            # sgspub exige sessão de navegador e o portal de dados abertos (CKAN) só
+            # busca por texto livre, devolvendo pacotes de outros assuntos — o código
+            # 433 traz "Ouvidorias dos bancos" na primeira posição. Verificado de novo
+            # em 19/09/2026. O nome oficial registrado é, então, o da tabela de origem
+            # do BCB anotada no catálogo (`descricao_esperada` + `tabela`), e quem
+            # valida o código de fato é o nível 1 mais as identidades contábeis
+            # conferidas em src/build_dataset.py, que são um teste mais forte que o nome.
+            "nome_oficial": serie.get("descricao_esperada"),
+            "tabela": serie.get("tabela", ""),
+        }
+    )
     return res
-
-
-def nome_oficial_bcb(codigo: int | str, esperado: str | None) -> str | None:
-    """
-    Título da série no portal de dados abertos do BCB (CKAN). Best effort.
-
-    A busca é por texto livre e devolve pacotes de outros assuntos com frequência — o
-    código 433 traz "Ouvidorias dos bancos" na primeira posição. Por isso o título só é
-    aceito quando corresponde à `descricao_esperada` do catálogo; sem correspondência,
-    devolve None e a planilha cai para a descrição do YAML. Um nome vindo do YAML é
-    preferível a um nome errado apresentado como oficial.
-    """
-    if not esperado:
-        return None
-    try:
-        meta = _get(SGS_META, params={"q": str(codigo), "rows": 10}).json()
-        titulos = [r.get("title", "") for r in meta.get("result", {}).get("results", [])]
-    except Exception:
-        return None
-    chave = esperado.lower()[:30]
-    return next((t for t in titulos if t and chave in t.lower()), None)
 
 
 # ---------------------------------------------------------------- FRED
@@ -142,8 +140,6 @@ def imprime(res: dict, esperado: str | None) -> None:
         return
     if res.get("nome_oficial"):
         print(f"         nome na fonte: {res['nome_oficial']}")
-        if esperado and esperado.lower()[:30] not in (res["nome_oficial"] or "").lower():
-            print("         !! divergente da descricao_esperada — conferir manualmente")
     if res.get("ultima_data"):
         print(f"         última observação: {res['ultima_data']} = {res.get('ultimo_valor', '')}")
 
@@ -164,9 +160,9 @@ def relatorio_mesclado(
     Mescla os resultados desta execução com o relatório já existente.
 
     Uma execução parcial (`--fonte bcb`, `--so-pendentes`) não pode apagar a validação
-    das séries que ela nem tentou verificar: o relatório é a evidência de conferência
-    manual dos nomes oficiais, e `build_xlsx.py` tira dele a coluna `nome_oficial` do
-    Dicionário. Entrada nova substitui a antiga de mesmo `serie_id`; o resto permanece.
+    das séries que ela nem tentou verificar: o relatório é a evidência de que cada código
+    respondeu, e a data da última observação de cada um. Entrada nova substitui a antiga
+    de mesmo `serie_id`; o resto permanece.
 
     `conhecidas` é o catálogo inteiro, não o que rodou agora: série retirada do catálogo
     sai também do relatório. Sem isso o arquivo acumularia evidência de séries que não
@@ -232,13 +228,13 @@ def main() -> int:
         except ValueError:
             anterior = []
 
-    caminho_relatorio.write_text(
+    escreve_texto(
+        caminho_relatorio,
         json.dumps(
             relatorio_mesclado(anterior, resultados, series_do_catalogo()),
             ensure_ascii=False,
             indent=2,
         ),
-        encoding="utf-8",
     )
 
     print(f"\n{len(resultados)} série(s) verificada(s), {falhas} falha(s).")

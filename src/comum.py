@@ -126,12 +126,28 @@ def le_cache(serie_id: str) -> dict | None:
 def grava_cache(serie_id: str, payload: dict) -> None:
     """Persiste o payload normalizado. `data/_cache/` está fora do versionamento."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    caminho_cache(serie_id).write_text(
-        json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8"
+    escreve_texto(
+        caminho_cache(serie_id), json.dumps(payload, ensure_ascii=False, indent=1)
     )
+
+
+def escreve_texto(caminho: Path, conteudo: str) -> None:
+    """
+    Escreve texto UTF-8 com quebra de linha LF, sempre.
+
+    `newline=""` desliga a tradução automática do Python, que no Windows transformaria
+    cada `
+` em `
+`. Sem isso, os artefatos versionados saem com CRLF quando o
+    pipeline roda na máquina local e com LF quando roda no GitHub Actions (Ubuntu) — e
+    cada alternância entre os dois produz um diff do arquivo INTEIRO, que em
+    `docs/dados.js` é mais de um megabyte de ruído por atualização.
+    """
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    with open(caminho, "w", encoding="utf-8", newline="") as arquivo:
+        arquivo.write(conteudo)
 
 
 def grava_json(caminho: Path, conteudo: Any) -> None:
     """Escreve JSON UTF-8 indentado, criando o diretório se preciso."""
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    caminho.write_text(json.dumps(conteudo, ensure_ascii=False, indent=1), encoding="utf-8")
+    escreve_texto(caminho, json.dumps(conteudo, ensure_ascii=False, indent=1))

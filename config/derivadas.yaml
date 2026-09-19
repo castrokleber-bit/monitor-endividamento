@@ -1,87 +1,142 @@
 # Catálogo de séries DERIVADAS — calculadas a partir de séries já coletadas.
 #
 # Nada aqui vai à rede. Cada série deste arquivo é uma função determinística de séries
-# do catálogo de coleta, aplicada em `src/derivadas.py` e descrita em
-# `content/metodologia.md`. Nenhuma série derivada entra no painel sem esse par:
-# a regra no YAML e a nota metodológica escrita.
+# do catálogo de coleta, implementada em `src/derivadas.py` e descrita em
+# `content/metodologia.md`. Nenhuma série derivada entra no painel sem esse par: a regra
+# no YAML e a nota metodológica escrita.
+#
+# ATENÇÃO — o que NÃO está aqui. As quatro bases do seletor "Base de valores"
+# (R$ correntes, R$ constantes, % do PIB, variação em 12 meses) NÃO são séries
+# derivadas: são transformações aplicadas a qualquer série cujo catálogo declare a base
+# em `bases`, implementadas em `src/transformacoes.py`. Este arquivo trata só de séries
+# novas, que não existem em fonte nenhuma: residuais, somas e médias ponderadas.
+#
+# Operações implementadas:
+#   residual         total − soma(componentes). Fecha a composição de um gráfico de saldo
+#   soma             soma(componentes). Usada onde a fonte não publica um "Total"
+#   media_ponderada  Σ(taxa_i × peso_i) / Σ(peso_i). Para agregar taxas, que não somam
+#
+# Em todas elas, uma data só entra no resultado quando TODAS as séries envolvidas têm
+# observação naquela data. Nada é interpolado, extrapolado ou arredondado.
 
 fonte: Derivado
 
-# ---------------------------------------------------------------------------
-# Deflacionamento pelo IPCA
-#
-# `deflator` é a série de variação mensal do IPCA (SGS 433). O índice de preços é
-# construído por encadeamento — I(t) = I(t-1) x (1 + variação/100) —, e o valor real é
-#
-#     real(t) = nominal(t) x I(base) / I(t)
-#
-# `base: ultima_do_deflator` fixa a base no mês mais recente do IPCA. É uma base móvel:
-# a cada atualização os valores passam a estar a preços do último mês divulgado, e a
-# unidade da série diz qual é esse mês. Meses do saldo sem IPCA correspondente ficam de
-# fora da série real — nada é extrapolado.
-# ---------------------------------------------------------------------------
-deflacionamento:
-  deflator: ipca_variacao_mensal
-  base: ultima_do_deflator
-
 series:
-  - serie_id: saldo_credito_total_real
-    origem: saldo_credito_total
-    operacao: deflaciona_ipca
-    rotulo: "Total"
-    descricao_esperada: "Saldo da carteira de crédito - Total, deflacionado pelo IPCA"
-    aba: mercado_credito
-    segmento: ambos
 
-  - serie_id: saldo_credito_pj_real
-    origem: saldo_credito_pj
-    operacao: deflaciona_ipca
-    rotulo: "Pessoas jurídicas"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Total, deflacionado pelo IPCA"
-    aba: mercado_credito
+  # ---------------------------------------------------------------------------
+  # G8 — parcela residual do crédito livre a pessoas jurídicas
+  #
+  # As seis modalidades exibidas cobrem 65% do saldo em 07/2026. O residual garante que
+  # as parcelas do gráfico fechem exatamente no total publicado (20543) e reúne capital
+  # de giro rotativo, conta garantida, cheque especial PJ, cartão de crédito PJ,
+  # financiamento a importações, repasses externos, arrendamento e demais modalidades
+  # que a Tabela 6 abre individualmente.
+  #
+  # Este "Outros" NÃO tem a mesma abrangência do "Outros" do gráfico de inadimplência
+  # (G12), que é a série 21111 do próprio BCB. A Metodologia avisa disso.
+  # ---------------------------------------------------------------------------
+  - serie_id: livre_pj_outros
+    operacao: residual
+    total: sfn_livre_pj
+    componentes:
+      - livre_pj_capital_giro_acima_365d
+      - livre_pj_capital_giro_ate_365d
+      - livre_pj_duplicatas
+      - livre_pj_veiculos
+      - livre_pj_exportacoes
+      - livre_pj_acc
+    rotulo: "Outras modalidades"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
     segmento: empresa
+    bases: [nominal, real, pib, var12m]
+    descricao_esperada: "Saldo do crédito livre a pessoas jurídicas — modalidades não exibidas (residual)"
 
-  - serie_id: saldo_credito_pf_real
-    origem: saldo_credito_pf
-    operacao: deflaciona_ipca
-    rotulo: "Pessoas físicas"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas físicas - Total, deflacionado pelo IPCA"
-    aba: mercado_credito
+  # ---------------------------------------------------------------------------
+  # G9 — parcela residual do crédito livre a pessoas físicas
+  #
+  # As quatro modalidades exibidas cobrem 91% do saldo em 07/2026. O residual reúne
+  # composição de dívidas, cheque especial, crédito pessoal com garantia, aquisição de
+  # outros bens, arrendamento, desconto de cheques e demais modalidades da Tabela 7.
+  # ---------------------------------------------------------------------------
+  - serie_id: livre_pf_outros
+    operacao: residual
+    total: sfn_livre_pf
+    componentes:
+      - livre_pf_consignado
+      - livre_pf_nao_consignado
+      - livre_pf_cartao
+      - livre_pf_veiculos
+    rotulo: "Outras modalidades"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
     segmento: familia
+    bases: [nominal, real, pib, var12m]
+    descricao_esperada: "Saldo do crédito livre a pessoas físicas — modalidades não exibidas (residual)"
 
   # ---------------------------------------------------------------------------
-  # Empresas — composição do crédito. Mesma operação, mesma base móvel: o saldo em
-  # R$ milhões correntes cresce por inflação mesmo quando o estoque real não muda,
-  # e o painel compara trajetórias. As nominais seguem em data/ e na planilha.
+  # G14 — total do crédito PJ por porte (Tabela 23)
+  #
+  # O SGS não publica código de total para a Tabela 23. Varridos, em 19/09/2026, os
+  # intervalos 22020-22026, 22045-22055 e 27695-27710 sem encontrar a coluna "Total".
+  # A soma é validada por cruzamento contra a soma independente da Tabela 24
+  # (`ativ_total`): as duas fecham com diferença máxima de R$ 5 milhões em 175 meses,
+  # sobre um estoque de R$ 2,7 trilhões — 0,0003%.
+  #
+  # Este total NÃO coincide com o das Tabelas 2 e 3: a base é o SCR e exclui operações
+  # com entidades de intermediação financeira.
   # ---------------------------------------------------------------------------
-  - serie_id: saldo_credito_pj_livre_real
-    origem: saldo_credito_pj_livre
-    operacao: deflaciona_ipca
-    rotulo: "Recursos livres"
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Total, deflacionado pelo IPCA"
-    aba: mercado_credito
+  - serie_id: porte_total
+    operacao: soma
+    componentes: [porte_mpme, porte_grande]
+    rotulo: "Total"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
     segmento: empresa
+    papel: total
+    bases: [nominal, real, pib, var12m]
+    descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas — total por porte (soma calculada)"
 
-  - serie_id: saldo_credito_pj_direcionado_real
-    origem: saldo_credito_pj_direcionado
-    operacao: deflaciona_ipca
-    rotulo: "Recursos direcionados"
-    descricao_esperada: "Saldo da carteira de crédito com recursos direcionados - Pessoas jurídicas - Total, deflacionado pelo IPCA"
-    aba: mercado_credito
+  # ---------------------------------------------------------------------------
+  # G16 — total do crédito PJ por atividade econômica (Tabela 24)
+  # Mesma situação da Tabela 23: sem código de total no SGS.
+  # ---------------------------------------------------------------------------
+  - serie_id: ativ_total
+    operacao: soma
+    componentes: [ativ_agropecuaria, ativ_industria, ativ_servicos, ativ_outros]
+    rotulo: "Total"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
     segmento: empresa
+    papel: total
+    bases: [nominal, real, pib, var12m]
+    descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas — total por atividade econômica (soma calculada)"
 
-  - serie_id: capital_giro_ate_365d_real
-    origem: capital_giro_ate_365d
-    operacao: deflaciona_ipca
-    rotulo: "Prazo de até 365 dias"
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias, deflacionado pelo IPCA"
-    aba: mercado_credito
+  # ---------------------------------------------------------------------------
+  # G15 — inadimplência total do crédito PJ por porte (Tabela 23)
+  #
+  # Taxa não é aditiva: o total é a média ponderada pelos saldos de cada porte, que é
+  # exatamente como o BCB constrói os seus próprios totais de inadimplência. A fórmula
+  # foi verificada em 19/09/2026 num caso em que existe série oficial para comparar —
+  # ponderando 21083 e 21084 pelos saldos 20540 e 20541, o resultado reproduz o total
+  # oficial 21082 com diferença de 0,004 pp.
+  # ---------------------------------------------------------------------------
+  - serie_id: inad_porte_total
+    operacao: media_ponderada
+    componentes:
+      - serie: inad_porte_mpme
+        peso: porte_mpme
+      - serie: inad_porte_grande
+        peso: porte_grande
+    rotulo: "Total"
+    unidade: "%"
+    fator: 1
+    unidade_exibicao: "% da carteira"
     segmento: empresa
-
-  - serie_id: capital_giro_acima_365d_real
-    origem: capital_giro_acima_365d
-    operacao: deflaciona_ipca
-    rotulo: "Prazo superior a 365 dias"
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias, deflacionado pelo IPCA"
-    aba: mercado_credito
-    segmento: empresa
+    papel: total
+    bases: []
+    descricao_esperada: "Inadimplência da carteira de crédito a pessoas jurídicas — total por porte (média ponderada pelos saldos)"

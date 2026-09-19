@@ -1,148 +1,205 @@
 """
-Séries derivadas: calculadas a partir das séries coletadas, nunca da rede.
+Séries derivadas: séries NOVAS, calculadas a partir das coletadas, nunca da rede.
 
-Hoje há uma única operação, `deflaciona_ipca`, declarada em `config/derivadas.yaml`.
-A regra está escrita lá e em `content/metodologia.md`; aqui só se implementa.
+As regras vivem em `config/derivadas.yaml` e estão descritas em `content/metodologia.md`.
+Aqui só se implementa. Três operações:
 
-O índice de preços é encadeado a partir da variação mensal do IPCA (SGS 433):
+    residual         total − soma(componentes)
+    soma             soma(componentes)
+    media_ponderada  Σ(valor_i × peso_i) / Σ(peso_i)
 
-    I(t) = I(t-1) x (1 + variacao(t)/100)
+Não confundir com `src/transformacoes.py`. Lá ficam as quatro BASES (R$ correntes,
+R$ constantes, % do PIB, variação em 12 meses), que são jeitos diferentes de exibir uma
+série que já existe. Aqui ficam séries que não existem em fonte nenhuma: a parcela
+"Outros" que fecha a composição de um gráfico de saldo, o total de uma tabela do BCB que
+não tem coluna de total publicada, e a inadimplência agregada por porte.
 
-A base do índice é irrelevante — o que entra no cálculo é sempre uma razão I(base)/I(t).
-O valor real é `nominal(t) x I(base) / I(t)`, com a base no mês mais recente do IPCA.
-
-Determinismo: mês do saldo sem IPCA correspondente fica de fora da série derivada.
-Nada é extrapolado, interpolado ou arredondado.
+Determinismo. Em qualquer das três operações, uma data só entra no resultado quando
+TODAS as séries envolvidas têm observação naquela data. Nada é interpolado, extrapolado,
+repetido ou arredondado. Uma série derivada cujo insumo esteja ausente numa execução
+simplesmente não é produzida — e o guard de regressão de `build_dataset.py` decide se
+isso pode ser publicado.
 """
 
 from __future__ import annotations
 
 from comum import agora_iso
 
-MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
-
-# Marcador que `abas.yaml` usa na unidade do gráfico para receber o mês da base.
-MARCADOR_BASE = "{base_ipca}"
+OPERACOES = ("residual", "soma", "media_ponderada")
 
 
 class ErroDerivada(RuntimeError):
     """Falha determinística no cálculo de uma série derivada."""
 
 
-def rotulo_mes(data_iso: str) -> str:
-    """`2026-07-01` -> `jul/2026`. Usado na unidade das séries a preços constantes."""
-    ano, mes, _ = data_iso.split("-")
-    return f"{MESES[int(mes) - 1]}/{ano}"
+# ---------------------------------------------------------------- operações
 
 
-def indice_encadeado(obs_variacao: list[list]) -> dict[str, float]:
+def _datas_comuns(*series: dict[str, float]) -> list[str]:
+    """Datas em que todas as séries têm observação, em ordem cronológica."""
+    if not series:
+        return []
+    comuns = set(series[0])
+    for s in series[1:]:
+        comuns &= set(s)
+    return sorted(comuns)
+
+
+def residual(total: list[list], componentes: list[list[list]]) -> list[list]:
     """
-    Índice de preços encadeado a partir de observações de variação percentual mensal.
+    `total − soma(componentes)`, nas datas em que todos existem.
 
-    Devolve {data_iso: nível do índice}, com o primeiro mês já acumulado. O nível não
-    tem significado próprio: só as razões entre dois meses são usadas.
+    É o que garante que as parcelas exibidas num gráfico de saldo fechem exatamente no
+    total publicado pela fonte. Só faz sentido sobre valores aditivos: aplicar a mesma
+    ideia a taxas produziria um número sem significado, e por isso os gráficos de
+    inadimplência usam a série "Outros" do próprio BCB.
     """
-    if not obs_variacao:
-        raise ErroDerivada("deflator sem observações")
-    indice: dict[str, float] = {}
-    acumulado = 1.0
-    for data_iso, variacao in obs_variacao:
-        acumulado *= 1.0 + variacao / 100.0
-        indice[data_iso] = acumulado
-    return indice
+    t = dict(total)
+    comps = [dict(c) for c in componentes]
+    return [[d, t[d] - sum(c[d] for c in comps)] for d in _datas_comuns(t, *comps)]
 
 
-def deflaciona(obs_nominal: list[list], indice: dict[str, float], data_base: str) -> list[list]:
+def soma(componentes: list[list[list]]) -> list[list]:
+    """`soma(componentes)`, nas datas em que todos existem."""
+    comps = [dict(c) for c in componentes]
+    return [[d, sum(c[d] for c in comps)] for d in _datas_comuns(*comps)]
+
+
+def media_ponderada(pares: list[tuple[list[list], list[list]]]) -> list[list]:
     """
-    Converte observações nominais em valores a preços do mês `data_base`.
+    `Σ(valor_i × peso_i) / Σ(peso_i)`, nas datas em que todos existem.
 
-    Observação cuja data não existe no índice é omitida — o deflator não cobre aquele
-    mês e preencher exigiria estimativa.
+    Agrega taxas, que não somam. É como o próprio Banco Central constrói os seus totais
+    de inadimplência: ponderando a taxa de cada recorte pelo saldo daquele recorte.
+    Data em que a soma dos pesos é zero fica de fora — a divisão não existiria.
     """
-    if data_base not in indice:
-        raise ErroDerivada(f"mês-base {data_base} fora do deflator")
-    nivel_base = indice[data_base]
-    return [
-        [data_iso, valor * nivel_base / indice[data_iso]]
-        for data_iso, valor in obs_nominal
-        if data_iso in indice
-    ]
+    valores = [dict(v) for v, _ in pares]
+    pesos = [dict(p) for _, p in pares]
+    saida = []
+    for d in _datas_comuns(*valores, *pesos):
+        den = sum(p[d] for p in pesos)
+        if den == 0:
+            continue
+        saida.append([d, sum(v[d] * p[d] for v, p in zip(valores, pesos)) / den])
+    return saida
 
 
-def _unidade_real(unidade_nominal: str, data_base: str) -> str:
-    """`R$ milhões` -> `R$ milhões de jul/2026`."""
-    return f"{unidade_nominal} de {rotulo_mes(data_base)}"
+# ---------------------------------------------------------------- orquestração
+
+
+def _insumos(serie: dict) -> list[str]:
+    """Todo `serie_id` de que esta derivada depende, na ordem em que aparece no YAML."""
+    op = serie["operacao"]
+    if op == "residual":
+        return [serie["total"]] + list(serie["componentes"])
+    if op == "soma":
+        return list(serie["componentes"])
+    if op == "media_ponderada":
+        return [x for par in serie["componentes"] for x in (par["serie"], par["peso"])]
+    raise ErroDerivada(f"{serie['serie_id']}: operação desconhecida {op!r}")
+
+
+def _calcula(serie: dict, obs_de: dict[str, list[list]]) -> list[list]:
+    op = serie["operacao"]
+    if op == "residual":
+        return residual(obs_de[serie["total"]], [obs_de[c] for c in serie["componentes"]])
+    if op == "soma":
+        return soma([obs_de[c] for c in serie["componentes"]])
+    return media_ponderada(
+        [(obs_de[p["serie"]], obs_de[p["peso"]]) for p in serie["componentes"]]
+    )
+
+
+def _frase_calculo(serie: dict, codigos: dict[str, str]) -> str:
+    """Fórmula explícita, com os códigos da fonte, para a página e a Metodologia."""
+    op = serie["operacao"]
+    if op == "residual":
+        partes = " + ".join(codigos[c] for c in serie["componentes"])
+        return f"calculada: código {codigos[serie['total']]} − ({partes})"
+    if op == "soma":
+        return "calculada: " + " + ".join(codigos[c] for c in serie["componentes"])
+    termos = " + ".join(
+        f"{codigos[p['serie']]}×{codigos[p['peso']]}" for p in serie["componentes"]
+    )
+    pesos = " + ".join(codigos[p["peso"]] for p in serie["componentes"])
+    return f"calculada: ({termos}) ÷ ({pesos})"
 
 
 def constroi(
     config: dict,
     payloads: dict[str, dict],
     catalogo: dict[str, dict],
-) -> tuple[dict[str, dict], dict[str, dict], str | None]:
+) -> tuple[dict[str, dict], dict[str, dict]]:
     """
     Calcula todas as séries derivadas possíveis.
 
-    Devolve (payloads derivados, entradas de catálogo, mês-base do IPCA). Uma origem
-    ausente naquela execução — fonte fora do ar e sem cache — apenas deixa a série
-    derivada de fora, do mesmo modo que a coleta faz com a série de origem: o guard de
-    regressão de `build_dataset.py` é quem decide se isso pode ser publicado.
+    Devolve (payloads derivados, entradas de catálogo). Insumo ausente naquela execução
+    — fonte fora do ar e sem cache — apenas deixa a derivada de fora, do mesmo modo que
+    a coleta faz com a série de origem.
     """
-    regra = config.get("deflacionamento") or {}
-    deflator_id = regra.get("deflator")
-    if not deflator_id or deflator_id not in payloads:
-        return {}, {}, None
-
-    indice = indice_encadeado(payloads[deflator_id]["obs"])
-    data_base = payloads[deflator_id]["obs"][-1][0]
-
     derivados: dict[str, dict] = {}
     entradas: dict[str, dict] = {}
 
     for serie in config.get("series", []):
-        origem_id = serie["origem"]
-        if serie["operacao"] != "deflaciona_ipca":
-            raise ErroDerivada(f"{serie['serie_id']}: operação desconhecida {serie['operacao']}")
-        origem = payloads.get(origem_id)
-        if origem is None:
+        serie_id = serie["serie_id"]
+        insumos = _insumos(serie)
+
+        faltando = [i for i in insumos if i not in payloads]
+        if faltando:
+            print(f"[PULA ] {serie_id:<38} sem insumo: {', '.join(faltando)}")
             continue
 
-        obs = deflaciona(origem["obs"], indice, data_base)
+        obs_de = {i: payloads[i]["obs"] for i in insumos}
+        obs = _calcula(serie, obs_de)
         if not obs:
+            print(f"[PULA ] {serie_id:<38} sem data comum entre os insumos")
             continue
 
-        unidade = _unidade_real(origem["unidade"], data_base)
-        codigo_origem = origem["codigo_fonte"]
-        codigo_deflator = payloads[deflator_id]["codigo_fonte"]
-
-        derivados[serie["serie_id"]] = {
-            "serie_id": serie["serie_id"],
-            "fonte": origem["fonte"],
-            "codigo_fonte": f"{codigo_origem} / {codigo_deflator}",
-            "unidade": unidade,
-            "periodicidade": origem["periodicidade"],
+        codigos = {i: payloads[i]["codigo_fonte"] for i in insumos}
+        derivados[serie_id] = {
+            "serie_id": serie_id,
+            "fonte": config.get("fonte", "Derivado"),
+            "codigo_fonte": " / ".join(dict.fromkeys(codigos.values())),
+            "unidade": serie["unidade"],
+            "periodicidade": payloads[insumos[0]]["periodicidade"],
             "coletado_em": agora_iso(),
             "obs": obs,
         }
-        entradas[serie["serie_id"]] = {
+        entradas[serie_id] = {
             **serie,
-            "unidade": unidade,
-            "periodicidade": origem["periodicidade"],
-            "codigo": f"{codigo_origem} / {codigo_deflator}",
-            # Frase que a página exibe no lugar da procedência de série coletada.
-            "calculo": (
-                f"calculada: código {codigo_origem} (valores nominais) deflacionado pelo "
-                f"IPCA, código {codigo_deflator}, a preços de {rotulo_mes(data_base)}"
-            ),
+            "codigo": " / ".join(dict.fromkeys(codigos.values())),
+            "periodicidade": payloads[insumos[0]]["periodicidade"],
+            "tabela": catalogo.get(insumos[0], {}).get("tabela", ""),
+            "calculo": _frase_calculo(serie, codigos),
+            "insumos": insumos,
         }
 
-    return derivados, entradas, data_base
+    return derivados, entradas
 
 
-def aplica_marcador(texto: str | None, data_base: str | None) -> str | None:
-    """Troca `{base_ipca}` pelo mês-base nas unidades declaradas em abas.yaml."""
-    if not texto or MARCADOR_BASE not in texto:
-        return texto
-    if data_base is None:
-        # Sem deflator não há base; a unidade não pode mentir sobre um mês que não existe.
-        return texto.replace(MARCADOR_BASE, "mês-base indisponível")
-    return texto.replace(MARCADOR_BASE, rotulo_mes(data_base))
+def confere_fechamento(
+    config: dict, payloads: dict[str, dict], tolerancia: float = 1e-6
+) -> list[str]:
+    """
+    Verifica que cada residual realmente fecha a composição.
+
+    Recalcula `total − soma(componentes) − residual` e exige zero, a menos de erro de
+    ponto flutuante. É a tradução em teste do item do checklist de aceite "cada gráfico
+    de saldo fecha: soma das parcelas exibidas = Total, em todas as datas". Devolve a
+    lista de problemas; vazia quer dizer que fechou.
+    """
+    problemas = []
+    for serie in config.get("series", []):
+        if serie["operacao"] != "residual":
+            continue
+        serie_id = serie["serie_id"]
+        if serie_id not in payloads:
+            continue
+        total = dict(payloads[serie["total"]]["obs"])
+        comps = [dict(payloads[c]["obs"]) for c in serie["componentes"]]
+        resid = dict(payloads[serie_id]["obs"])
+        for d, r in resid.items():
+            sobra = total[d] - sum(c[d] for c in comps) - r
+            if abs(sobra) > tolerancia * max(abs(total[d]), 1.0):
+                problemas.append(f"{serie_id}: {d} não fecha por {sobra:.6f}")
+    return problemas

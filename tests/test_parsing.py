@@ -1,5 +1,13 @@
 """
-Testes das transformações — parsing e normalização. Nenhuma chamada de rede.
+Testes de PARSING e normalização da coleta. Sem rede.
+
+O que protegem: o decimal brasileiro do SGS, a data `dd/MM/yyyy`, a recusa de payload
+mascarado (HTML com status 200, `{"erro":{}}`, lista vazia), a paginação por janelas, o
+`.` do FRED como ausente, e o formato longo canônico.
+
+Renomeado de test_transformacoes.py em 19/09/2026, quando nasceu `src/transformacoes.py`
+e o nome antigo passou a apontar para a coisa errada. As quatro bases do seletor são
+testadas em tests/test_bases.py.
 
 Uso:
     python -m unittest discover -s tests -v
