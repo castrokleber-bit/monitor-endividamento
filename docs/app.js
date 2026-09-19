@@ -1199,18 +1199,37 @@
     var dados = window.MONITOR;
     var nav = document.getElementById('abas-nav');
     var area = document.getElementById('abas-paineis');
+    var carregando = document.getElementById('carregando');
+
+    function avisa(texto) {
+      var alvo = carregando || area || document.body;
+      alvo.textContent = texto;
+      alvo.className = 'carregando';
+    }
 
     if (!dados) {
-      document.getElementById('carregando').textContent =
-        'Dados não carregados. Rode `python src/build_dataset.py` para gerar docs/dados.js.';
+      avisa('Dados não carregados. Rode `python src/build_dataset.py` para gerar docs/dados.js.');
       return;
     }
 
-    document.getElementById('cabecalho-linha').textContent =
+    /* Se o HTML não tem os elementos que esta versão do script espera, o que está em
+       cache é uma versão diferente da outra — foi o que aconteceu em 19/09/2026, quando
+       a mudança de estrutura deixou HTML novo e `app.js` antigo convivendo por dez
+       minutos e a página saiu em branco. Os estáticos agora levam `?v=<hash>`, o que
+       impede essa combinação; isto aqui é a segunda trava, para que o pior caso seja uma
+       frase legível em vez de uma tela vazia. */
+    var linha = document.getElementById('cabecalho-linha');
+    var rodape = document.getElementById('rodape-fonte');
+    if (!nav || !area || !linha || !rodape) {
+      avisa('A página precisa ser recarregada para atualizar (Ctrl+F5).');
+      return;
+    }
+
+    linha.textContent =
       'Famílias e empresas não financeiras — crédito, inadimplência e dívida. ' +
       'Atualizado em ' + dados.atualizado_em + '.';
 
-    document.getElementById('rodape-fonte').textContent =
+    rodape.textContent =
       'Fonte: BCB/SGS e FRED. Última atualização em ' + dados.atualizado_em + '. Ver Metodologia.';
 
     if (dados.desatualizadas.length) {

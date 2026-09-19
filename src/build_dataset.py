@@ -42,6 +42,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -528,6 +529,52 @@ def monta_payload(
 # ---------------------------------------------------------------- verificações
 
 
+# Arquivos do front cuja versão precisa andar junto com a do HTML que os carrega.
+ESTATICOS = ("app.js", "style.css", "tokens.css")
+
+
+def carimba_versao() -> str | None:
+    """
+    Carimba `?v=<hash>` nos estáticos referenciados por `docs/index.html`.
+
+    O GitHub Pages serve tudo com `Cache-Control: max-age=600` e um `Age` independente
+    por arquivo. Sem carimbo, um visitante que volte dentro dessa janela pode receber o
+    HTML novo com o `app.js` antigo ainda em cache — e uma mudança de estrutura como a de
+    19/09/2026, que trocou os ids do HTML, transforma essa combinação em PÁGINA EM BRANCO.
+    Foi o que aconteceu ao conferir a publicação daquele dia.
+
+    O carimbo é o hash do CONTEÚDO dos três arquivos, não a data da execução: assim ele
+    só muda quando o front muda de fato, e a atualização quinzenal de dados não gera
+    diff em `index.html`. A substituição é idempotente — reaplicar troca o carimbo
+    existente em vez de acumular.
+    """
+    caminho = DOCS / "index.html"
+    if not caminho.exists():
+        return None
+
+    digestor = hashlib.sha256()
+    for nome in ESTATICOS:
+        arquivo = DOCS / nome
+        if arquivo.exists():
+            digestor.update(arquivo.read_bytes())
+    versao = digestor.hexdigest()[:10]
+
+    html = caminho.read_text(encoding="utf-8")
+    # Só dentro de `href=` e `src=`: sem isso o carimbo também entrava nas menções aos
+    # arquivos escritas em prosa, dentro dos comentários do HTML.
+    padrao = re.compile(
+        r'(?P<attr>(?:href|src)=")(?P<arq>'
+        + "|".join(re.escape(n) for n in ESTATICOS)
+        + r')(?:\?v=[0-9a-f]+)?(?P<fim>")'
+    )
+    novo = padrao.sub(
+        lambda m: f"{m.group('attr')}{m.group('arq')}?v={versao}{m.group('fim')}", html
+    )
+    if novo != html:
+        escreve_texto(caminho, novo)
+    return versao
+
+
 def le_manifesto_anterior() -> list[dict]:
     """Manifesto da execução anterior, para o guard de regressão e para o histórico."""
     caminho = DATA / "manifest.json"
@@ -885,6 +932,10 @@ def main() -> int:
         "// Payload embutido para que a página funcione por file:// e no GitHub Pages.\n"
         "window.MONITOR = " + json.dumps(payload, ensure_ascii=False) + ";\n",
     )
+
+    versao = carimba_versao()
+    if versao:
+        print(f"Estáticos do front carimbados com ?v={versao}")
 
     stale = [m for m in manifesto if m["status"] == "stale"]
     ausentes = [m for m in manifesto if m["status"] == "ausente"]

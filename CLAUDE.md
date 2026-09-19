@@ -251,6 +251,23 @@ Abas como pílulas, barra sticky. Aba Metodologia como página editorial, com su
 paleta em outra chave. Como as cores dos gráficos são lidas no momento do desenho, o
 front redesenha todos os gráficos quando o sistema troca de tema.
 
+### Cache dos estáticos
+
+`docs/index.html` referencia `app.js`, `style.css` e `tokens.css` com `?v=<hash>`, e o
+carimbo é reaplicado por `build_dataset.carimba_versao()` a cada build. O hash é do
+CONTEÚDO dos três arquivos, não da data: só muda quando o front muda, então a atualização
+quinzenal de dados não gera diff em `index.html`.
+
+Isso não é zelo abstrato. O GitHub Pages serve tudo com `Cache-Control: max-age=600` e um
+`Age` independente por arquivo, então sem carimbo um visitante que volte dentro dessa
+janela pode receber HTML novo com `app.js` antigo — e uma mudança de estrutura como a de
+19/09/2026, que trocou os ids do HTML, transforma essa combinação em página em branco.
+Aconteceu ao conferir a publicação daquele dia. `monta()` ainda checa se os elementos que
+espera existem e, se não existirem, mostra uma frase pedindo recarga em vez de falhar em
+silêncio — é a segunda trava.
+
+Não remover o carimbo nem a checagem.
+
 ### `docs/styleguide.html`
 
 Folha de estilo viva: paleta, escala tipográfica, controles, hierarquia de traço, cartão
