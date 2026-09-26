@@ -237,22 +237,27 @@ rotulada `pipeline`.
 
 ## Antes de publicar
 
-- [x] `config/_validacao.json` sem falhas. O nome oficial não é conferido contra a API:
-      o SGS não expõe metadados por código (ver CLAUDE.md). Quem valida o código são as
-      identidades contábeis do build, que são teste mais forte que um nome
+- [x] `config/_validacao.json` sem falhas. Desde 26/09/2026 o nome oficial TAMBÉM é
+      conferido contra a fonte: o SGS expõe metadados por código pelo SOAP legado
+      `FachadaWSSGS` (ver CLAUDE.md), e `validate_series.py` compara o `<NOME>` com o
+      `descricao_esperada` do catálogo. As identidades contábeis do build continuam
+      sendo o teste mais forte: nome certo não garante que a soma feche no total
 - [x] `content/metodologia.md` com um parágrafo por série incluída — as séries do
       catálogo aparecem citadas pelo código na fonte
 - [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório) — é o que o
       workflow usa, via `secrets.FRED_API_KEY`
-- [ ] **Apagar a variável de repositório `FRED_API_KEY`.** Além do Secret, existe uma
-      *variável* de mesmo nome com a chave em texto claro, criada em 30/08/2026. Variável
-      de Actions não é criptografada e a própria documentação do GitHub diz para não
-      guardar segredo nela; ela não é legível sem autenticação, mas é visível a qualquer
-      colaborador e a qualquer workflow do repositório. O workflow não a usa. Rotacionar
-      a chave no FRED e apagar a variável em *Settings → Secrets and variables → Actions
-      → Variables*
-- [ ] ~~Rotacionar a chave do FRED antes de tornar o repositório público~~ — o
-      repositório já é público; ver o item acima
+- [x] **Variável de repositório `FRED_API_KEY` apagada em 26/09/2026.** Além do Secret,
+      existia uma *variável* de mesmo nome com a chave em texto claro, criada em
+      30/08/2026. Variável de Actions não é criptografada e a própria documentação do
+      GitHub diz para não guardar segredo nela; ela não é legível sem autenticação, mas
+      era visível a qualquer colaborador e a qualquer workflow do repositório. O
+      workflow nunca a usou — usa `secrets.FRED_API_KEY`, que segue intacto. **Não
+      recriar a variável:** a chave do FRED entra no CI só como Secret
+- [ ] ~~Rotacionar a chave do FRED~~ — **decisão humana de 26/09/2026: não rotacionar.**
+      A chave ficou na variável de 30/08 a 26/09/2026, ao alcance de colaboradores do
+      repositório e de qualquer workflow dele. A exposição fica registrada aqui; se a
+      decisão mudar, rotacionar em https://fredaccount.stlouisfed.org/apikeys e atualizar
+      o Secret
 - [ ] Se a atribuição institucional for retomada, validá-la com quem de direito antes de
       voltar a citar qualquer entidade na página, na planilha e nos tokens de cor
 
