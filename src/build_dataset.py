@@ -321,7 +321,7 @@ def transforma_tudo(
                     coluna[posicao[d]] = v
             valores[base] = coluna
             unidades[base] = ctx.unidade(base, cfg)
-            calculos[base] = ctx.calculo(base, payload["codigo_fonte"])
+            calculos[base] = ctx.calculo(base, payload["codigo_fonte"], cfg)
 
         saida[serie_id] = {
             "datas": datas,
@@ -691,6 +691,61 @@ def confere_bases(catalogo: dict[str, dict]) -> list[str]:
     return problemas
 
 
+def confere_agregacao(catalogo: dict[str, dict]) -> list[str]:
+    """
+    Garante que o campo `agregacao` seja coerente — estoque e fluxo não se misturam.
+
+    Três regras, e cada uma existe por um erro concreto que ela impede:
+
+      1. o valor declarado tem de ser `estoque` ou `fluxo`. Um typo (`flusso`) faria
+         `transformacoes.aplica` levantar no meio da transformação, depois da coleta;
+      2. série que declara a base `acum12m` tem de ser fluxo. Somar doze saldos somaria
+         o mesmo estoque doze vezes, e o gráfico mostraria um número doze vezes grande
+         com cara de série normal;
+      3. todas as séries de um mesmo gráfico têm de ter a mesma `agregacao`. Um gráfico
+         que misturasse saldo e concessão já estaria errado em R$ correntes, e em
+         "% do PIB" as duas curvas viriam de fórmulas diferentes — a comparação visual
+         sugeriria uma relação que a aritmética não sustenta.
+
+    A regra 2 é a que protege o caso mais silencioso: uma série de concessão nova que
+    esqueça `agregacao: fluxo` teria o seu "% do PIB" calculado pela fórmula de estoque,
+    devolvendo um número cerca de doze vezes menor sem nenhum sinal de erro. Como todo
+    gráfico de concessão declara `acum12m`, e `confere_bases` exige que toda série do
+    gráfico declare toda base dele, o esquecimento cai aqui.
+    """
+    problemas = []
+    for serie_id, cfg in catalogo.items():
+        agregacao = cfg.get("agregacao", transformacoes.AGREGACAO_PADRAO)
+        if agregacao not in transformacoes.AGREGACOES:
+            problemas.append(
+                f"{serie_id}: agregacao={agregacao!r}, precisa ser "
+                f"{' ou '.join(transformacoes.AGREGACOES)}"
+            )
+        elif "acum12m" in (cfg.get("bases") or []) and agregacao != "fluxo":
+            problemas.append(
+                f"{serie_id}: declara a base 'acum12m' mas tem agregacao={agregacao!r} — "
+                "acumular doze meses só faz sentido para fluxo (agregacao: fluxo)"
+            )
+
+    for aba in carrega_abas()["abas"]:
+        for grafico in aba.get("graficos", []):
+            ids = list(grafico["series"])
+            detalhe = grafico.get("detalhe")
+            if detalhe:
+                ids += list(detalhe["por"])
+            vistas = {
+                catalogo.get(s, {}).get("agregacao", transformacoes.AGREGACAO_PADRAO)
+                for s in ids
+                if s in catalogo
+            }
+            if len(vistas) > 1:
+                problemas.append(
+                    f"{aba['id']}/{grafico['id']}: mistura séries de "
+                    f"{' e '.join(sorted(vistas))} no mesmo gráfico"
+                )
+    return problemas
+
+
 def confere_segmento(catalogo: dict[str, dict]) -> list[str]:
     """
     Garante que toda série citada em algum gráfico tenha `segmento` definido.
@@ -860,6 +915,7 @@ def main() -> int:
         ("abas.yaml cita série inexistente no catálogo:", confere_referencias(completo)),
         ("base pedida por um gráfico e não declarada pela série:", confere_bases(completo)),
         ("série em gráfico sem `segmento` no catálogo:", confere_segmento(completo)),
+        ("estoque e fluxo incoerentes (campo `agregacao`):", confere_agregacao(completo)),
         ("identidade visual: Brasil não está na primeira posição.", confere_brasil_primeiro(completo)),
         ('ícone "i" apontando para âncora inexistente:', confere_ancoras()),
     ):

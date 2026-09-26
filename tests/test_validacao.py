@@ -50,11 +50,42 @@ MASCARADO = RespostaFalsa(200, texto_cru="<!doctype html><html>erro</html>")
 VAZIO = RespostaFalsa(200, payload=[])
 BOM = RespostaFalsa(200, payload=OBS)
 
+# Metadados que CONFEREM com `SERIE`. As classes que testam o nível 1 — o retry sobre a
+# API de dados — dublam o nível 2 com isto, para que a contagem de chamadas a `_get`
+# continue medindo só o que aquela classe investiga.
+METADADOS_OK = ({"nome": "Série de teste", "unidade": "%", "periodicidade": "M"}, None)
+
+
+def envelope(nome: str) -> str:
+    """Resposta do SOAP de metadados, com o duplo escape que o serviço real devolve."""
+    interno = (
+        "<?xml version='1.0' encoding='ISO-8859-1'?>"
+        "<resposta status='2' descricao='Processado com sucesso'><SERIE>"
+        f"<NOME>{nome}</NOME><CODIGO>21090</CODIGO>"
+        "<PERIODICIDADE>M</PERIODICIDADE><UNIDADE>%</UNIDADE>"
+        "</SERIE></resposta>"
+    )
+    escapado = interno.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        "<soapenv:Envelope><soapenv:Body><getUltimoValorXMLResponse>"
+        f"<getUltimoValorXMLReturn>{escapado}</getUltimoValorXMLReturn>"
+        "</getUltimoValorXMLResponse></soapenv:Body></soapenv:Envelope>"
+    )
+
+
+class RespostaSoap:
+    """Dublê de `requests.Response` para o serviço de metadados, que lê `.text`."""
+
+    def __init__(self, status_code: int, texto: str = ""):
+        self.status_code = status_code
+        self.text = texto
+
 
 class TestRetryDoErroMascarado(unittest.TestCase):
     def setUp(self):
         # Sem espera real entre tentativas: o teste verifica a política, não o relógio.
         self.sleep = mock.patch.object(validate_series.time, "sleep").start()
+        mock.patch.object(validate_series, "_metadados", return_value=METADADOS_OK).start()
         self.addCleanup(mock.patch.stopall)
 
     def _com_respostas(self, respostas):
@@ -218,6 +249,7 @@ class TestFalhaDeRedeNaoDerrubaOScript(unittest.TestCase):
 
     def setUp(self):
         mock.patch.object(validate_series.time, "sleep").start()
+        mock.patch.object(validate_series, "_metadados", return_value=METADADOS_OK).start()
         self.addCleanup(mock.patch.stopall)
 
     def test_runtime_error_de_rede_vira_reprovacao_da_serie(self):
@@ -249,3 +281,123 @@ class TestFalhaDeRedeNaoDerrubaOScript(unittest.TestCase):
             resultados = [validate_series.valida_bcb(s) for s in series]
         self.assertEqual(len(resultados), 4)
         self.assertTrue(all(not r["ok"] for r in resultados))
+
+
+class TestMetadadosDoSgs(unittest.TestCase):
+    """
+    Nível 2 do gate: o nome que a fonte dá ao código é o que o catálogo espera?
+
+    Existe porque até 26/09/2026 um código trocado por outro que também responde passava
+    o gate. As identidades contábeis do `build_dataset.py` pegavam parte desses casos —
+    mas só quando o código trocado participava de alguma soma. Série que não entra em
+    identidade nenhuma não tinha nada conferindo o seu significado.
+
+    A assimetria que estes testes fixam, e que é o ponto delicado do desenho: nome que
+    DIVERGE reprova; serviço de metadados que não responde apenas avisa. Reprovar por
+    indisponibilidade transformaria um SOAP legado em ponto único de falha capaz de
+    bloquear a atualização de dados corretos.
+    """
+
+    def setUp(self):
+        mock.patch.object(validate_series.time, "sleep").start()
+        self.addCleanup(mock.patch.stopall)
+
+    def _com(self, respostas):
+        return mock.patch.object(validate_series, "_get", side_effect=respostas)
+
+    def test_nome_igual_passa(self):
+        with self._com([BOM, RespostaSoap(200, envelope("Série de teste"))]):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["nome_oficial"], "Série de teste")
+        self.assertEqual(res["metadados"], "conferido")
+
+    def test_nome_diferente_reprova_e_mostra_os_dois(self):
+        outro = "Saldo da carteira de crédito - Pessoas jurídicas"
+        with self._com([BOM, RespostaSoap(200, envelope(outro))]):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertFalse(res["ok"])
+        self.assertIn(outro, res["erro"])
+        self.assertIn("Série de teste", res["erro"])
+        # O nome oficial fica registrado mesmo na reprovação: é o que se copia para o
+        # catálogo quando a divergência é renomeação e não código errado.
+        self.assertEqual(res["nome_oficial"], outro)
+
+    def test_metadados_indisponiveis_avisam_mas_nao_reprovam(self):
+        fora = [RespostaSoap(503)] * validate_series.TENTATIVAS_VALIDACAO
+        with self._com([BOM, *fora]):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertTrue(res["ok"])
+        self.assertIsNone(res["nome_oficial"])
+        self.assertTrue(res["metadados"].startswith("indisponível"))
+
+    def test_falha_de_rede_nos_metadados_tambem_so_avisa(self):
+        erro = RuntimeError("falha de rede em https://www3...")
+        with self._com([BOM] + [erro] * validate_series.TENTATIVAS_VALIDACAO):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertTrue(res["ok"])
+        self.assertTrue(res["metadados"].startswith("indisponível"))
+
+    def test_metadados_instaveis_que_se_recuperam_conferem(self):
+        with self._com([BOM, RespostaSoap(502), RespostaSoap(200, envelope("Série de teste"))]):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["metadados"], "conferido")
+
+    def test_resposta_sem_nome_e_repetida(self):
+        """Corpo sem <NOME> é o erro mascarado do SOAP — mesma natureza do 200 com HTML."""
+        vazio = RespostaSoap(200, "<soapenv:Envelope/>")
+        with self._com([BOM, vazio, RespostaSoap(200, envelope("Série de teste"))]) as get:
+            res = validate_series.valida_bcb(SERIE)
+        self.assertEqual(res["metadados"], "conferido")
+        self.assertEqual(get.call_count, 3)
+
+    def test_nivel_1_reprovado_nao_chega_a_pedir_metadados(self):
+        """Código que não responde não tem nome para conferir; pedir seria só gastar CI."""
+        with self._com([RespostaFalsa(406)]) as get:
+            res = validate_series.valida_bcb(SERIE)
+        self.assertFalse(res["ok"])
+        self.assertNotIn("nome_oficial", res)
+        self.assertEqual(get.call_count, 1)
+
+
+class TestNormalizacaoDeNome(unittest.TestCase):
+    """
+    O que conta como "mesmo nome" e o que não conta.
+
+    O limite importa: normalizar demais cega o gate — era o motivo de ele não existir.
+    Normalizar de menos reprova o catálogo por um travessão.
+    """
+
+    def test_caixa_travessao_e_espaco_nao_contam(self):
+        for a, b in (
+            ("Saldo - Total", "saldo - total"),
+            ("Saldo — Total", "Saldo - Total"),
+            ("Saldo – Total", "Saldo - Total"),
+            ("Saldo  -   Total", "Saldo - Total"),
+            (" Saldo - Total\n", "Saldo - Total"),
+        ):
+            self.assertEqual(
+                validate_series._normaliza_nome(a),
+                validate_series._normaliza_nome(b),
+                f"{a!r} deveria equivaler a {b!r}",
+            )
+
+    def test_palavra_acento_e_parenteses_contam(self):
+        for a, b in (
+            ("Saldo - Pessoas jurídicas", "Saldo - Pessoas físicas"),
+            ("Endividamento das famílias", "Endividamento das familias"),
+            ("Comprometimento - Com ajuste sazonal", "Comprometimento - Com ajuste sazonal (RNDBF)"),
+            ("Capital de giro até 365 dias", "Capital de giro superior a 365 dias"),
+        ):
+            self.assertNotEqual(
+                validate_series._normaliza_nome(a),
+                validate_series._normaliza_nome(b),
+                f"{a!r} NÃO deveria equivaler a {b!r}",
+            )
+
+    def test_nome_ausente_no_catalogo_nao_equivale_a_nome_da_fonte(self):
+        self.assertNotEqual(
+            validate_series._normaliza_nome(None),
+            validate_series._normaliza_nome("Concessões de crédito - Total"),
+        )

@@ -5,11 +5,12 @@
 # `content/metodologia.md`. Nenhuma série derivada entra no painel sem esse par: a regra
 # no YAML e a nota metodológica escrita.
 #
-# ATENÇÃO — o que NÃO está aqui. As quatro bases do seletor "Base de valores"
-# (R$ correntes, R$ constantes, % do PIB, variação em 12 meses) NÃO são séries
-# derivadas: são transformações aplicadas a qualquer série cujo catálogo declare a base
-# em `bases`, implementadas em `src/transformacoes.py`. Este arquivo trata só de séries
-# novas, que não existem em fonte nenhuma: residuais, somas e médias ponderadas.
+# ATENÇÃO — o que NÃO está aqui. As seis bases do seletor "Base de valores"
+# (R$ correntes, R$ constantes, acumulado em 12 meses, % do PIB, variação mensal e
+# variação em 12 meses) NÃO são séries derivadas: são transformações aplicadas a qualquer
+# série cujo catálogo declare a base em `bases`, implementadas em
+# `src/transformacoes.py`. Este arquivo trata só de séries novas, que não existem em
+# fonte nenhuma: residuais, somas e médias ponderadas.
 #
 # Operações implementadas:
 #   residual         total − soma(componentes). Fecha a composição de um gráfico de saldo
@@ -77,6 +78,73 @@ series:
     segmento: familia
     bases: [nominal, real, pib, var1m, var12m]
     descricao_esperada: "Saldo do crédito livre a pessoas físicas — modalidades não exibidas (residual)"
+
+  # ---------------------------------------------------------------------------
+  # G25 — parcela residual da concessão de crédito livre a pessoas jurídicas
+  #
+  # Mesma construção do residual de saldo (`livre_pj_outros`), sobre a Tabela 10 em vez
+  # da Tabela 6. As seis modalidades exibidas cobrem 49% da concessão em 07/2026; o
+  # residual reúne conta garantida, cheque especial PJ, antecipação de faturas de cartão,
+  # cartão de crédito à vista, compror, vendor, capital de giro rotativo, financiamento a
+  # importações, repasses externos, arrendamento e demais.
+  #
+  # A COBERTURA É MENOR QUE NO SALDO, e o residual é proporcionalmente maior: no fluxo
+  # pesam as modalidades de giro rápido, que renovam muitas vezes ao ano e por isso
+  # aparecem pouco no estoque. Os dois "Outros" não são comparáveis entre as abas, do
+  # mesmo modo que os dois "Outros" de saldo e inadimplência não são entre si.
+  # ---------------------------------------------------------------------------
+  - serie_id: conc_livre_pj_outros
+    operacao: residual
+    total: conc_livre_pj
+    componentes:
+      - conc_livre_pj_capital_giro_acima_365d
+      - conc_livre_pj_capital_giro_ate_365d
+      - conc_livre_pj_duplicatas
+      - conc_livre_pj_veiculos
+      - conc_livre_pj_exportacoes
+      - conc_livre_pj_acc
+    rotulo: "Outras modalidades"
+    cor: outros
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    segmento: empresa
+    agregacao: fluxo
+    bases: [nominal, real, acum12m, pib, var1m, var12m]
+    descricao_esperada: "Concessões do crédito livre a pessoas jurídicas — modalidades não exibidas (residual)"
+
+  # ---------------------------------------------------------------------------
+  # G26 — parcela residual da concessão de crédito livre a pessoas físicas
+  #
+  # As quatro modalidades exibidas cobrem 85% da concessão em 07/2026; o residual reúne
+  # cheque especial, aquisição de outros bens, arrendamento mercantil, desconto de
+  # cheques e demais modalidades da Tabela 11.
+  #
+  # POR QUE O CARTÃO ENTRA PELA PARCELA À VISTA. O componente de cartão deste gráfico é
+  # 20681 (à vista), não 20682 (total), porque a nota 7/ da Tabela 11 do BCB exclui o
+  # rotativo e o parcelado do total de concessões. Com 20682 no lugar de 20681 este
+  # residual ficaria NEGATIVO em 14 dos 185 meses — conferido em 26/09/2026 —, e um
+  # "Outros" negativo não é uma parcela, é um erro de conta exposto no gráfico.
+  # A composição de dívidas (20667) também está fora do total publicado, pela nota 4/ da
+  # mesma tabela, e portanto não integra este residual.
+  # ---------------------------------------------------------------------------
+  - serie_id: conc_livre_pf_outros
+    operacao: residual
+    total: conc_livre_pf
+    componentes:
+      - conc_livre_pf_consignado
+      - conc_livre_pf_nao_consignado
+      - conc_livre_pf_cartao_avista
+      - conc_livre_pf_veiculos
+    rotulo: "Outras modalidades"
+    cor: outros
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    segmento: familia
+    agregacao: fluxo
+    bases: [nominal, real, acum12m, pib, var1m, var12m]
+    descricao_esperada: "Concessões do crédito livre a pessoas físicas — modalidades não exibidas (residual)"
 
   # ---------------------------------------------------------------------------
   # G14 — total do crédito PJ por porte (Tabela 23)

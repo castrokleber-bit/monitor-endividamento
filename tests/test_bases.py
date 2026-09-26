@@ -128,6 +128,150 @@ class TestPib(unittest.TestCase):
         self.assertEqual(transformacoes.pib(obs, 1, {"2026-01-01": 0.0}), [])
 
 
+class TestAcumulado12m(unittest.TestCase):
+    """
+    A soma móvel de doze meses, que é a base de leitura das séries de FLUXO.
+
+    Duas propriedades importam e são testadas aqui: a janela é de calendário (não de
+    posição na lista) e nada é preenchido. As duas vêm da mesma exigência do projeto —
+    série com mês faltando não pode produzir número errado em silêncio.
+    """
+
+    @staticmethod
+    def _serie(inicio_ano, meses, valor=1.0):
+        obs, ano, mes = [], inicio_ano, 1
+        for _ in range(meses):
+            obs.append([f"{ano:04d}-{mes:02d}-01", valor])
+            mes += 1
+            if mes == 13:
+                ano, mes = ano + 1, 1
+        return obs
+
+    def test_onze_primeiros_meses_ficam_de_fora(self):
+        obs = self._serie(2025, 24)
+        saida = transformacoes.acumulado_12m(obs)
+        self.assertEqual(len(saida), 13)
+        self.assertEqual(saida[0][0], "2025-12-01")
+
+    def test_soma_e_a_dos_doze_meses_da_janela(self):
+        obs = [[f"2025-{m:02d}-01", float(m)] for m in range(1, 13)]
+        obs += [["2026-01-01", 100.0]]
+        saida = dict(transformacoes.acumulado_12m(obs))
+        self.assertAlmostEqual(saida["2025-12-01"], sum(range(1, 13)))
+        # A janela que termina em 01/2026 solta janeiro/2025 (1.0) e pega 100.0.
+        self.assertAlmostEqual(saida["2026-01-01"], sum(range(2, 13)) + 100.0)
+
+    def test_mes_faltando_no_meio_apaga_as_janelas_que_o_contem(self):
+        """
+        O caso que a janela de calendário protege.
+
+        Faltando maio/2025, nenhuma janela de doze meses que deveria conter maio pode ser
+        formada. Uma implementação por POSIÇÃO somaria os doze pontos anteriores — treze
+        meses de calendário — e devolveria um número maior, sem nenhum aviso.
+        """
+        obs = [[f"2025-{m:02d}-01", 1.0] for m in range(1, 13) if m != 5]
+        obs += [[f"2026-{m:02d}-01", 1.0] for m in range(1, 13)]
+        saida = dict(transformacoes.acumulado_12m(obs))
+        self.assertNotIn("2025-12-01", saida)
+        self.assertNotIn("2026-04-01", saida)  # janela 05/2025..04/2026
+        self.assertIn("2026-05-01", saida)  # primeira janela inteiramente depois do buraco
+        self.assertTrue(all(abs(v - 12.0) < 1e-9 for v in saida.values()))
+
+    def test_acum12m_aplica_o_fator_de_exibicao_uma_vez(self):
+        """R$ milhões -> R$ bilhões acontece sobre a SOMA, não doze vezes."""
+        obs = [[f"2025-{m:02d}-01", 1000.0] for m in range(1, 13)]
+        saida = dict(transformacoes.acum12m(obs, 0.001))
+        self.assertAlmostEqual(saida["2025-12-01"], 12.0)
+
+    def test_serie_curta_nao_produz_nada(self):
+        self.assertEqual(transformacoes.acumulado_12m(self._serie(2026, 11)), [])
+
+
+class TestPibDeFluxo(unittest.TestCase):
+    """
+    O % do PIB de uma concessão: numerador acumulado em doze meses.
+
+    O erro que isto impede é silencioso — dividir a concessão de UM mês pelo PIB de DOZE
+    devolve um número plausível à vista, cerca de doze vezes menor que a grandeza certa.
+    """
+
+    @staticmethod
+    def _doze_meses(valor):
+        return [[f"2025-{m:02d}-01", valor] for m in range(1, 13)]
+
+    def test_numerador_e_a_soma_dos_doze_meses(self):
+        obs = self._doze_meses(100.0)
+        pib = {"2025-12-01": 6000.0}
+        saida = dict(transformacoes.pib_fluxo(obs, 0.001, pib))
+        self.assertAlmostEqual(saida["2025-12-01"], 1200.0 / 6000.0 * 100.0)
+
+    def test_difere_do_pib_de_estoque_no_mesmo_dado(self):
+        obs = self._doze_meses(100.0)
+        pib = {"2025-12-01": 6000.0}
+        estoque = dict(transformacoes.pib(obs, 1, pib))["2025-12-01"]
+        fluxo = dict(transformacoes.pib_fluxo(obs, 1, pib))["2025-12-01"]
+        self.assertAlmostEqual(fluxo, estoque * 12)
+
+    def test_onze_primeiros_meses_ficam_de_fora(self):
+        obs = self._doze_meses(100.0)
+        pib = {f"2025-{m:02d}-01": 6000.0 for m in range(1, 13)}
+        self.assertEqual(len(transformacoes.pib_fluxo(obs, 1, pib)), 1)
+
+
+class TestDespachoPorAgregacao(unittest.TestCase):
+    """
+    `aplica` escolhe a fórmula pelo campo `agregacao` do catálogo, e recusa o resto.
+
+    O padrão tem de ser `estoque`: toda série de saldo do catálogo omite o campo, e um
+    padrão diferente mudaria o % do PIB de todas elas de uma vez.
+    """
+
+    def setUp(self):
+        self.obs = [[f"2025-{m:02d}-01", 100.0] for m in range(1, 13)]
+        self.ctx = transformacoes.Contexto({}, {})
+        self.ctx.pib_12m = {"2025-12-01": 6000.0}
+
+    def test_omitir_agregacao_e_tratado_como_estoque(self):
+        cfg = {"fator": 1}
+        self.assertEqual(
+            transformacoes.aplica("pib", self.obs, cfg, self.ctx),
+            transformacoes.pib(self.obs, 1, self.ctx.pib_12m),
+        )
+
+    def test_fluxo_usa_o_numerador_acumulado(self):
+        cfg = {"fator": 1, "agregacao": "fluxo"}
+        self.assertEqual(
+            transformacoes.aplica("pib", self.obs, cfg, self.ctx),
+            transformacoes.pib_fluxo(self.obs, 1, self.ctx.pib_12m),
+        )
+
+    def test_acum12m_em_estoque_e_recusado(self):
+        """Somar doze saldos somaria o mesmo estoque doze vezes."""
+        with self.assertRaises(transformacoes.ErroTransformacao):
+            transformacoes.aplica("acum12m", self.obs, {"fator": 1}, self.ctx)
+
+    def test_agregacao_desconhecida_e_recusada(self):
+        with self.assertRaises(transformacoes.ErroTransformacao):
+            transformacoes.aplica("nominal", self.obs, {"agregacao": "flusso"}, self.ctx)
+
+    def test_frase_de_calculo_do_pib_diz_qual_formula_foi_usada(self):
+        """
+        A procedência não pode dizer "dividido pelo PIB" para uma concessão.
+
+        É a única coisa que distingue, para o leitor, duas curvas de "% do PIB" calculadas
+        por fórmulas diferentes.
+        """
+        self.ctx.codigo_pib = "4382"
+        estoque = self.ctx.calculo("pib", "20539", {"agregacao": "estoque"})
+        fluxo = self.ctx.calculo("pib", "20631", {"agregacao": "fluxo"})
+        self.assertNotIn("soma das doze", estoque)
+        self.assertIn("soma das doze últimas observações", fluxo)
+
+    def test_unidade_do_acumulado_diz_o_intervalo(self):
+        cfg = {"unidade_exibicao": "R$ bilhões"}
+        self.assertIn("12 meses", self.ctx.unidade("acum12m", cfg))
+
+
 class TestVar12m(unittest.TestCase):
     def test_primeiros_doze_meses_ficam_vazios(self):
         """Item do checklist: os doze primeiros meses saem da série, sem preenchimento."""

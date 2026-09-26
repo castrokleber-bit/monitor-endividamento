@@ -1,17 +1,46 @@
 """
 Valida todo código de série do catálogo contra a API de origem ANTES da coleta.
 
-Pergunta uma coisa só, e é a que importa como porteiro: a série responde, tem
-observações, e qual é a última delas? Nenhum código entra no pipeline sem passar nisso.
+Duas perguntas por série, e nenhum código entra no pipeline sem passar nas duas:
 
-O nome oficial NÃO é conferido contra a API porque o SGS não expõe metadados por código
-— a consulta do sgspub exige sessão de navegador e o portal de dados abertos busca só
-por texto livre, devolvendo pacotes de outros assuntos (o código 433 traz "Ouvidorias
-dos bancos" na primeira posição). Conferido de novo em 19/09/2026. O que faz o papel de
-validação semântica do código é outra coisa, mais forte que um nome: as identidades
-contábeis conferidas em `src/build_dataset.py` — soma das parcelas igual ao total,
-residual que fecha, % do PIB calculado batendo com o % do PIB oficial do BCB. Um código
-trocado por engano passaria num teste de nome; não passa nesses.
+  1. a série responde, tem observações, e qual é a última delas?
+  2. o nome que a fonte dá a esse código é o que o catálogo diz esperar?
+
+O NÍVEL 2 É NOVO EM 26/09/2026, e corrige uma afirmação errada que estava escrita aqui e
+no CLAUDE.md: a de que o SGS não expõe metadados por código. Expõe. Não pela API REST
+nem pelo portal de dados abertos — as duas tentativas registradas em 19/09/2026, que
+falharam de verdade —, mas pelo serviço SOAP legado `FachadaWSSGS`, cuja operação
+`getUltimoValorXML` devolve `<NOME>`, `<UNIDADE>` e `<PERIODICIDADE>` de qualquer código,
+sem sessão de navegador e sem chave. Conferido nos 113 códigos do catálogo: todos
+responderam.
+
+Isso fecha um buraco real. Até aqui, um código trocado por outro que também responde
+passava o gate e ia parar na coleta; quem o pegava eram as identidades contábeis do
+`build_dataset.py` — e só quando o código trocado participava de alguma identidade. Série
+que não entra em soma nenhuma não tinha nada conferindo o seu significado. Agora tem.
+
+O nível 2 não substitui as identidades contábeis, que continuam sendo o teste mais forte:
+nome certo não garante que a soma das parcelas feche no total.
+
+POR QUE O NÍVEL 2 FALHA NUM CASO E AVISA NO OUTRO. O serviço de metadados é um SOAP
+legado em `www3.bcb.gov.br`, notoriamente menos estável que a API REST. Se a
+indisponibilidade dele reprovasse o catálogo, este gate passaria a ser um ponto único de
+falha capaz de bloquear a atualização quinzenal de dados que estão corretos — o oposto da
+política do projeto, que é não deixar a queda de uma fonte derrubar o resto. Então:
+
+  metadados responderam e o nome DIFERE   -> FALHA. É a evidência de código errado ou
+                                             renomeado na fonte, que é o que se procura.
+  metadados não responderam               -> AVISO. O nível 1 passou, e ausência de
+                                             evidência não é evidência de erro.
+
+Um nome renomeado na fonte também reprova, e isso é intencional: o workflow já lista
+"código de série retirado ou renomeado no SGS" entre as causas esperadas de falha, abre
+issue e não publica nada. Renomeação é exatamente o tipo de mudança que uma pessoa precisa
+ver antes de o painel seguir dizendo outra coisa.
+
+A UNIDADE é registrada no relatório mas NÃO reprova. O SGS escreve "R$ (milhões)" onde o
+catálogo escreve "R$ milhões", e o catálogo refina "%" em "% do PIB" onde isso é
+informativo. São divergências de grafia e de precisão, não de identidade do código.
 
 Uso:
     python src/validate_series.py                # valida tudo
@@ -24,10 +53,13 @@ Saída: relatório na tela + config/_validacao.json. Sai com código 1 se houver
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
+import re
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
 import requests
@@ -42,6 +74,20 @@ CONFIG = RAIZ / "config"
 
 SGS_DADOS = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/{n}?formato=json"
 FRED_META = "https://api.stlouisfed.org/fred/series"
+
+# Metadados por código do SGS: serviço SOAP legado, documentado no cabeçalho deste
+# módulo. É o único endereço público que devolve o nome oficial de um código — a API REST
+# só serve dados, e o portal de dados abertos só busca por texto livre.
+SGS_METADADOS = "https://www3.bcb.gov.br/wssgs/services/FachadaWSSGS"
+SGS_METADADOS_ENVELOPE = (
+    "<?xml version='1.0' encoding='UTF-8'?>"
+    "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'"
+    " xmlns:xsd='http://www.w3.org/2001/XMLSchema'"
+    " xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'><soapenv:Body>"
+    "<getUltimoValorXML soapenv:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/'>"
+    "<in0 xsi:type='xsd:long'>{codigo}</in0>"
+    "</getUltimoValorXML></soapenv:Body></soapenv:Envelope>"
+)
 
 TIMEOUT = 30
 
@@ -142,6 +188,66 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
     return None, ultimo_erro
 
 
+def _normaliza_nome(texto: str | None) -> str:
+    """
+    Forma comparável de um nome de série: sem variação de grafia que não muda o sentido.
+
+    Três normalizações, cada uma por uma divergência real entre o SGS e o catálogo:
+    composição Unicode (NFKC), travessão e meia-risca reduzidos a hífen simples, e espaços
+    em branco colapsados. Caixa é ignorada — o SGS alterna "Total" e "total" no mesmo
+    conjunto de séries.
+
+    O que NÃO é normalizado: nada que altere palavras. Acento, pontuação e parênteses
+    contam, porque é justamente numa palavra trocada que um código errado se revela.
+    """
+    t = unicodedata.normalize("NFKC", texto or "")
+    t = t.replace("–", "-").replace("—", "-").replace("‑", "-")
+    return re.sub(r"\s+", " ", t).strip().casefold()
+
+
+def _metadados(codigo: int | str) -> tuple[dict | None, str | None]:
+    """
+    Nome, unidade e periodicidade oficiais de um código, pelo SOAP legado do SGS.
+
+    A resposta é XML com um segundo XML escapado dentro do corpo, e o interno vem em
+    ISO-8859-1 declarado no seu próprio prólogo — daí os dois `html.unescape`: um desfaz o
+    escape do envelope SOAP, o outro as entidades do documento interno.
+
+    Mesma política de retry do nível 1. Devolve (metadados, erro); um dos dois é None.
+    """
+    ultimo_erro = "sem resposta"
+    for tentativa in range(TENTATIVAS_VALIDACAO):
+        try:
+            resp = _get(
+                SGS_METADADOS,
+                metodo="post",
+                data=SGS_METADADOS_ENVELOPE.format(codigo=codigo).encode("utf-8"),
+                headers={"Content-Type": "text/xml; charset=utf-8", "SOAPAction": '""'},
+            )
+        except (RuntimeError, requests.RequestException) as exc:
+            ultimo_erro = f"falha de rede: {exc}"
+        else:
+            if resp.status_code != 200:
+                ultimo_erro = f"HTTP {resp.status_code}"
+            else:
+                corpo = html.unescape(html.unescape(resp.text))
+                nome = re.search(r"<NOME>(.*?)</NOME>", corpo, re.S)
+                if nome:
+                    unidade = re.search(r"<UNIDADE>(.*?)</UNIDADE>", corpo, re.S)
+                    periodicidade = re.search(r"<PERIODICIDADE>(.*?)</PERIODICIDADE>", corpo, re.S)
+                    return {
+                        "nome": nome.group(1).strip(),
+                        "unidade": unidade.group(1).strip() if unidade else "",
+                        "periodicidade": periodicidade.group(1).strip() if periodicidade else "",
+                    }, None
+                ultimo_erro = "resposta sem <NOME> (provável erro mascarado)"
+
+        if tentativa < TENTATIVAS_VALIDACAO - 1:
+            time.sleep(ESPERAS_VALIDACAO[tentativa])
+
+    return None, ultimo_erro
+
+
 def valida_bcb(serie: dict) -> dict:
     codigo = serie["codigo"]
     res = {"serie_id": serie["serie_id"], "fonte": "BCB/SGS", "codigo": codigo}
@@ -149,23 +255,41 @@ def valida_bcb(serie: dict) -> dict:
     ultima, erro = _observacao_mais_recente(codigo)
     if erro is not None:
         return {**res, "ok": False, "erro": erro}
+
+    esperado = serie.get("descricao_esperada")
     res.update(
         {
             "ok": True,
             "ultima_data": ultima.get("data"),
             "ultimo_valor": ultima.get("valor"),
-            # O SGS não tem endpoint público de metadados por código: a consulta do
-            # sgspub exige sessão de navegador e o portal de dados abertos (CKAN) só
-            # busca por texto livre, devolvendo pacotes de outros assuntos — o código
-            # 433 traz "Ouvidorias dos bancos" na primeira posição. Verificado de novo
-            # em 19/09/2026. O nome oficial registrado é, então, o da tabela de origem
-            # do BCB anotada no catálogo (`descricao_esperada` + `tabela`), e quem
-            # valida o código de fato é o nível 1 mais as identidades contábeis
-            # conferidas em src/build_dataset.py, que são um teste mais forte que o nome.
-            "nome_oficial": serie.get("descricao_esperada"),
+            "descricao_esperada": esperado,
             "tabela": serie.get("tabela", ""),
         }
     )
+
+    # Nível 2 — ver o cabeçalho deste módulo para o motivo de a indisponibilidade do
+    # serviço de metadados avisar em vez de reprovar.
+    meta, erro_meta = _metadados(codigo)
+    if meta is None:
+        res["nome_oficial"] = None
+        res["metadados"] = f"indisponível ({erro_meta})"
+        return res
+
+    res["nome_oficial"] = meta["nome"]
+    res["unidade_oficial"] = meta["unidade"]
+    res["periodicidade_oficial"] = meta["periodicidade"]
+    res["metadados"] = "conferido"
+
+    if _normaliza_nome(meta["nome"]) != _normaliza_nome(esperado):
+        return {
+            **res,
+            "ok": False,
+            "erro": (
+                "nome na fonte não é o esperado pelo catálogo — código errado ou série "
+                f"renomeada no SGS.\n           fonte:    {meta['nome']}\n"
+                f"           catálogo: {esperado}"
+            ),
+        }
     return res
 
 
@@ -217,6 +341,11 @@ def imprime(res: dict, esperado: str | None) -> None:
         return
     if res.get("nome_oficial"):
         print(f"         nome na fonte: {res['nome_oficial']}")
+    elif res.get("metadados", "").startswith("indisponível"):
+        # Aviso, não falha — ver o cabeçalho do módulo. Fica visível no log para que a
+        # indisponibilidade prolongada do serviço de metadados não passe despercebida.
+        print(f"         aviso: metadados não conferidos — {res['metadados']}")
+        print(f"         nome esperado pelo catálogo: {esperado}")
     if res.get("ultima_data"):
         print(f"         última observação: {res['ultima_data']} = {res.get('ultimo_valor', '')}")
 

@@ -12,9 +12,36 @@ Kleber Pacheco de Castro
 
 ## Estado do projeto
 
-ETL e front rodando ponta a ponta: **108 séries** (94 do BCB/SGS, 9 do FRED/BIS, 5
-calculadas) e **20 gráficos em 5 abas** — Mercado de crédito, Inadimplência, Dívida das
-famílias, Comparação internacional e Metodologia.
+ETL e front rodando ponta a ponta: **129 séries** (113 do BCB/SGS, 9 do FRED/BIS, 7
+calculadas) e **26 gráficos em 6 abas** — Saldo do crédito, Concessões de crédito,
+Inadimplência, Dívida das famílias, Comparação internacional e Metodologia.
+
+### Aba de concessões, 26/09/2026
+
+O painel passou a trazer as duas medidas do mercado de crédito, em abas separadas.
+**Saldo** é estoque — a carteira viva no fim do mês; **concessão** é fluxo — o volume
+contratado dentro do mês. Os níveis não se comparam, e por isso todo título de aba e de
+gráfico diz qual das duas está exibindo. A aba antiga "Mercado de crédito" virou "Saldo
+do crédito".
+
+A aba nova replica seis dos gráficos de saldo, que são os que têm equivalente publicado
+pela fonte (Tabelas 2 a 5, 10 e 11 do BCB). Crédito ampliado, porte da empresa e
+atividade econômica ficaram fora: a fonte não publica concessão para eles.
+
+Duas coisas novas no pipeline vieram com ela:
+
+- **Campo `agregacao`** no catálogo (`estoque` ou `fluxo`), que governa duas bases do
+  seletor. `acum12m` só existe para fluxo, e o `% do PIB` de um fluxo usa numerador
+  acumulado em doze meses, para ficar na mesma base de tempo do denominador.
+- **Base "Acumulado em 12 meses"**, a sexta do seletor, oferecida só nos gráficos de
+  concessão. É o que permite ler um fluxo sem o desenho sazonal, já que nenhuma série do
+  painel é dessazonalizada.
+
+Uma assimetria deliberada em relação à aba de saldo: na concessão a pessoas físicas, a
+linha de cartão de crédito é a parcela **à vista**, não o total. A nota 7 da Tabela 11 do
+BCB exclui rotativo e parcelado do total de concessões — com o total no lugar da parcela,
+a soma das modalidades excede o total publicado em até 20% e o residual do gráfico fica
+negativo em 14 dos 185 meses.
 
 ### Reformulação de 19/09/2026
 
@@ -30,6 +57,10 @@ pipeline (`src/transformacoes.py`) e declaradas por série no campo `bases`:
 | % do PIB | `_pib` | dividido pelo PIB acumulado em 12 meses (4382) |
 | Variação mensal | `_var1m` | contra o mês anterior, sobre o valor nominal |
 | Variação em 12 meses | `_var12m` | contra o mesmo mês do ano anterior, sobre o valor nominal |
+
+Em 26/09/2026 entrou a sexta, **Acumulado em 12 meses** (`_acum12m`), oferecida só nos
+gráficos de concessão, e o `% do PIB` ganhou uma segunda fórmula para fluxo. Ver a seção da
+aba de concessões acima.
 
 As duas variações são calculadas sobre o valor nominal — variação de série deflacionada
 descontaria a inflação duas vezes — e **nenhuma é dessazonalizada**. A mensal é a que
@@ -126,7 +157,7 @@ python src/build_dataset.py        # coleta, deriva, transforma, gera data/ e do
 python src/build_xlsx.py           # gera a planilha em data/ e copia para docs/
 python -m http.server -d docs      # abre o painel em localhost:8000
 
-# Iterar no front sem repetir as 108 requisições:
+# Iterar no front sem repetir as 122 requisições:
 python src/build_dataset.py --do-cache
 ```
 

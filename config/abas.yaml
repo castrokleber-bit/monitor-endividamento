@@ -17,10 +17,22 @@
 #      à âncora correspondente na aba Metodologia, gerada a partir do catálogo.
 
 # ---------------------------------------------------------------------------
-# Seletor "Base de valores" — as cinco transformações de src/transformacoes.py.
+# Seletor "Base de valores" — as seis transformações de src/transformacoes.py.
 #
 # `sufixo` é o que entra no nome da coluna na planilha de download, padronizado em
 # 19/09/2026: antes só existia `_real`.
+#
+# ESTOQUE E FLUXO (26/09/2026). Duas bases dependem de a série ser um saldo ou uma
+# concessão, e o catálogo declara isso no campo `agregacao`:
+#
+#   acum12m   só é oferecida nos gráficos de concessão. Somar doze saldos somaria o mesmo
+#             estoque doze vezes, e `transformacoes.aplica` recusa a combinação.
+#   pib       para saldo é `valor(t) / PIB12m(t)`; para concessão o numerador é a soma dos
+#             doze últimos meses, para ficar na mesma base de tempo do denominador.
+#
+# Um gráfico só oferece uma base se TODAS as suas séries a declararem — `confere_bases`
+# em src/build_dataset.py. É por isso que `acum12m` aparecer na lista global não a faz
+# aparecer nos gráficos de saldo.
 # ---------------------------------------------------------------------------
 bases:
   - id: nominal
@@ -33,11 +45,21 @@ bases:
     descricao: >-
       Valor deflacionado pelo IPCA e expresso a preços do mês mais recente do índice.
       O mês-base é móvel e aparece no rótulo do eixo.
+  - id: acum12m
+    rotulo: "Acumulado em 12 meses"
+    sufixo: _acum12m
+    descricao: >-
+      Soma das doze últimas observações mensais, em valores correntes. Só existe para as
+      séries de concessão, que são fluxo: acumular saldos não teria significado. Os onze
+      primeiros meses de cada série ficam vazios, sem preenchimento, e a soma reúne
+      valores correntes de doze meses diferentes — não está a preços de um único mês.
   - id: pib
     rotulo: "% do PIB"
     sufixo: _pib
     descricao: >-
-      Saldo dividido pelo PIB acumulado em 12 meses a valores correntes (SGS 4382).
+      Divisão pelo PIB acumulado em 12 meses a valores correntes (SGS 4382). No saldo o
+      numerador é o valor do mês; na concessão é a soma dos doze últimos meses, para que
+      numerador e denominador cubram o mesmo intervalo de tempo.
   - id: var1m
     rotulo: "Variação mensal"
     sufixo: _var1m
@@ -100,17 +122,23 @@ inicio_padrao: comum
 abas:
 
   # =========================================================================
-  # ABA 1 — MERCADO DE CRÉDITO
+  # ABA 1 — SALDO DO CRÉDITO
+  #
+  # RENOMEADA EM 26/09/2026, junto com a entrada da aba de concessões. O nome antigo,
+  # "Mercado de crédito", não dizia qual das duas medidas a aba traz — e agora o painel
+  # traz as duas. Saldo é estoque: a carteira viva no fim do mês. Cada título de gráfico
+  # desta aba começa por "Saldo", e cada título da aba seguinte por "Concessões".
   # =========================================================================
   - id: mercado_credito
-    titulo: "Mercado de crédito"
+    titulo: "Saldo do crédito"
     subtitulo: >-
-      Estoque de crédito ao setor não financeiro, por origem dos recursos, por tomador,
-      por modalidade, por porte da empresa e por atividade econômica.
+      Estoque de crédito ao setor não financeiro no fim de cada mês, por origem dos
+      recursos, por tomador, por modalidade, por porte da empresa e por atividade
+      econômica.
     graficos:
 
       - id: g1
-        titulo: "Crédito ampliado ao setor não financeiro"
+        titulo: "Saldo do crédito ampliado ao setor não financeiro"
         largura: 8
         series: [amplo_total, amplo_emprestimos, amplo_titulos, amplo_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
@@ -118,7 +146,7 @@ abas:
         metodologia: conceito-credito-ampliado
 
       - id: g2
-        titulo: "Crédito ampliado às empresas"
+        titulo: "Saldo do crédito ampliado às empresas"
         largura: 4
         series: [amplo_emp_total, amplo_emp_emprestimos, amplo_emp_titulos, amplo_emp_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
@@ -126,7 +154,7 @@ abas:
         metodologia: conceito-credito-ampliado
 
       - id: g3
-        titulo: "Crédito ampliado às famílias"
+        titulo: "Saldo do crédito ampliado às famílias"
         largura: 4
         series: [amplo_fam_total, amplo_fam_emprestimos, amplo_fam_titulos, amplo_fam_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
@@ -134,7 +162,7 @@ abas:
         metodologia: conceito-credito-ampliado
 
       - id: g4
-        titulo: "Crédito do SFN por origem dos recursos"
+        titulo: "Saldo do crédito do SFN por origem dos recursos"
         largura: 4
         series: [sfn_total, sfn_direcionado, sfn_livre]
         bases: [nominal, real, pib, var1m, var12m]
@@ -142,7 +170,7 @@ abas:
         metodologia: conceito-livre-direcionado
 
       - id: g5
-        titulo: "Crédito do SFN por tipo de tomador"
+        titulo: "Saldo do crédito do SFN por tipo de tomador"
         largura: 4
         series: [sfn_total, sfn_pj, sfn_pf]
         bases: [nominal, real, pib, var1m, var12m]
@@ -150,7 +178,7 @@ abas:
         metodologia: conceito-credito-sfn
 
       - id: g6
-        titulo: "Crédito direcionado por tipo de tomador"
+        titulo: "Saldo do crédito direcionado por tipo de tomador"
         largura: 4
         series: [sfn_direcionado, sfn_direcionado_pj, sfn_direcionado_pf]
         bases: [nominal, real, pib, var1m, var12m]
@@ -158,7 +186,7 @@ abas:
         metodologia: conceito-livre-direcionado
 
       - id: g7
-        titulo: "Crédito livre por tipo de tomador"
+        titulo: "Saldo do crédito livre por tipo de tomador"
         largura: 4
         series: [sfn_livre, sfn_livre_pj, sfn_livre_pf]
         bases: [nominal, real, pib, var1m, var12m]
@@ -166,7 +194,7 @@ abas:
         metodologia: conceito-livre-direcionado
 
       - id: g8
-        titulo: "Crédito livre às empresas por modalidade"
+        titulo: "Saldo do crédito livre às empresas por modalidade"
         largura: 12
         series:
           - sfn_livre_pj
@@ -192,7 +220,7 @@ abas:
         metodologia: conceito-modalidades-pj
 
       - id: g9
-        titulo: "Crédito livre às famílias por modalidade"
+        titulo: "Saldo do crédito livre às famílias por modalidade"
         largura: 12
         series:
           - sfn_livre_pf
@@ -210,7 +238,7 @@ abas:
         metodologia: conceito-modalidades-pf
 
       - id: g14
-        titulo: "Crédito às empresas por porte"
+        titulo: "Saldo do crédito às empresas por porte"
         largura: 4
         series: [porte_total, porte_mpme, porte_grande]
         bases: [nominal, real, pib, var1m, var12m]
@@ -218,7 +246,7 @@ abas:
         metodologia: conceito-porte
 
       - id: g16
-        titulo: "Crédito às empresas por atividade econômica"
+        titulo: "Saldo do crédito às empresas por atividade econômica"
         largura: 12
         series: [ativ_total, ativ_agropecuaria, ativ_industria, ativ_servicos, ativ_outros]
         bases: [nominal, real, pib, var1m, var12m]
@@ -249,7 +277,116 @@ abas:
             - ind_nao_duraveis
 
   # =========================================================================
-  # ABA 2 — INADIMPLÊNCIA
+  # ABA 2 — CONCESSÕES DE CRÉDITO (nova em 26/09/2026)
+  #
+  # Replica, um a um, os gráficos de saldo que têm equivalente em concessão: G21 a G24
+  # espelham G4 a G7, e G25 e G26 espelham G8 e G9. Mesmas séries, mesmas cores, mesma
+  # ordem — o que muda é a tabela de origem no BCB e o fato de o número ser fluxo.
+  #
+  # O QUE NÃO TEM EQUIVALENTE, e por isso não está aqui:
+  #
+  #   G1 a G3   crédito ampliado. É um conceito de estoque (saldo de empréstimos, títulos
+  #             de dívida e dívida externa). A fonte não publica concessão para ele.
+  #   G14       por porte da empresa (Tabela 23). A tabela publica saldo e inadimplência,
+  #             não concessão.
+  #   G16       por atividade econômica (Tabela 24). Mesma situação da Tabela 23.
+  #
+  # Conferido em 26/09/2026 contra o SGS e contra a planilha de tabelas do próprio BCB:
+  # as Tabelas 23 e 24 não têm coluna de concessões, e o crédito ampliado não tem série
+  # de fluxo. Não inventar as três aberturas por simetria.
+  #
+  # LAYOUT. G21 é o gráfico de abertura (8/12) e G22 fecha a primeira linha (4/12). G23 e
+  # G24 somam 8/12 na segunda linha, e o front estica o último cartão para fechar as doze
+  # colunas — a mesma situação de G6 e G7 na aba de saldo. G25 e G26 são de modalidade e
+  # ocupam a largura inteira.
+  # =========================================================================
+  - id: concessoes
+    titulo: "Concessões de crédito"
+    subtitulo: >-
+      Volume de crédito contratado em cada mês pelo Sistema Financeiro Nacional, por
+      origem dos recursos, por tomador e por modalidade.
+    nota_metodologica: >-
+      Concessão é fluxo e saldo é estoque: a concessão de um mês é o volume contratado
+      naquele mês, e o saldo é a carteira viva no fim do mês. Os níveis das duas abas não
+      se comparam. As séries de concessão começam em março de 2011, contra março de 2007
+      das séries de saldo, e não são dessazonalizadas — a base "Acumulado em 12 meses" é
+      o que o painel oferece para ler a série sem o desenho sazonal.
+    graficos:
+
+      - id: g21
+        titulo: "Concessões de crédito do SFN por origem dos recursos"
+        largura: 8
+        series: [conc_total, conc_direcionado, conc_livre]
+        bases: [nominal, real, acum12m, pib, var1m, var12m]
+        base_padrao: nominal
+        metodologia: conceito-concessoes
+
+      - id: g22
+        titulo: "Concessões de crédito do SFN por tipo de tomador"
+        largura: 4
+        series: [conc_total, conc_pj, conc_pf]
+        bases: [nominal, real, acum12m, pib, var1m, var12m]
+        base_padrao: nominal
+        metodologia: conceito-concessoes
+
+      - id: g23
+        titulo: "Concessões de crédito direcionado por tipo de tomador"
+        largura: 4
+        series: [conc_direcionado, conc_direcionado_pj, conc_direcionado_pf]
+        bases: [nominal, real, acum12m, pib, var1m, var12m]
+        base_padrao: nominal
+        metodologia: conceito-concessoes
+
+      - id: g24
+        titulo: "Concessões de crédito livre por tipo de tomador"
+        largura: 4
+        series: [conc_livre, conc_livre_pj, conc_livre_pf]
+        bases: [nominal, real, acum12m, pib, var1m, var12m]
+        base_padrao: nominal
+        metodologia: conceito-concessoes
+
+      - id: g25
+        titulo: "Concessões de crédito livre às empresas por modalidade"
+        largura: 12
+        series:
+          - conc_livre_pj
+          - conc_livre_pj_capital_giro_acima_365d
+          - conc_livre_pj_capital_giro_ate_365d
+          - conc_livre_pj_duplicatas
+          - conc_livre_pj_veiculos
+          - conc_livre_pj_exportacoes
+          - conc_livre_pj_acc
+          - conc_livre_pj_outros
+        # Mesma troca de papel de 20543 em G8: 20635 é a linha de PJ nos gráficos por
+        # tomador e o agregado aqui, então muda de rótulo e de cor junto com o papel.
+        rotulos:
+          conc_livre_pj: "Total"
+        cores:
+          conc_livre_pj: total
+        bases: [nominal, real, acum12m, pib, var1m, var12m]
+        base_padrao: nominal
+        metodologia: conceito-concessoes-modalidades-pj
+
+      - id: g26
+        titulo: "Concessões de crédito livre às famílias por modalidade"
+        largura: 12
+        series:
+          - conc_livre_pf
+          - conc_livre_pf_consignado
+          - conc_livre_pf_nao_consignado
+          - conc_livre_pf_cartao_avista
+          - conc_livre_pf_veiculos
+          - conc_livre_pf_outros
+        rotulos:
+          conc_livre_pf: "Total"
+        cores:
+          conc_livre_pf: total
+        bases: [nominal, real, acum12m, pib, var1m, var12m]
+        base_padrao: nominal
+        metodologia: conceito-concessoes-modalidades-pf
+
+  # =========================================================================
+  # ABA 3 — INADIMPLÊNCIA
   #
   # Todas as séries em % da carteira com atraso superior a 90 dias. Sem seletor de base:
   # taxa não se deflaciona nem se divide pelo PIB.
@@ -311,7 +448,7 @@ abas:
         metodologia: conceito-porte
 
   # =========================================================================
-  # ABA 3 — DÍVIDA DAS FAMÍLIAS
+  # ABA 4 — DÍVIDA DAS FAMÍLIAS
   #
   # Dois painéis, não dois eixos no mesmo gráfico: endividamento é saldo sobre renda de
   # doze meses e comprometimento é serviço da dívida sobre renda mensal. Escalas
@@ -344,7 +481,7 @@ abas:
         metodologia: conceito-comprometimento
 
   # =========================================================================
-  # ABA 4 — COMPARAÇÃO INTERNACIONAL
+  # ABA 5 — COMPARAÇÃO INTERNACIONAL
   #
   # Conteúdo inalterado na reformulação de 19/09/2026, por orientação explícita. O que
   # mudou foi só o entorno: seletor de período no padrão novo e texto explicativo

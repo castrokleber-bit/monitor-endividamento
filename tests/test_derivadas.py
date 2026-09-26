@@ -209,6 +209,100 @@ class TestCatalogoReal(unittest.TestCase):
         for serie in self.derivadas["series"]:
             self.assertNotIn(serie["serie_id"], self.coletadas)
 
+    def test_derivada_de_fluxo_declara_agregacao_e_acum12m(self):
+        """
+        Residual de concessão é fluxo, e o campo tem de dizer isso.
+
+        Sem `agregacao: fluxo`, a parcela "Outras modalidades" de um gráfico de concessão
+        teria o seu % do PIB calculado pela fórmula de estoque, enquanto as outras curvas
+        do MESMO gráfico usariam a de fluxo. As duas escalas conviveriam no mesmo eixo, e
+        o residual apareceria como uma linha rasteira perto do zero.
+        """
+        import transformacoes
+
+        for serie in self.derivadas["series"]:
+            agregacao = serie.get("agregacao", transformacoes.AGREGACAO_PADRAO)
+            self.assertIn(agregacao, transformacoes.AGREGACOES, serie["serie_id"])
+            tem_acum = "acum12m" in (serie.get("bases") or [])
+            if agregacao == "fluxo":
+                self.assertTrue(
+                    tem_acum,
+                    f"{serie['serie_id']} é fluxo e deveria oferecer a base acum12m",
+                )
+            else:
+                self.assertFalse(
+                    tem_acum,
+                    f"{serie['serie_id']} não é fluxo e não pode oferecer acum12m",
+                )
+
+    def test_residual_herda_a_agregacao_do_seu_total(self):
+        """
+        O residual é `total − parcelas`: se o total é fluxo, o residual é fluxo.
+
+        Declarar outra coisa produziria um gráfico em que a parcela e o total viriam de
+        fórmulas diferentes em "% do PIB" — e a soma das parcelas deixaria de fechar no
+        total exibido, que é a única coisa que o residual existe para garantir.
+        """
+        import transformacoes
+
+        coletadas = {}
+        for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+            cat = yaml.safe_load((RAIZ / "config" / arquivo).read_text(encoding="utf-8"))
+            for s in cat["series"]:
+                coletadas[s["serie_id"]] = s
+
+        for serie in self.derivadas["series"]:
+            if serie["operacao"] != "residual":
+                continue
+            total = coletadas[serie["total"]]
+            self.assertEqual(
+                serie.get("agregacao", transformacoes.AGREGACAO_PADRAO),
+                total.get("agregacao", transformacoes.AGREGACAO_PADRAO),
+                f"{serie['serie_id']} e o seu total {serie['total']} discordam",
+            )
+
+    def test_componentes_do_residual_sao_da_mesma_tabela_do_total(self):
+        """
+        Um residual só fecha se as parcelas vierem da mesma abertura que o total.
+
+        O caso concreto que isto protege: na concessão a pessoas físicas, a parcela de
+        cartão tem de ser a da Tabela 11 (à vista), e não o total de cartão — a nota 7 da
+        própria tabela exclui rotativo e parcelado do total de concessões. Trocar uma pela
+        outra deixaria a soma das parcelas MAIOR que o total, e o residual negativo.
+        """
+        coletadas = {}
+        for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+            cat = yaml.safe_load((RAIZ / "config" / arquivo).read_text(encoding="utf-8"))
+            for s in cat["series"]:
+                coletadas[s["serie_id"]] = s
+
+        for serie in self.derivadas["series"]:
+            if serie["operacao"] != "residual":
+                continue
+            tabelas = {coletadas[c].get("tabela", "") for c in serie["componentes"]}
+            self.assertEqual(
+                len(tabelas),
+                1,
+                f"{serie['serie_id']}: parcelas de tabelas diferentes {sorted(tabelas)}",
+            )
+
+    def test_o_cartao_da_concessao_pf_e_a_parcela_a_vista(self):
+        """
+        Trava explícita no código 20681, e não no total 20682.
+
+        Está num teste próprio porque é a única assimetria deliberada entre a aba de saldo
+        e a de concessões, e a mais fácil de "corrigir" por engano em nome da simetria.
+        Verificado nos 185 meses da série em 26/09/2026: com 20682 o residual fica
+        negativo em 14 meses.
+        """
+        por_id = {s["serie_id"]: s for s in self.derivadas["series"]}
+        residual = por_id["conc_livre_pf_outros"]
+        self.assertIn("conc_livre_pf_cartao_avista", residual["componentes"])
+
+        cat = yaml.safe_load((RAIZ / "config" / "series_bcb.yaml").read_text(encoding="utf-8"))
+        codigos = {s["serie_id"]: s["codigo"] for s in cat["series"]}
+        self.assertEqual(codigos["conc_livre_pf_cartao_avista"], 20681)
+
 
 if __name__ == "__main__":
     unittest.main()

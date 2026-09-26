@@ -8,9 +8,13 @@ escrito por pessoas.*
 ## Sobre o monitor {#sobre}
 
 O Monitor de Crédito e Endividamento acompanha o estoque de crédito ao setor não financeiro
-brasileiro, a inadimplência dessa carteira, e o endividamento e o comprometimento de
-renda das famílias, com um recorte de comparação internacional. O escopo é o de famílias
-e empresas não financeiras.
+brasileiro, o volume concedido a cada mês, a inadimplência dessa carteira, e o
+endividamento e o comprometimento de renda das famílias, com um recorte de comparação
+internacional. O escopo é o de famílias e empresas não financeiras.
+
+Estoque e fluxo ficam em abas separadas, e os títulos dizem qual é qual: a aba **Saldo do
+crédito** traz a carteira viva no fim de cada mês, e a aba **Concessões de crédito**, o
+volume contratado dentro do mês. Os níveis das duas não se comparam.
 
 É um painel de dados. Apresenta séries públicas e notas metodológicas factuais; não
 apresenta leitura, diagnóstico, projeção nem recomendação. Não constitui posição
@@ -117,6 +121,77 @@ O nível de cada modalidade não é comparável linha a linha com o das demais: 
 especial e rotativo do cartão têm taxas de outra ordem de grandeza e participação pequena
 no saldo, enquanto o consignado tem taxa baixa e saldo grande.
 
+### Concessões de crédito {#conceito-concessoes}
+
+**Concessão é fluxo; saldo é estoque.** A concessão de um mês é o volume de crédito
+contratado *naquele* mês. O saldo é a carteira viva no último dia do mês: o que já havia,
+menos o que foi amortizado ou baixado para prejuízo, mais o que foi concedido. São duas
+medidas de coisas diferentes, e os níveis de uma não se comparam com os da outra — uma
+modalidade de prazo curto, que se renova várias vezes por ano, pesa muito mais na
+concessão do que no saldo.
+
+As Tabelas 2 a 5 do Banco Central publicam saldo e concessão lado a lado, com o mesmo
+recorte, e é por isso que os quatro gráficos desta aba espelham um a um os da aba de
+saldo. As identidades da fonte fecham do mesmo modo: livre mais direcionado dá o total,
+e pessoas jurídicas mais pessoas físicas dá o total.
+
+**As séries começam em março de 2011**, contra março de 2007 das séries de saldo. Não há
+emenda com série anterior.
+
+**As séries não são dessazonalizadas.** O Banco Central publica também uma versão
+dessazonalizada das concessões, e este painel não a usa: o pipeline não aplica nem remove
+ajuste sazonal em série nenhuma, e combinar uma série ajustada com os saldos, que não são,
+colocaria duas convenções sob o mesmo seletor. Isso importa porque a concessão tem
+sazonalidade bem mais forte que o saldo — dezembro é sistematicamente alto e os meses de
+menor número de dias úteis são baixos. A base **Acumulado em 12 meses** é o que o painel
+oferece para ler a série sem esse desenho: ela soma os doze meses que terminam em cada
+data, de modo que cada ponto contém uma vez cada mês do calendário.
+
+O **% do PIB** de uma concessão usa esse mesmo acumulado no numerador, dividido pelo PIB
+acumulado em doze meses. As duas pontas da razão passam a cobrir o mesmo intervalo de
+tempo e estão ambas a preços correntes. Dividir a concessão de um único mês pelo PIB de
+doze meses daria um número sem significado, e o pipeline não faz essa conta.
+
+A soma de doze meses reúne valores correntes de meses diferentes — não está a preços de
+um único mês. Para leitura em moeda constante, o seletor tem **R$ constantes**, que
+deflaciona cada mês pelo IPCA.
+
+### Modalidades da concessão de crédito livre a pessoas jurídicas {#conceito-concessoes-modalidades-pj}
+
+As seis modalidades exibidas são as mesmas do gráfico de saldo, com as mesmas cores e na
+mesma ordem, para que os dois gráficos sejam comparáveis linha a linha. A tabela de origem
+é outra: Tabela 10, de concessões, em vez da Tabela 6, de saldo.
+
+A parcela **Outras modalidades** é um residual calculado — total publicado menos a soma
+das modalidades exibidas — e aqui ela é proporcionalmente maior que no gráfico de saldo:
+cobre 51% da concessão contra 35% do saldo. A razão é a natureza do fluxo. Conta
+garantida, cheque especial, antecipação de faturas de cartão e capital de giro rotativo
+giram rápido e são recontratados muitas vezes ao ano, então aparecem muito mais na
+concessão do que no estoque. **Os "Outros" das duas abas não são comparáveis entre si**,
+do mesmo modo que os "Outros" de saldo e de inadimplência não são.
+
+### Modalidades da concessão de crédito livre a pessoas físicas {#conceito-concessoes-modalidades-pf}
+
+As quatro modalidades exibidas são as mesmas do gráfico de saldo, com uma diferença
+obrigatória no cartão de crédito.
+
+**No cartão, a concessão exibida é só a parcela à vista.** A nota 7 da Tabela 11 do Banco
+Central declara que as concessões de cartão de crédito rotativo e de cartão de crédito
+parcelado não integram o total de concessões — ainda que os saldos correspondentes
+integrem o total de saldo. A consequência é aritmética e foi verificada nos 185 meses da
+série: com o cartão à vista, a soma das modalidades publicadas fecha no total com
+divergência máxima de 0,002%; com o cartão total, excede o total em até 20%, e a parcela
+residual do gráfico ficaria negativa em 14 meses. O rótulo da linha diz "à vista"
+justamente para que ninguém a leia como equivalente à linha "Cartão de crédito" do gráfico
+de saldo, que é o cartão inteiro.
+
+A nota 4 da mesma tabela registra que a composição de dívidas também fica fora do total de
+concessões. Ela não é exibida neste gráfico e não integra a parcela residual, que é, por
+definição, o total publicado menos as parcelas exibidas.
+
+A parcela **Outras modalidades** reúne cheque especial, aquisição de outros bens,
+arrendamento mercantil, desconto de cheques e as demais modalidades da Tabela 11.
+
 ### Porte da empresa {#conceito-porte}
 
 A fonte classifica a empresa tomadora pelo porte e publica saldo e inadimplência para
@@ -143,6 +218,12 @@ rápido a mudanças recentes, mas **não é dessazonalizada** — e os saldos de
 sazonalidade marcada, com dezembro e janeiro se comportando de modo distinto do resto do
 ano. O pipeline não aplica nem remove ajuste sazonal em série nenhuma, aqui ou em
 qualquer outro lugar. Só a primeira observação de cada série fica vazia.
+
+**Nas séries de concessão a ressalva é mais forte.** Um saldo é um nível que se move
+devagar; uma concessão é o volume contratado dentro do mês, e depende do número de dias
+úteis e do calendário de consumo. A variação mensal de uma concessão mistura esse
+movimento sazonal com a mudança de tendência, e os gráficos de concessão oferecem a base
+**Acumulado em 12 meses** justamente para ler a série sem ele.
 
 As duas são calculadas sobre o valor nominal, nunca sobre o deflacionado: variação de
 série já deflacionada descontaria a inflação duas vezes.
@@ -239,6 +320,12 @@ calculado sobre taxas não teria significado.
 **As duas não cobrem o mesmo conjunto de modalidades.** Ler a inadimplência de "Outras
 modalidades" como se fosse a inadimplência da parcela residual do gráfico de saldo é erro.
 
+Nos gráficos de **concessão**, "Outras modalidades" é outro residual, calculado do mesmo
+modo mas sobre as tabelas de concessão. Ele é proporcionalmente maior que o do saldo — nas
+empresas, 51% da concessão contra 35% do saldo em julho de 2026 — porque as modalidades de
+giro rápido, recontratadas várias vezes ao ano, pesam muito mais no fluxo do que no
+estoque. **São três residuais diferentes, um por aba, e nenhum é comparável com o outro.**
+
 ### Totais que diferem entre tabelas da fonte {#limitacao-totais}
 
 As tabelas de saldo e inadimplência por porte da empresa e por atividade econômica vêm do
@@ -261,9 +348,14 @@ divulgação seguinte.
 ### Séries curtas e ausência de emenda com a metodologia antiga {#limitacao-inicio}
 
 As séries de crédito ampliado começam em 2013; as de saldo e inadimplência por porte e
-por atividade econômica, em 2012; as de inadimplência do SFN, em 2011. Isso torna o
-intervalo "Tudo" curto em vários gráficos, e é assim de propósito: **o painel não emenda
-essas séries com as da metodologia anterior do Banco Central**, que não são comparáveis.
+por atividade econômica, em 2012; as de inadimplência do SFN e as de concessão, em 2011.
+Isso torna o intervalo "Tudo" curto em vários gráficos, e é assim de propósito: **o painel
+não emenda essas séries com as da metodologia anterior do Banco Central**, que não são
+comparáveis.
+
+A aba de concessões, por isso, é quatro anos mais curta que a de saldo: março de 2011
+contra março de 2007. Comparar o crescimento de uma com o da outra desde o início de cada
+uma compararia intervalos diferentes.
 
 Um caso merece nota específica. A série de saldo total do SFN tem observações desde junho
 de 1988, mas todas as suas aberturas começam em março de 2007, e os valores anteriores a

@@ -44,8 +44,21 @@ fonte: BCB/SGS
 # mês preliminar também é preliminar.
 prefixo_tabela_preliminar: "Tabela "
 
-# Âncora YAML reutilizada pelos saldos. Não é campo do catálogo.
+# ESTOQUE E FLUXO. O campo `agregacao` diz se a série é um saldo (`estoque`) ou uma
+# concessão (`fluxo`). Ele governa duas bases do seletor, em `src/transformacoes.py`:
+#
+#   acum12m   só existe para fluxo. Somar doze saldos somaria o mesmo estoque doze vezes.
+#   pib       para estoque é `valor(t) / PIB12m(t)`; para fluxo é a soma dos doze últimos
+#             meses sobre o mesmo PIB de doze meses, porque dividir uma concessão mensal
+#             por um PIB anual devolveria um número sem significado.
+#
+# O padrão é `estoque`, e por isso as séries de saldo não precisam declarar o campo. Toda
+# série de concessão declara `agregacao: fluxo` — e o build recusa o catálogo se uma série
+# que oferece `acum12m` não o fizer (`confere_agregacao` em src/build_dataset.py).
+
+# Âncoras YAML reutilizadas. Não são campos do catálogo.
 _bases_saldo: &bases_saldo [nominal, real, pib, var1m, var12m]
+_bases_concessao: &bases_concessao [nominal, real, acum12m, pib, var1m, var12m]
 
 series:
 
@@ -59,7 +72,7 @@ series:
   - serie_id: ipca_variacao_mensal
     codigo: 433
     rotulo: "IPCA — variação mensal"
-    descricao_esperada: "Índice nacional de preços ao consumidor-amplo (IPCA) - variação mensal"
+    descricao_esperada: "Índice nacional de preços ao consumidor-amplo (IPCA)"
     tabela: "SGS — índices de preços"
     unidade: "% ao mês"
     fator: 1
@@ -100,7 +113,7 @@ series:
     codigo: 28183
     rotulo: "Total"
     cor: total
-    descricao_esperada: "Crédito ampliado ao setor não financeiro - Total"
+    descricao_esperada: "Saldo de crédito ampliado ao setor não financeiro - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -115,7 +128,7 @@ series:
     codigo: 28184
     rotulo: "Empréstimos"
     cor: extra-2
-    descricao_esperada: "Crédito ampliado ao setor não financeiro - Empréstimos - Total"
+    descricao_esperada: "Saldo de empréstimos e financiamentos ao setor não financeiro - total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -129,7 +142,7 @@ series:
     codigo: 28188
     rotulo: "Títulos de dívida"
     cor: extra-1
-    descricao_esperada: "Crédito ampliado ao setor não financeiro - Títulos de dívida - Total"
+    descricao_esperada: "Saldo de títulos de dívida - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -143,7 +156,7 @@ series:
     codigo: 28192
     rotulo: "Dívida externa"
     cor: extra-4
-    descricao_esperada: "Crédito ampliado ao setor não financeiro - Dívida externa - Total"
+    descricao_esperada: "Saldo de dívida externa - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -162,7 +175,7 @@ series:
     codigo: 28846
     rotulo: "Total"
     cor: total
-    descricao_esperada: "Crédito ampliado às empresas - Total"
+    descricao_esperada: "Saldo de crédito ampliado concedido a empresas - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -177,7 +190,7 @@ series:
     codigo: 28847
     rotulo: "Empréstimos"
     cor: extra-2
-    descricao_esperada: "Crédito ampliado às empresas - Empréstimos - Total"
+    descricao_esperada: "Saldo de empréstimos e financiamentos a empresas - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -191,7 +204,7 @@ series:
     codigo: 28851
     rotulo: "Títulos de dívida"
     cor: extra-1
-    descricao_esperada: "Crédito ampliado às empresas - Títulos de dívida - Total"
+    descricao_esperada: "Saldo de títulos de dívida emitidos por empresas - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -205,7 +218,7 @@ series:
     codigo: 28854
     rotulo: "Dívida externa"
     cor: extra-4
-    descricao_esperada: "Crédito ampliado às empresas - Dívida externa"
+    descricao_esperada: "Saldo de dívida externa - Concedido a empresas - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -227,7 +240,7 @@ series:
     codigo: 28858
     rotulo: "Total"
     cor: total
-    descricao_esperada: "Crédito ampliado às famílias - Total"
+    descricao_esperada: "Saldo de crédito ampliado concedido a famílias - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -242,7 +255,7 @@ series:
     codigo: 28859
     rotulo: "Empréstimos"
     cor: extra-2
-    descricao_esperada: "Crédito ampliado às famílias - Empréstimos - Total"
+    descricao_esperada: "Saldo de empréstimos e financiamentos a famílias - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -258,7 +271,7 @@ series:
     codigo: 28863
     rotulo: "Títulos securitizados"
     cor: extra-1
-    descricao_esperada: "Crédito ampliado às famílias - Títulos securitizados"
+    descricao_esperada: "Saldo de instrumentos de securitização - devedores famílias"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -272,7 +285,7 @@ series:
     codigo: 28864
     rotulo: "Dívida externa"
     cor: extra-4
-    descricao_esperada: "Crédito ampliado às famílias - Dívida externa"
+    descricao_esperada: "Saldo de dívida externa - Concedido a famílias - Total"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "R$ milhões"
     fator: 0.001
@@ -473,7 +486,7 @@ series:
     codigo: 20544
     rotulo: "Desconto de duplicatas e recebíveis"
     cor: extra-3
-    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e outros recebíveis"
+    descricao_esperada: "Saldo da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e recebíveis"
     tabela: "Tabela 6 — Saldo do crédito livre a pessoas jurídicas"
     unidade: "R$ milhões"
     fator: 0.001
@@ -604,7 +617,7 @@ series:
     codigo: 27701
     rotulo: "Micro, pequenas e médias"
     cor: extra-1
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Micro, pequena e média empresa"
+    descricao_esperada: "Saldo das operações de crédito por porte da empresa - Micro, Pequena e Média (MPMe)"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "R$ milhões"
     fator: 0.001
@@ -618,7 +631,7 @@ series:
     codigo: 27702
     rotulo: "Grandes"
     cor: extra-4
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Grande empresa"
+    descricao_esperada: "Saldo das operações de crédito por porte da empresa - Grande"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "R$ milhões"
     fator: 0.001
@@ -639,7 +652,7 @@ series:
     codigo: 22027
     rotulo: "Agropecuária"
     cor: extra-2
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Agricultura, pecuária, produção florestal, pesca e aquicultura"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Agropecuária"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -653,7 +666,7 @@ series:
     codigo: 22043
     rotulo: "Indústria"
     cor: extra-1
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Total"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria total"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -667,7 +680,7 @@ series:
     codigo: 22044
     rotulo: "Serviços"
     cor: extra-4
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Serviços - Total"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Serviços total"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -681,7 +694,7 @@ series:
     codigo: 22042
     rotulo: "Outras atividades"
     cor: outros
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Outros serviços"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Outros"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -702,7 +715,7 @@ series:
   - serie_id: ind_siup
     codigo: 22034
     rotulo: "Serviços industriais de utilidade pública"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Serviços industriais de utilidade pública"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Serviços industriais de utilidade pública (SIUP)"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -715,7 +728,7 @@ series:
   - serie_id: ind_construcao
     codigo: 22030
     rotulo: "Construção"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Construção"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de construção"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -728,7 +741,7 @@ series:
   - serie_id: ind_alimentos
     codigo: 27743
     rotulo: "Alimentos e bebidas"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Alimentos e bebidas"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de alimentos"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -741,7 +754,7 @@ series:
   - serie_id: ind_acucar
     codigo: 27744
     rotulo: "Açúcar e álcool"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Açúcar e álcool"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de açúcar"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -754,7 +767,7 @@ series:
   - serie_id: ind_textil
     codigo: 27745
     rotulo: "Têxtil, couro e calçados"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Têxtil, couro e calçados"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de têxtil, vestuário, couro e calçados"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -767,7 +780,7 @@ series:
   - serie_id: ind_papel
     codigo: 27746
     rotulo: "Papel e celulose"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Papel e celulose"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de papel e celulose"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -780,7 +793,7 @@ series:
   - serie_id: ind_petroleo
     codigo: 27747
     rotulo: "Petróleo, gás e combustíveis"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Petróleo, gás e combustíveis"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de petróleo, gás e álcool"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -793,7 +806,7 @@ series:
   - serie_id: ind_metalurgia
     codigo: 27748
     rotulo: "Metalurgia e siderurgia"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Metalurgia e siderurgia"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de metalurgia e siderurgia"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -806,7 +819,7 @@ series:
   - serie_id: ind_quimica
     codigo: 27722
     rotulo: "Química e farmacêutica"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Química e farmacêutica"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de química e farmacêutica"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -819,7 +832,7 @@ series:
   - serie_id: ind_bens_capital
     codigo: 27723
     rotulo: "Bens de capital"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Bens de capital"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de bens de capital"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -832,7 +845,7 @@ series:
   - serie_id: ind_automobilistica
     codigo: 27724
     rotulo: "Automobilística"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Automobilística"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de automobilística"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -845,7 +858,7 @@ series:
   - serie_id: ind_mineracao
     codigo: 27749
     rotulo: "Mineração"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Mineração"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de mineração"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -858,7 +871,7 @@ series:
   - serie_id: ind_infraestrutura
     codigo: 27725
     rotulo: "Infraestrutura"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Infraestrutura"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de obras de infraestrutura"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -871,7 +884,7 @@ series:
   - serie_id: ind_outros_duraveis
     codigo: 27726
     rotulo: "Outros bens duráveis"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Outros bens duráveis"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de outros bens de consumo duráveis"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -884,7 +897,7 @@ series:
   - serie_id: ind_embalagens
     codigo: 27727
     rotulo: "Embalagens"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Embalagens"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de embalagens"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -897,7 +910,7 @@ series:
   - serie_id: ind_nao_duraveis
     codigo: 27728
     rotulo: "Outros bens não duráveis"
-    descricao_esperada: "Saldo da carteira de crédito - Pessoas jurídicas - Indústria - Outros bens não duráveis"
+    descricao_esperada: "Saldo das operações de crédito por atividade econômica - Indústria de bens de consumo não duráveis"
     tabela: "Tabela 24 — Saldo por atividade econômica"
     unidade: "R$ milhões"
     fator: 0.001
@@ -905,6 +918,369 @@ series:
     periodicidade: M
     segmento: empresa
     bases: *bases_saldo
+    validar: false
+
+  # =================================================================
+  # G21 a G24 — Concessões de crédito do SFN (Tabelas 2 a 5)
+  #
+  # CONCESSÃO É FLUXO, SALDO É ESTOQUE. A concessão de um mês é o volume contratado
+  # NAQUELE mês; o saldo é a carteira viva no fim do mês. Um não se compara com o outro
+  # em nível, e é por isso que as duas coisas vivem em abas separadas, com os títulos
+  # dizendo qual é qual. Todas as séries daqui declaram `agregacao: fluxo`.
+  #
+  # As mesmas Tabelas 2 a 5 que publicam o saldo publicam a concessão, lado a lado, com
+  # o mesmo recorte — o que permitiu replicar os gráficos G4 a G7 um a um.
+  #
+  # Identidades conferidas contra a API em 26/09/2026, nos 185 meses de 03/2011 a
+  # 07/2026, com divergência máxima de 0,005% (arredondamento independente na fonte):
+  #   20632 + 20633 = 20631   (PJ + PF = total)
+  #   20634 + 20685 = 20631   (livre + direcionado = total)
+  #   20635 + 20662 = 20634   (livre PJ + PF)
+  #   20686 + 20698 = 20685   (direcionado PJ + PF)
+  #
+  # COBERTURA MAIS CURTA QUE A DO SALDO. A concessão começa em 03/2011; o saldo, em
+  # 03/2007 (e o total do SFN, em 06/1988). Não há emenda com série anterior: a aba de
+  # concessões simplesmente começa em 2011.
+  #
+  # SÉRIE SEM AJUSTE SAZONAL, POR ESCOLHA. O BCB publica também as concessões
+  # dessazonalizadas, nos códigos 24439 a 24447. O painel NÃO as usa: o pipeline não
+  # aplica nem remove ajuste sazonal em série nenhuma, e misturar uma série ajustada com
+  # os saldos, que não são, daria duas convenções sob o mesmo seletor. A base
+  # "Acumulado em 12 meses" é o que este painel oferece para ler a série sem o desenho
+  # sazonal, e a Metodologia diz isso.
+  # =================================================================
+
+  - serie_id: conc_total
+    codigo: 20631
+    rotulo: "Total"
+    cor: total
+    descricao_esperada: "Concessões de crédito - Total"
+    tabela: "Tabela 2 — Crédito do sistema financeiro, resumo por origem dos recursos"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    papel: total
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_direcionado
+    codigo: 20685
+    rotulo: "Recursos direcionados"
+    cor: dir
+    descricao_esperada: "Concessões de crédito com recursos direcionados - Total"
+    tabela: "Tabela 2 — Crédito do sistema financeiro, resumo por origem dos recursos"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre
+    codigo: 20634
+    rotulo: "Recursos livres"
+    cor: livre
+    descricao_esperada: "Concessões de crédito com recursos livres - Total"
+    tabela: "Tabela 2 — Crédito do sistema financeiro, resumo por origem dos recursos"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: ambos
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_pj
+    codigo: 20632
+    rotulo: "Pessoas jurídicas"
+    cor: pj
+    descricao_esperada: "Concessões de crédito - Pessoas jurídicas - Total"
+    tabela: "Tabela 3 — Crédito do sistema financeiro, resumo por tipo de tomador"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_pf
+    codigo: 20633
+    rotulo: "Pessoas físicas"
+    cor: pf
+    descricao_esperada: "Concessões de crédito - Pessoas físicas - Total"
+    tabela: "Tabela 3 — Crédito do sistema financeiro, resumo por tipo de tomador"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_direcionado_pj
+    codigo: 20686
+    rotulo: "Pessoas jurídicas"
+    cor: pj
+    descricao_esperada: "Concessões de crédito com recursos direcionados - Pessoas jurídicas - Total"
+    tabela: "Tabela 5 — Crédito do sistema financeiro, resumo do crédito direcionado"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_direcionado_pf
+    codigo: 20698
+    rotulo: "Pessoas físicas"
+    cor: pf
+    descricao_esperada: "Concessões de crédito com recursos direcionados - Pessoas físicas - Total"
+    tabela: "Tabela 5 — Crédito do sistema financeiro, resumo do crédito direcionado"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  # `papel: total` porque estas duas são o agregado dos gráficos de modalidade (G25 e
+  # G26), do mesmo modo que 20543 e 20570 são nos gráficos de saldo.
+  - serie_id: conc_livre_pj
+    codigo: 20635
+    rotulo: "Pessoas jurídicas"
+    cor: pj
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Total"
+    tabela: "Tabela 4 — Crédito do sistema financeiro, resumo do crédito livre"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    papel: total
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pf
+    codigo: 20662
+    rotulo: "Pessoas físicas"
+    cor: pf
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas físicas - Total"
+    tabela: "Tabela 4 — Crédito do sistema financeiro, resumo do crédito livre"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    papel: total
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  # =================================================================
+  # G25 — Concessões de crédito livre PJ por modalidade (Tabela 10)
+  #
+  # Mesmas seis modalidades do gráfico de saldo (G8), para que os dois gráficos sejam
+  # comparáveis linha a linha, com as mesmas cores e a mesma ordem. O que muda é só a
+  # tabela de origem: Tabela 10 em vez de Tabela 6.
+  #
+  # As seis somam 49% da concessão livre a PJ em 07/2026; o resto (conta garantida,
+  # cheque especial PJ, antecipação de faturas de cartão, cartão à vista, compror,
+  # vendor, importações, repasses e outros) entra na parcela residual
+  # `conc_livre_pj_outros`, em config/derivadas.yaml.
+  # =================================================================
+
+  - serie_id: conc_livre_pj_capital_giro_acima_365d
+    codigo: 20640
+    rotulo: "Capital de giro — acima de 365 dias"
+    cor: extra-1
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo superior a 365 dias"
+    tabela: "Tabela 10 — Concessões do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pj_capital_giro_ate_365d
+    codigo: 20639
+    rotulo: "Capital de giro — até 365 dias"
+    cor: extra-2
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Capital de giro com prazo de até 365 dias"
+    tabela: "Tabela 10 — Concessões do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pj_duplicatas
+    codigo: 20636
+    rotulo: "Desconto de duplicatas e recebíveis"
+    cor: extra-3
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e recebíveis"
+    tabela: "Tabela 10 — Concessões do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pj_veiculos
+    codigo: 20645
+    rotulo: "Aquisição de veículos"
+    cor: extra-4
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Aquisição de veículos"
+    tabela: "Tabela 10 — Concessões do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pj_exportacoes
+    codigo: 20659
+    rotulo: "Financiamento a exportações"
+    cor: extra-5
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Financiamento a exportações"
+    tabela: "Tabela 10 — Concessões do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pj_acc
+    codigo: 20657
+    rotulo: "Adiantamento sobre contratos de câmbio"
+    cor: extra-6
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas jurídicas - Adiantamento sobre contratos de câmbio (ACC)"
+    tabela: "Tabela 10 — Concessões do crédito livre a pessoas jurídicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: empresa
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  # =================================================================
+  # G26 — Concessões de crédito livre PF por modalidade (Tabela 11)
+  #
+  # Mesmas quatro modalidades do gráfico de saldo (G9), com UMA diferença obrigatória: o
+  # cartão de crédito entra pela parcela À VISTA (20681), e não pelo total (20682).
+  #
+  # A regra é da fonte, não deste painel. A nota 7/ da Tabela 11 do BCB diz, textualmente:
+  # "New operations in credit card revolving credit and credit card financing credit are
+  # not included in the new operations total" — ou seja, o rotativo e o parcelado do
+  # cartão não integram o total de concessões, embora integrem o total de saldo.
+  # Conferido aritmeticamente em 26/09/2026, nos 185 meses: com o cartão À VISTA, a soma
+  # das modalidades publicadas fecha em 20662 com divergência máxima de 0,0023%; com o
+  # cartão TOTAL, estoura o total em até 19,9%, e o residual do gráfico ficaria NEGATIVO
+  # em 14 dos 185 meses.
+  #
+  # Não trocar 20681 por 20682 "para ficar igual ao saldo". Ficaria igual no rótulo e
+  # errado na aritmética.
+  #
+  # A nota 4/ da mesma tabela registra que a composição de dívidas (20667) também fica
+  # fora do total. Ela não é exibida aqui nem entra no residual, que é por definição
+  # `total publicado − parcelas exibidas`.
+  #
+  # As quatro somam 85% da concessão livre a PF em 07/2026; o resto (cheque especial,
+  # aquisição de outros bens, arrendamento, desconto de cheques e demais) entra em
+  # `conc_livre_pf_outros`.
+  # =================================================================
+
+  - serie_id: conc_livre_pf_consignado
+    codigo: 20671
+    rotulo: "Crédito consignado"
+    cor: extra-1
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas físicas - Crédito pessoal consignado total"
+    tabela: "Tabela 11 — Concessões do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pf_nao_consignado
+    codigo: 20666
+    rotulo: "Crédito não consignado"
+    cor: extra-2
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas físicas - Crédito pessoal não consignado total"
+    tabela: "Tabela 11 — Concessões do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  # O rótulo diz "à vista" porque é o que a série é. Encurtar para "Cartão de crédito",
+  # como no gráfico de saldo, faria o leitor comparar dois recortes diferentes com o
+  # mesmo nome — ver a nota do bloco acima.
+  - serie_id: conc_livre_pf_cartao_avista
+    codigo: 20681
+    rotulo: "Cartão de crédito — à vista"
+    cor: extra-3
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas físicas - Cartão de crédito à vista"
+    tabela: "Tabela 11 — Concessões do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    agregacao: fluxo
+    bases: *bases_concessao
+    validar: false
+
+  - serie_id: conc_livre_pf_veiculos
+    codigo: 20673
+    rotulo: "Aquisição de veículos"
+    cor: extra-4
+    descricao_esperada: "Concessões de crédito com recursos livres - Pessoas físicas - Aquisição de veículos"
+    tabela: "Tabela 11 — Concessões do crédito livre a pessoas físicas"
+    unidade: "R$ milhões"
+    fator: 0.001
+    unidade_exibicao: "R$ bilhões"
+    periodicidade: M
+    segmento: familia
+    agregacao: fluxo
+    bases: *bases_concessao
     validar: false
 
   # =================================================================
@@ -1043,7 +1419,7 @@ series:
     codigo: 21087
     rotulo: "Desconto de duplicatas e recebíveis"
     cor: extra-3
-    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e outros recebíveis"
+    descricao_esperada: "Inadimplência da carteira de crédito com recursos livres - Pessoas jurídicas - Desconto de duplicatas e recebíveis"
     tabela: "Tabela 19 — Inadimplência do crédito livre a pessoas jurídicas"
     unidade: "%"
     fator: 1
@@ -1213,7 +1589,7 @@ series:
     codigo: 27703
     rotulo: "Micro, pequenas e médias"
     cor: extra-1
-    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Micro, pequena e média empresa"
+    descricao_esperada: "Inadimplência da carteira de crédito por porte da empresa - Micro, Pequena e Média (MPMe)"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "%"
     fator: 1
@@ -1227,7 +1603,7 @@ series:
     codigo: 27704
     rotulo: "Grandes"
     cor: extra-4
-    descricao_esperada: "Inadimplência da carteira de crédito - Pessoas jurídicas - Grande empresa"
+    descricao_esperada: "Inadimplência da carteira de crédito por porte da empresa - Grande"
     tabela: "Tabela 23 — Saldo e inadimplência por porte da empresa"
     unidade: "%"
     fator: 1
@@ -1249,7 +1625,7 @@ series:
     codigo: 29037
     rotulo: "Total"
     cor: alerta
-    descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses"
+    descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional em relação à renda acumulada dos últimos doze meses (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1
@@ -1263,7 +1639,7 @@ series:
     codigo: 29038
     rotulo: "Exceto financiamento imobiliário"
     cor: pf
-    descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses"
+    descricao_esperada: "Endividamento das famílias com o Sistema Financeiro Nacional exceto crédito habitacional em relação à renda acumulada dos últimos 12 meses (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1
@@ -1277,7 +1653,7 @@ series:
     codigo: 29034
     rotulo: "Total"
     cor: alerta
-    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1
@@ -1291,7 +1667,7 @@ series:
     codigo: 29035
     rotulo: "Exceto financiamento imobiliário"
     cor: pf
-    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional exceto crédito habitacional - Com ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional exceto crédito habitacional - Com ajuste sazonal (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1
@@ -1315,7 +1691,7 @@ series:
   - serie_id: ref_pib_sfn_total
     codigo: 20622
     rotulo: "Crédito do SFN em % do PIB — oficial"
-    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB - Total"
+    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB"
     tabela: "Tabela 2 — Saldo da carteira por origem dos recursos"
     unidade: "% do PIB"
     fator: 1
@@ -1330,7 +1706,7 @@ series:
   - serie_id: ref_pib_sfn_pj
     codigo: 20623
     rotulo: "Crédito PJ em % do PIB — oficial"
-    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB - Pessoas jurídicas - Total"
+    descricao_esperada: "Saldo da carteira de crédito a pessoas jurídicas em relação ao PIB"
     tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
     unidade: "% do PIB"
     fator: 1
@@ -1345,7 +1721,7 @@ series:
   - serie_id: ref_pib_sfn_pf
     codigo: 20624
     rotulo: "Crédito PF em % do PIB — oficial"
-    descricao_esperada: "Saldo da carteira de crédito em relação ao PIB - Pessoas físicas - Total"
+    descricao_esperada: "Saldo da carteira de crédito a pessoas físicas em relação ao PIB"
     tabela: "Tabela 3 — Saldo da carteira por tipo de tomador"
     unidade: "% do PIB"
     fator: 1
@@ -1360,7 +1736,7 @@ series:
   - serie_id: ref_pib_amplo_total
     codigo: 28215
     rotulo: "Crédito ampliado em % do PIB — oficial"
-    descricao_esperada: "Crédito ampliado ao setor não financeiro em relação ao PIB - Total"
+    descricao_esperada: "Saldo de crédito ampliado total em relação ao PIB"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "% do PIB"
     fator: 1
@@ -1375,7 +1751,7 @@ series:
   - serie_id: ref_pib_amplo_emp
     codigo: 28867
     rotulo: "Crédito ampliado às empresas em % do PIB — oficial"
-    descricao_esperada: "Crédito ampliado às empresas em relação ao PIB - Total"
+    descricao_esperada: "Saldo de crédito ampliado concedido a empresas em relação ao PIB"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "% do PIB"
     fator: 1
@@ -1390,7 +1766,7 @@ series:
   - serie_id: ref_pib_amplo_fam
     codigo: 28868
     rotulo: "Crédito ampliado às famílias em % do PIB — oficial"
-    descricao_esperada: "Crédito ampliado às famílias em relação ao PIB - Total"
+    descricao_esperada: "Saldo de crédito ampliado concedido a famílias em relação ao PIB"
     tabela: "Tabela 1 — Crédito ampliado ao setor não financeiro"
     unidade: "% do PIB"
     fator: 1
@@ -1461,7 +1837,7 @@ series:
   - serie_id: comprometimento_renda_nsa
     codigo: 29265
     rotulo: "Comprometimento de renda — sem ajuste sazonal"
-    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com o serviço da dívida com o Sistema Financeiro Nacional - Sem ajuste sazonal (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1
@@ -1474,7 +1850,7 @@ series:
   - serie_id: comprometimento_juros
     codigo: 29033
     rotulo: "Comprometimento com juros"
-    descricao_esperada: "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com juros da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1
@@ -1487,7 +1863,7 @@ series:
   - serie_id: comprometimento_amortizacao
     codigo: 29036
     rotulo: "Comprometimento com amortização"
-    descricao_esperada: "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal"
+    descricao_esperada: "Comprometimento de renda das famílias com amortização da dívida com o Sistema Financeiro Nacional - Com ajuste sazonal (RNDBF)"
     tabela: "Tabela 27 — Endividamento e comprometimento de renda das famílias"
     unidade: "%"
     fator: 1

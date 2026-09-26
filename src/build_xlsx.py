@@ -6,8 +6,8 @@ Estrutura da pasta:
   Dicionário    a ficha de cada série: nome na fonte, código, tabela, unidade, cobertura
   <aba>         uma aba por aba temática da página, datas em linhas e séries em colunas,
                 nos VALORES ORIGINAIS da fonte
-  base_*        uma aba por base do seletor (nominal, real, pib, var1m, var12m), com as
-                séries de saldo já transformadas e o sufixo padronizado na coluna
+  base_*        uma aba por base do seletor (nominal, real, acum12m, pib, var1m, var12m),
+                com as séries transformadas e o sufixo padronizado na coluna
   dados_longo   o formato canônico inteiro, para quem for reprocessar
 
 CLAUDE.md, princípio 3 da orientação: a planilha traz cada série desde a PRIMEIRA
@@ -89,6 +89,23 @@ LEIA_ME = [
         "calculadas pela regra declarada em config/derivadas.yaml. A coluna calculo do "
         "Dicionário traz a fórmula com os códigos envolvidos.",
     ),
+    (
+        "Saldo e concessão",
+        "O painel traz duas medidas diferentes, em abas próprias. SALDO é estoque: a "
+        "carteira viva no fim do mês. CONCESSÃO é fluxo: o volume contratado dentro do "
+        "mês. Os níveis não se comparam, e as séries de concessão (prefixo conc_) começam "
+        "em março de 2011, contra março de 2007 das de saldo. Nenhuma das duas é "
+        "dessazonalizada.",
+    ),
+    (
+        "Cartão de crédito na concessão",
+        "Na concessão a pessoas físicas, a modalidade cartão de crédito entra pela parcela "
+        "à vista (SGS 20681) e não pelo total (SGS 20682): pela nota 7 da Tabela 11 do "
+        "Banco Central, as concessões de cartão rotativo e de cartão parcelado não "
+        "integram o total de concessões, embora os saldos correspondentes integrem o total "
+        "de saldo. Com o total no lugar da parcela à vista, a soma das modalidades excede "
+        "o total publicado em até 20%.",
+    ),
     ("", ""),
     ("Abas de base transformada", ""),
     (
@@ -101,9 +118,18 @@ LEIA_ME = [
         "A linha 'Mês-base do deflator' abaixo diz qual é. Sufixo _real.",
     ),
     (
+        "base_acum12m",
+        "Soma das doze últimas observações mensais, em valores correntes. Só existe para "
+        "as séries de concessão, que são fluxo: acumular saldos não teria significado. Os "
+        "onze primeiros meses de cada série ficam vazios, e a soma reúne valores correntes "
+        "de doze meses diferentes — não está a preços de um único mês. Sufixo _acum12m.",
+    ),
+    (
         "base_pib",
-        "Saldo dividido pelo PIB acumulado em 12 meses a valores correntes (SGS 4382), em "
-        "porcentagem. Sufixo _pib.",
+        "Divisão pelo PIB acumulado em 12 meses a valores correntes (SGS 4382), em "
+        "porcentagem. No saldo o numerador é o valor do mês; na concessão é a soma dos doze "
+        "últimos meses, para que numerador e denominador cubram o mesmo intervalo de tempo. "
+        "Sufixo _pib.",
     ),
     (
         "base_var1m",

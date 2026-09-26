@@ -1,9 +1,18 @@
 # Monitor de Crédito e Endividamento
 
-Painel público com o estoque de crédito, a inadimplência, o endividamento e o
-comprometimento de renda de **famílias** e **empresas não financeiras**, no Brasil e em
+Painel público com o estoque de crédito, as concessões, a inadimplência, o endividamento e
+o comprometimento de renda de **famílias** e **empresas não financeiras**, no Brasil e em
 benchmark internacional. Dados atualizados automaticamente via API, a cada quinze dias,
 e baixáveis em XLSX.
+
+**Saldo e concessão são medidas diferentes e vivem em abas separadas** (decisão de
+26/09/2026). Saldo é estoque: a carteira viva no fim do mês. Concessão é fluxo: o volume
+contratado dentro do mês. Os níveis não se comparam, e por isso todo título de aba e de
+gráfico diz qual das duas está sendo exibida — "Saldo do crédito…" ou "Concessões de
+crédito…". Não remover esses prefixos. A aba de concessões replica os gráficos da de saldo
+onde a fonte publica o equivalente; crédito ampliado, porte da empresa e atividade
+econômica não têm série de concessão, e as três aberturas não devem ser inventadas por
+simetria.
 
 Autoria: Kleber Pacheco de Castro.
 
@@ -72,12 +81,31 @@ total de uma tabela do BCB que não tem coluna de total publicada (`soma`), e a
 inadimplência agregada por porte (`media_ponderada`). Cada uma é declarada em
 `config/derivadas.yaml` e ganha entrada própria no catálogo, no parquet e na planilha.
 
-`src/transformacoes.py` é outra coisa: são cinco maneiras de EXIBIR uma série que já
-existe — R$ correntes, R$ constantes, % do PIB, variação mensal e variação em 12 meses.
-Não criam série nova. Cada série declara em `bases` quais delas aceita, e
-`config/abas.yaml` declara quais o seletor de um gráfico oferece. Saldo aceita as cinco;
-série já em porcentagem não aceita nenhuma, porque taxa não se deflaciona nem se divide
-pelo PIB.
+`src/transformacoes.py` é outra coisa: são seis maneiras de EXIBIR uma série que já
+existe — R$ correntes, R$ constantes, acumulado em 12 meses, % do PIB, variação mensal e
+variação em 12 meses. Não criam série nova. Cada série declara em `bases` quais delas
+aceita, e `config/abas.yaml` declara quais o seletor de um gráfico oferece. Saldo aceita
+cinco (todas menos o acumulado); concessão aceita as seis; série já em porcentagem não
+aceita nenhuma, porque taxa não se deflaciona nem se divide pelo PIB.
+
+### Estoque e fluxo — o campo `agregacao`
+
+Duas dessas bases dependem de a série ser um SALDO ou uma CONCESSÃO, e o catálogo declara
+isso no campo `agregacao` (`estoque`, que é o padrão, ou `fluxo`). Decisão de 26/09/2026,
+junto com a entrada da aba de concessões:
+
+- `acum12m` só existe para fluxo. Somar doze saldos somaria o mesmo estoque doze vezes, e
+  `transformacoes.aplica` recusa a combinação em vez de devolver um número.
+- `pib` tem duas fórmulas. Estoque: `valor(t) / PIB12m(t)`. Fluxo: soma dos doze últimos
+  meses sobre o mesmo PIB de doze meses — o único jeito de numerador e denominador
+  cobrirem o mesmo intervalo. Dividir a concessão de um mês pelo PIB de doze devolveria um
+  número cerca de doze vezes menor, plausível à vista e sem significado.
+
+O erro que isso previne é silencioso: uma série de concessão que esqueça `agregacao: fluxo`
+teria o "% do PIB" calculado pela fórmula errada, no eixo certo e com a unidade certa.
+Quem pega é `build_dataset.confere_agregacao`, que exige valor válido, exige `fluxo` em
+quem oferece `acum12m`, e recusa gráfico que misture as duas coisas. Não afrouxar essas
+três regras.
 
 As duas variações são calculadas sobre o valor NOMINAL, nunca sobre o deflacionado —
 variação de série já deflacionada descontaria a inflação duas vezes. E nenhuma delas é
@@ -135,7 +163,10 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
 - **O ritmo importa e mudou com o tamanho do catálogo.** Com 42 séries, 0,7s entre
   chamadas bastava. Com 108, a validação virou 103 requisições em rajada contínua e
   passou a ser recusada; `validate_series.PAUSA` subiu para 1,2s. Quem acrescentar muitas
-  séries de uma vez precisa reavaliar isso.
+  séries de uma vez precisa reavaliar isso. Em 26/09/2026 o catálogo foi a 113 códigos
+  do BCB e a validação passou a fazer DUAS requisições por série — dados e metadados —,
+  e 1,2s continuou bastando: as duas vão para hosts diferentes (`api.bcb.gov.br` e
+  `www3.bcb.gov.br`), então a rajada que o SGS estrangula não dobrou.
 - Resposta pode vir como HTML de erro com status 200. Validar que o payload é lista de
   dicts — e REPETIR, porque esse é o sinal de que a API está sob carga, não de que o
   código está errado. `comum.http_get` não consegue fazer isso sozinho: para ele, 200 foi
@@ -154,12 +185,22 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
   cache); a validação não, e em 19/09/2026 um read timeout na série 20541 matou o script
   inteiro com traceback no meio da lista. Um gate que morre na primeira falha de rede não
   consegue dizer quais códigos estão quebrados, que é a única coisa que se pede dele.
-- **Não existe endpoint público de metadados por código.** A consulta do `sgspub` exige
-  sessão de navegador e o portal de dados abertos (CKAN) só busca por texto livre,
-  devolvendo pacotes de outro assunto — o código 433 traz "Ouvidorias dos bancos" em
-  primeiro lugar. Conferido de novo em 19/09/2026. O nome oficial de cada série vem da
-  tabela de origem do BCB anotada no catálogo (`descricao_esperada` + `tabela`), e o que
-  valida o código de fato são as identidades contábeis do `build_dataset.py`.
+- **Existe endpoint público de metadados por código, e é o SOAP legado.** Isto CORRIGE a
+  anotação anterior, que dizia o contrário. O que de fato não serve é o que havia sido
+  testado em 19/09/2026: o `sgspub` exige sessão de navegador, e o portal de dados abertos
+  (CKAN) só busca por texto livre, devolvendo pacotes de outro assunto — o código 433 traz
+  "Ouvidorias dos bancos" em primeiro lugar. Mas
+  `https://www3.bcb.gov.br/wssgs/services/FachadaWSSGS`, operação `getUltimoValorXML`,
+  devolve `<NOME>`, `<UNIDADE>` e `<PERIODICIDADE>` de qualquer código, por POST, sem
+  sessão e sem chave. Conferido nos 113 códigos do catálogo em 26/09/2026: todos
+  responderam, e por isso `descricao_esperada` passou a guardar o nome oficial do SGS, não
+  mais a paráfrase da tabela (52 entradas foram alinhadas naquela data).
+  `validate_series.py` confere esse nome — é o nível 2 do gate. O serviço é um SOAP legado
+  e menos estável que a API REST, então a política é assimétrica de propósito: nome que
+  DIVERGE reprova; serviço que não responde apenas avisa. Sem isso o gate viraria ponto
+  único de falha capaz de bloquear a atualização de dados corretos.
+- As identidades contábeis do `build_dataset.py` continuam sendo o teste mais forte do
+  código: nome certo não garante que a soma das parcelas feche no total.
 
 **FRED** — exige `FRED_API_KEY`. Nunca commitar a chave; ler de variável de ambiente,
 em CI vem de GitHub Secrets. Séries do BIS são servidas pelo FRED e são **trimestrais**,
@@ -282,12 +323,14 @@ e tooltip, lendo os mesmos `tokens.css` e `style.css` do site. Fora do menu e co
   famílias do Google Fonts. Nenhuma delas pode ser necessária para a página funcionar.
 - Testes nunca vão à rede. `tests/test_parsing.py` cobre a normalização da coleta
   (decimal brasileiro, data `dd/MM/yyyy`, payload mascarado, janelas); `tests/test_bases.py`,
-  as quatro transformações; `tests/test_derivadas.py`, residual, soma e média ponderada,
-  mais a coerência do YAML de produção; `tests/test_resiliencia.py`, a política de falha e
-  o guard de regressão.
+  as seis transformações e o despacho entre estoque e fluxo; `tests/test_derivadas.py`,
+  residual, soma e média ponderada, mais a coerência do YAML de produção;
+  `tests/test_resiliencia.py`, a política de falha, o guard de regressão, o guard de
+  `agregacao` e a coerência da aba de concessões; `tests/test_validacao.py`, os dois
+  níveis do gate e a normalização de nome.
 - `python src/build_dataset.py --do-cache` reconstrói os artefatos a partir do cache
   local, sem rede. É o jeito de iterar no front, na Metodologia ou na planilha sem repetir
-  as 108 requisições. Uso manual: no CI a coleta é sempre real.
+  as 122 requisições. Uso manual: no CI a coleta é sempre real.
 
 ## O que exige decisão humana — sinalizar, não executar
 

@@ -66,12 +66,19 @@ def agora_brasilia() -> str:
 # ---------------------------------------------------------------- HTTP
 
 
-def http_get(url: str, **kwargs: Any) -> requests.Response:
-    """GET com retry e backoff exponencial. Repete em 429 e em 5xx."""
+def http_get(url: str, metodo: str = "get", **kwargs: Any) -> requests.Response:
+    """
+    Requisição com retry e backoff exponencial. Repete em 429 e em 5xx.
+
+    `metodo` existe por um único caso: o serviço de metadados do SGS é SOAP e só atende
+    POST (ver `validate_series._metadados`). Uma segunda função de HTTP daria duas
+    políticas de retry no projeto, que é o problema que esta função já foi criada para
+    resolver. O padrão continua sendo GET.
+    """
     ultima_excecao: Exception | None = None
     for tentativa in range(TENTATIVAS):
         try:
-            resp = requests.get(url, timeout=TIMEOUT, **kwargs)
+            resp = requests.request(metodo, url, timeout=TIMEOUT, **kwargs)
             if resp.status_code == 429 or 500 <= resp.status_code < 600:
                 time.sleep(2**tentativa)
                 continue

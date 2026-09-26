@@ -231,3 +231,122 @@ class TestQuebraDeLinhaDosArtefatos(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGuardDeAgregacao(unittest.TestCase):
+    """
+    O guard que impede estoque e fluxo de se misturarem (`confere_agregacao`).
+
+    Existe por um erro que não dá exceção nenhuma: uma série de concessão que esqueça
+    `agregacao: fluxo` tem o seu "% do PIB" calculado pela fórmula de estoque e sai cerca
+    de doze vezes menor — um número plausível à vista, no eixo certo, com a unidade certa.
+    Nenhum teste de valor pegaria isso. O que pega é a coerência declarada.
+    """
+
+    def test_o_catalogo_de_producao_esta_coerente(self):
+        problemas = build_dataset.confere_agregacao(build_dataset.catalogo_completo())
+        self.assertEqual(problemas, [], "\n".join(problemas))
+
+    def test_acum12m_sem_agregacao_fluxo_e_apontado(self):
+        catalogo = {"x": {"bases": ["nominal", "acum12m"]}}  # `agregacao` omitida = estoque
+        problemas = build_dataset.confere_agregacao(catalogo)
+        self.assertEqual(len(problemas), 1)
+        self.assertIn("acum12m", problemas[0])
+
+    def test_valor_invalido_de_agregacao_e_apontado(self):
+        problemas = build_dataset.confere_agregacao({"x": {"agregacao": "flusso"}})
+        self.assertEqual(len(problemas), 1)
+        self.assertIn("flusso", problemas[0])
+
+    def test_serie_de_fluxo_bem_declarada_passa(self):
+        catalogo = {"x": {"agregacao": "fluxo", "bases": ["nominal", "acum12m", "pib"]}}
+        self.assertEqual(build_dataset.confere_agregacao(catalogo), [])
+
+    def test_saldo_sem_o_campo_passa(self):
+        """O padrão é estoque, e é o que mantém as 94 séries de saldo válidas sem edição."""
+        catalogo = {"x": {"bases": ["nominal", "real", "pib", "var1m", "var12m"]}}
+        self.assertEqual(build_dataset.confere_agregacao(catalogo), [])
+
+
+class TestAbaDeConcessoes(unittest.TestCase):
+    """
+    Coerência da aba de concessões em `config/abas.yaml`, contra o catálogo real.
+
+    Não testa aparência; testa o que, se quebrar, produz um gráfico que mente: base
+    oferecida sem todas as séries a suportarem, série de saldo entrando num gráfico de
+    fluxo, ou o agregado sem o papel de total.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalogo = build_dataset.catalogo_completo()
+        cls.abas = {a["id"]: a for a in comum.carrega_abas()["abas"]}
+        cls.graficos = {g["id"]: g for g in cls.abas["concessoes"]["graficos"]}
+
+    def test_a_aba_existe_e_vem_logo_depois_do_saldo(self):
+        ordem = list(self.abas)
+        self.assertEqual(ordem.index("concessoes"), ordem.index("mercado_credito") + 1)
+
+    def test_todo_grafico_oferece_as_seis_bases(self):
+        for gid, g in self.graficos.items():
+            self.assertEqual(
+                g["bases"],
+                ["nominal", "real", "acum12m", "pib", "var1m", "var12m"],
+                f"{gid} oferece {g['bases']}",
+            )
+
+    def test_toda_serie_da_aba_e_de_fluxo(self):
+        for gid, g in self.graficos.items():
+            for serie_id in g["series"]:
+                self.assertEqual(
+                    self.catalogo[serie_id].get("agregacao"),
+                    "fluxo",
+                    f"{gid}/{serie_id} não é fluxo",
+                )
+
+    def test_nenhuma_serie_de_saldo_entrou_na_aba(self):
+        for g in self.graficos.values():
+            for serie_id in g["series"]:
+                self.assertTrue(
+                    serie_id.startswith("conc_"),
+                    f"{serie_id} não é série de concessão",
+                )
+
+    def test_os_titulos_distinguem_saldo_de_concessao(self):
+        """
+        O pedido explícito: o leitor tem de saber, pelo título, qual medida está vendo.
+
+        Vale nas duas direções — nenhum título de concessão pode dizer "Saldo", e todo
+        título da aba de saldo tem de dizer.
+        """
+        for g in self.graficos.values():
+            self.assertTrue(g["titulo"].startswith("Concessões"), g["titulo"])
+        for g in self.abas["mercado_credito"]["graficos"]:
+            self.assertTrue(g["titulo"].startswith("Saldo"), g["titulo"])
+        self.assertEqual(self.abas["mercado_credito"]["titulo"], "Saldo do crédito")
+        self.assertEqual(self.abas["concessoes"]["titulo"], "Concessões de crédito")
+
+    def test_os_graficos_de_modalidade_marcam_o_agregado_como_total(self):
+        """Nos gráficos de modalidade, a série de PJ/PF vira o total — rótulo e cor."""
+        for gid, agregado in (("g25", "conc_livre_pj"), ("g26", "conc_livre_pf")):
+            g = self.graficos[gid]
+            self.assertEqual(g["series"][0], agregado)
+            self.assertEqual(g["rotulos"][agregado], "Total")
+            self.assertEqual(g["cores"][agregado], "total")
+
+    def test_cada_grafico_espelha_o_seu_equivalente_de_saldo(self):
+        """
+        A aba foi pedida como réplica da de saldo. Este teste fixa o pareamento: mesmo
+        número de séries e mesma sequência de papéis de cor em cada par de gráficos.
+        """
+        pares = [("g4", "g21"), ("g5", "g22"), ("g6", "g23"), ("g7", "g24"), ("g8", "g25"), ("g9", "g26")]
+        saldo = {g["id"]: g for g in self.abas["mercado_credito"]["graficos"]}
+        for gid_saldo, gid_conc in pares:
+            a, b = saldo[gid_saldo], self.graficos[gid_conc]
+            self.assertEqual(
+                len(a["series"]), len(b["series"]), f"{gid_saldo} x {gid_conc}: nº de séries"
+            )
+            papeis = lambda g: [  # noqa: E731
+                (g.get("cores") or {}).get(s) or self.catalogo[s].get("cor") for s in g["series"]
+            ]
+            self.assertEqual(papeis(a), papeis(b), f"{gid_saldo} x {gid_conc}: papéis de cor")

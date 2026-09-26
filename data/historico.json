@@ -1,5 +1,36 @@
 [
  {
+  "em": "2026-09-26T17:31:39+00:00",
+  "data": "2026-09-26",
+  "n_series": 129,
+  "novas": [
+   "conc_direcionado",
+   "conc_direcionado_pf",
+   "conc_direcionado_pj",
+   "conc_livre",
+   "conc_livre_pf",
+   "conc_livre_pf_cartao_avista",
+   "conc_livre_pf_consignado",
+   "conc_livre_pf_nao_consignado",
+   "conc_livre_pf_outros",
+   "conc_livre_pf_veiculos",
+   "conc_livre_pj",
+   "conc_livre_pj_acc",
+   "conc_livre_pj_capital_giro_acima_365d",
+   "conc_livre_pj_capital_giro_ate_365d",
+   "conc_livre_pj_duplicatas",
+   "conc_livre_pj_exportacoes",
+   "conc_livre_pj_outros",
+   "conc_livre_pj_veiculos",
+   "conc_pf",
+   "conc_pj",
+   "conc_total"
+  ],
+  "avancaram": [],
+  "revisadas": [],
+  "sumiram": []
+ },
+ {
   "em": "2026-09-19T14:50:37+00:00",
   "data": "2026-09-19",
   "n_series": 108,

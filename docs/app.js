@@ -149,9 +149,15 @@
   }
 
   /* Unidade curta para o topo do eixo. O rótulo longo ("R$ bilhões de ago/2026") não
-     cabe ali e repete o que o tooltip já diz. */
+     cabe ali e repete o que o tooltip já diz.
+
+     O acumulado em 12 meses é a exceção que precisa de caso próprio, e vem ANTES do teste
+     genérico de "R$": um fluxo mensal e a sua soma de doze meses têm a mesma unidade e
+     ordens de grandeza diferentes — R$ 737 bi contra R$ 8.375 bi no mesmo eixo "R$ bi".
+     Sem a marca no eixo, a única pista de que a escala mudou seria o seletor. */
   function unidadeCurta(unidade) {
     if (!unidade) return '';
+    if (unidade.indexOf('acumulados em 12 meses') >= 0) return 'R$ bi, 12m';
     if (unidade.indexOf('R$') >= 0) return 'R$ bi';
     if (unidade.indexOf('12 meses') >= 0) return '% 12m';
     if (unidade.indexOf('no mês') >= 0) return '% mês';
