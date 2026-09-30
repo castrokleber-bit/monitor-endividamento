@@ -3,7 +3,7 @@ Testes de PARSING e normalização da coleta. Sem rede.
 
 O que protegem: o decimal brasileiro do SGS, a data `dd/MM/yyyy`, a recusa de payload
 mascarado (HTML com status 200, `{"erro":{}}`, lista vazia), a paginação por janelas, o
-`.` do FRED como ausente, e o formato longo canônico.
+o CSV do BIS com trimestre `yyyy-Qn` e valor vazio, e o formato longo canônico.
 
 Renomeado de test_transformacoes.py em 19/09/2026, quando nasceu `src/transformacoes.py`
 e o nome antigo passou a apontar para a coisa errada. As quatro bases do seletor são
@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import fetch_bcb  # noqa: E402
-import fetch_fred  # noqa: E402
+import fetch_bis  # noqa: E402
 from build_dataset import para_formato_longo  # noqa: E402
 from comum import COLUNAS  # noqa: E402
 
@@ -118,43 +118,33 @@ class TestJanelasSgs(unittest.TestCase):
             self.assertEqual(int(seguinte[0].split("/")[-1]), int(anterior[1].split("/")[-1]) + 1)
 
 
-class TestObservacoesFred(unittest.TestCase):
-    def test_ponto_significa_ausente_e_e_descartado(self):
-        obs = fetch_fred.normaliza_observacoes(
-            {
-                "observations": [
-                    {"date": "2025-07-01", "value": "."},
-                    {"date": "2025-10-01", "value": "62.4"},
-                ]
-            },
-            "x",
-        )
-        self.assertEqual(obs, [["2025-10-01", 62.4]])
+CSV_BIS = (
+    "FREQ,BORROWERS_CTY,TIME_PERIOD,OBS_VALUE,TITLE_TS\n"
+    "Q,BR,2025-Q4,37.6,Brazil - Credit to Households\n"
+    "Q,BR,2025-Q3,,Brazil - Credit to Households\n"
+    "Q,BR,2026-Q1,38,Brazil - Credit to Households\n"
+)
 
-    def test_ordena_por_data(self):
-        obs = fetch_fred.normaliza_observacoes(
-            {
-                "observations": [
-                    {"date": "2025-10-01", "value": "62.4"},
-                    {"date": "2025-07-01", "value": "61.9"},
-                ]
-            },
-            "x",
-        )
-        self.assertEqual([o[0] for o in obs], ["2025-07-01", "2025-10-01"])
 
-    def test_payload_sem_observations_e_recusado(self):
+class TestObservacoesBis(unittest.TestCase):
+    def test_valor_vazio_e_descartado_e_ordena_por_data(self):
+        obs = fetch_bis.normaliza_observacoes(fetch_bis.le_csv(CSV_BIS, "x"), "x")
+        self.assertEqual(obs, [["2025-10-01", 37.6], ["2026-01-01", 38.0]])
+
+    def test_corpo_que_nao_e_o_csv_esperado_e_recusado(self):
         with self.assertRaises(fetch_bcb.ErroColeta):
-            fetch_fred.normaliza_observacoes({"erro": "chave inválida"}, "x")
+            fetch_bis.le_csv("<html>erro</html>", "x")
+        with self.assertRaises(fetch_bcb.ErroColeta):
+            fetch_bis.le_csv("", "x")
 
     def test_serie_toda_ausente_e_recusada(self):
+        linhas = fetch_bis.le_csv("TIME_PERIOD,OBS_VALUE\n2025-Q4,\n", "x")
         with self.assertRaises(fetch_bcb.ErroColeta):
-            fetch_fred.normaliza_observacoes(
-                {"observations": [{"date": "2025-10-01", "value": "."}]}, "x"
-            )
+            fetch_bis.normaliza_observacoes(linhas, "x")
 
-    def test_data_iso(self):
-        self.assertEqual(fetch_fred.parse_data_fred("2025-10-01"), date(2025, 10, 1))
+    def test_trimestre_vira_primeiro_dia(self):
+        self.assertEqual(fetch_bis.parse_periodo_bis("2026-Q1"), date(2026, 1, 1))
+        self.assertEqual(fetch_bis.parse_periodo_bis("2025-Q4"), date(2025, 10, 1))
 
 
 class TestFormatoLongo(unittest.TestCase):
@@ -172,8 +162,8 @@ class TestFormatoLongo(unittest.TestCase):
             },
             "trimestral": {
                 "serie_id": "trimestral",
-                "fonte": "FRED",
-                "codigo_fonte": "QBRHAM770A",
+                "fonte": "BIS",
+                "codigo_fonte": "Q.BR.H.A.M.770.A",
                 "unidade": "% do PIB",
                 "periodicidade": "T",
                 "obs": [["2025-10-01", 34.2]],

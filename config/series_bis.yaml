@@ -1,35 +1,43 @@
-# Catálogo de séries — FRED (Federal Reserve Bank of St. Louis)
+# Catálogo de séries — BIS (Bank for International Settlements), coleta direta via SDMX
 #
-# Inclui as séries do BIS (Bank for International Settlements) redistribuídas pelo FRED,
-# que são a referência internacional comparável de dívida por setor em % do PIB.
+# Referência internacional comparável de dívida por setor em % do PIB (base "Total credit
+# to the non-financial sector", dataflow WS_TC).
 #
 # `rotulo` é o texto curto usado na legenda do gráfico.
-# Endpoint: https://api.stlouisfed.org/fred/series/observations?series_id={id}&api_key=...
-# Chave: variável de ambiente FRED_API_KEY (em CI, GitHub Secret; local, arquivo .env).
+# Endpoint: https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{codigo}?format=csv
+# Sem chave de API.
 #
-# Códigos conferidos contra a API em 2026-08-29 — todos responderam com observações.
-# O catálogo tinha 13 séries até 30/08/2026; as quatro só dos EUA foram retiradas (ver
-# o bloco no fim do arquivo).
+# FONTE TROCADA EM 30/09/2026: até então estas séries vinham do FRED, que as redistribui
+# com os códigos QBRHAM770A etc. (ver o fim do arquivo). O FRED repassa cada divulgação
+# trimestral do BIS com atraso de meses — em 30/09/2026 o BIS já publicava o 1º tri/2026
+# e o FRED seguia no 4º tri/2025, sem atualização desde 15/06/2026. São as mesmas séries:
+# o histórico coincide observação a observação, exceto revisões de 0,1 p.p. que o BIS
+# já incorporou e o FRED não.
+#
+# `descricao_esperada` é o TITLE_TS do BIS, conferido pelo nível 2 do gate.
+#
+# Código = chave SDMX: FREQ.PAÍS.SETOR.CREDORES.VALORAÇÃO.UNIDADE.AJUSTE
+#   setor: H = famílias | N = empresas não financeiras | P = setor privado não financeiro
+#   credores A = todos os setores | valoração M = valor de mercado
+#   unidade 770 = % do PIB | ajuste A = ajustado para quebras
 
-fonte: FRED
+fonte: BIS
 
 series:
 
   # ---------------------------------------------------------------
   # BIS — dívida por setor, % do PIB, comparável entre países
-  # Padrão do código: Q + país(2) + setor(1) + valoração(1) + ajuste(1) + unidade(3) + freq
-  # setor: H = famílias | N = empresas não financeiras | P = setor privado não financeiro
   #
   # `pais` é metadado de identidade visual: a série com pais: BR tem de ser a primeira
   # de qualquer gráfico que a contenha, para receber a primeira cor da paleta (o azul
   # institucional). `build_dataset.py` falha o build se a ordem for invertida.
   # ---------------------------------------------------------------
   - serie_id: bis_familias_br
-    codigo: QBRHAM770A
+    codigo: "Q.BR.H.A.M.770.A"
     pais: BR
     rotulo: "Brasil"
     cor: total
-    descricao_esperada: "Credit to Households and NPISHs, Brazil, % of GDP"
+    descricao_esperada: "Brazil - Credit to Households and NPISHs from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -37,11 +45,11 @@ series:
     validar: false
 
   - serie_id: bis_empresas_br
-    codigo: QBRNAM770A
+    codigo: "Q.BR.N.A.M.770.A"
     pais: BR
     rotulo: "Brasil"
     cor: total
-    descricao_esperada: "Credit to Non-Financial Corporations, Brazil, % of GDP"
+    descricao_esperada: "Brazil - Credit to Non-financial corporations from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -49,25 +57,23 @@ series:
     validar: false
 
   - serie_id: bis_privado_br
-    codigo: QBRPAM770A
+    codigo: "Q.BR.P.A.M.770.A"
     pais: BR
     rotulo: "Brasil — setor privado não financeiro"
     cor: total
-    descricao_esperada: "Credit to Private Non-Financial Sector, Brazil, % of GDP"
+    descricao_esperada: "Brazil - Credit to Private non-financial sector from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
     segmento: ambos
     validar: false
 
-  # O FRED escreve "Non-Profit Institutions Serving Households" por extenso para os EUA
-  # e "NPISHs" para os demais países. Mesma definição do BIS.
   - serie_id: bis_familias_us
-    codigo: QUSHAM770A
+    codigo: "Q.US.H.A.M.770.A"
     pais: US
     rotulo: "Estados Unidos"
     cor: dir
-    descricao_esperada: "Credit to Households and Non-Profit Institutions Serving Households, United States, % of GDP"
+    descricao_esperada: "United States - Credit to Households and NPISHs from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -75,11 +81,11 @@ series:
     validar: false
 
   - serie_id: bis_empresas_us
-    codigo: QUSNAM770A
+    codigo: "Q.US.N.A.M.770.A"
     pais: US
     rotulo: "Estados Unidos"
     cor: dir
-    descricao_esperada: "Credit to Non-Financial Corporations, United States, % of GDP"
+    descricao_esperada: "United States - Credit to Non-financial corporations from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -87,11 +93,11 @@ series:
     validar: false
 
   - serie_id: bis_familias_mx
-    codigo: QMXHAM770A
+    codigo: "Q.MX.H.A.M.770.A"
     pais: MX
     rotulo: "México"
     cor: extra-1
-    descricao_esperada: "Credit to Households and NPISHs, Mexico, % of GDP"
+    descricao_esperada: "Mexico - Credit to Households and NPISHs from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -99,11 +105,11 @@ series:
     validar: false
 
   - serie_id: bis_empresas_mx
-    codigo: QMXNAM770A
+    codigo: "Q.MX.N.A.M.770.A"
     pais: MX
     rotulo: "México"
     cor: extra-1
-    descricao_esperada: "Credit to Non-Financial Corporations, Mexico, % of GDP"
+    descricao_esperada: "Mexico - Credit to Non-financial corporations from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -111,11 +117,11 @@ series:
     validar: false
 
   - serie_id: bis_familias_cl
-    codigo: QCLHAM770A
+    codigo: "Q.CL.H.A.M.770.A"
     pais: CL
     rotulo: "Chile"
     cor: extra-2
-    descricao_esperada: "Credit to Households and NPISHs, Chile, % of GDP"
+    descricao_esperada: "Chile - Credit to Households and NPISHs from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -123,11 +129,11 @@ series:
     validar: false
 
   - serie_id: bis_empresas_cl
-    codigo: QCLNAM770A
+    codigo: "Q.CL.N.A.M.770.A"
     pais: CL
     rotulo: "Chile"
     cor: extra-2
-    descricao_esperada: "Credit to Non-Financial Corporations, Chile, % of GDP"
+    descricao_esperada: "Chile - Credit to Non-financial corporations from All sectors at Market value - Percentage of GDP - Adjusted for breaks"
     unidade: "% do PIB"
     periodicidade: T
     aba: internacional
@@ -135,7 +141,15 @@ series:
     validar: false
 
 # ---------------------------------------------------------------
-# RETIRADAS DO CATÁLOGO EM 30/08/2026
+# CÓDIGOS ANTERIORES NO FRED (fonte até 30/09/2026)
+#
+#   bis_familias_br QBRHAM770A   bis_empresas_br QBRNAM770A   bis_privado_br QBRPAM770A
+#   bis_familias_us QUSHAM770A   bis_empresas_us QUSNAM770A
+#   bis_familias_mx QMXHAM770A   bis_empresas_mx QMXNAM770A
+#   bis_familias_cl QCLHAM770A   bis_empresas_cl QCLNAM770A
+#
+# ---------------------------------------------------------------
+# RETIRADAS DO CATÁLOGO EM 30/08/2026 (séries do FRED, não do BIS)
 #
 # Quatro séries que só descreviam os Estados Unidos, sem contraparte brasileira, saíram
 # junto com os dois gráficos que as exibiam. Não são mais coletadas nem publicadas:

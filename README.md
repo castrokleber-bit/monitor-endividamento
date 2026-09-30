@@ -12,9 +12,17 @@ Kleber Pacheco de Castro
 
 ## Estado do projeto
 
-ETL e front rodando ponta a ponta: **129 séries** (113 do BCB/SGS, 9 do FRED/BIS, 7
+ETL e front rodando ponta a ponta: **129 séries** (113 do BCB/SGS, 9 do BIS, 7
 calculadas) e **26 gráficos em 6 abas** — Saldo do crédito, Concessões de crédito,
 Inadimplência, Dívida das famílias, Comparação internacional e Metodologia.
+
+### Fonte das séries internacionais, 30/09/2026
+
+As nove séries do BIS passaram a ser coletadas direto da API SDMX do BIS
+(`src/fetch_bis.py`, `config/series_bis.yaml`), em vez da redistribuição do FRED, que
+repassa cada divulgação trimestral com meses de atraso. Mesmas séries — o histórico
+coincide, exceto revisões de 0,1 p.p. que o BIS já havia incorporado. O gate confere o
+nome oficial (TITLE_TS) de cada chave, e a coleta dispensa chave de API.
 
 ### Aba de concessões, 26/09/2026
 
@@ -148,9 +156,6 @@ painel em 19/09/2026, quando a página passou a seguir só o catálogo G1–G20.
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-export FRED_API_KEY=...            # https://fredaccount.stlouisfed.org/apikeys
-                                   # ou grave em .env na raiz (fora do versionamento)
-
 python -m unittest discover -s tests   # transformações, sem rede
 python src/validate_series.py      # PRIMEIRO PASSO. Confere todo código contra a API.
 python src/build_dataset.py        # coleta, deriva, transforma, gera data/ e docs/dados.js
@@ -244,8 +249,10 @@ rotulada `pipeline`.
       sendo o teste mais forte: nome certo não garante que a soma feche no total
 - [x] `content/metodologia.md` com um parágrafo por série incluída — as séries do
       catálogo aparecem citadas pelo código na fonte
-- [x] `FRED_API_KEY` cadastrada como GitHub Secret (nunca no repositório) — é o que o
-      workflow usa, via `secrets.FRED_API_KEY`
+- [x] **Séries internacionais coletadas direto do BIS desde 30/09/2026**, pela API SDMX,
+      sem chave. O FRED, que as redistribuía, estava um trimestre atrás (4º tri/2025,
+      sem atualização desde 15/06/2026, com o BIS já no 1º tri/2026). O workflow deixou
+      de usar `secrets.FRED_API_KEY`; o Secret pode ser apagado quando convier
 - [x] **Variável de repositório `FRED_API_KEY` apagada em 26/09/2026.** Além do Secret,
       existia uma *variável* de mesmo nome com a chave em texto claro, criada em
       30/08/2026. Variável de Actions não é criptografada e a própria documentação do

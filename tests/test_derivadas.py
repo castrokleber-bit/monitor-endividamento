@@ -183,7 +183,7 @@ class TestCatalogoReal(unittest.TestCase):
             (RAIZ / "config" / "derivadas.yaml").read_text(encoding="utf-8")
         )
         cls.coletadas = set()
-        for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+        for arquivo in ("series_bcb.yaml", "series_bis.yaml"):
             cat = yaml.safe_load((RAIZ / "config" / arquivo).read_text(encoding="utf-8"))
             cls.coletadas.update(s["serie_id"] for s in cat["series"])
 
@@ -246,7 +246,7 @@ class TestCatalogoReal(unittest.TestCase):
         import transformacoes
 
         coletadas = {}
-        for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+        for arquivo in ("series_bcb.yaml", "series_bis.yaml"):
             cat = yaml.safe_load((RAIZ / "config" / arquivo).read_text(encoding="utf-8"))
             for s in cat["series"]:
                 coletadas[s["serie_id"]] = s
@@ -271,7 +271,7 @@ class TestCatalogoReal(unittest.TestCase):
         outra deixaria a soma das parcelas MAIOR que o total, e o residual negativo.
         """
         coletadas = {}
-        for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+        for arquivo in ("series_bcb.yaml", "series_bis.yaml"):
             cat = yaml.safe_load((RAIZ / "config" / arquivo).read_text(encoding="utf-8"))
             for s in cat["series"]:
                 coletadas[s["serie_id"]] = s

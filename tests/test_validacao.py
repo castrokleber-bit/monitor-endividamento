@@ -266,10 +266,10 @@ class TestFalhaDeRedeNaoDerrubaOScript(unittest.TestCase):
         self.assertTrue(res["ok"])
         self.assertEqual(get.call_count, 2)
 
-    def test_fred_tambem_reprova_em_vez_de_levantar(self):
+    def test_bis_tambem_reprova_em_vez_de_levantar(self):
         erro = RuntimeError("falha de rede")
         with mock.patch.object(validate_series, "_get", side_effect=erro):
-            res = validate_series.valida_fred({"serie_id": "bis_x", "codigo": "QBRHAM770A"}, "k")
+            res = validate_series.valida_bis({"serie_id": "bis_x", "codigo": "Q.BR.H.A.M.770.A"})
         self.assertFalse(res["ok"])
         self.assertIn("falha de rede", res["erro"])
 
@@ -359,6 +359,46 @@ class TestMetadadosDoSgs(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertNotIn("nome_oficial", res)
         self.assertEqual(get.call_count, 1)
+
+
+class TestValidacaoDoBis(unittest.TestCase):
+    """Os dois níveis do gate numa requisição só: o CSV do BIS traz o nome em cada linha."""
+
+    SERIE_BIS = {
+        "serie_id": "bis_x",
+        "codigo": "Q.BR.H.A.M.770.A",
+        "descricao_esperada": "Brazil - Credit to Households and NPISHs",
+    }
+
+    @staticmethod
+    def _csv(nome: str):
+        resp = RespostaFalsa(200)
+        resp.text = f"TIME_PERIOD,OBS_VALUE,TITLE_TS\n2026-Q1,38,{nome}\n"
+        return resp
+
+    def test_nome_igual_passa(self):
+        with mock.patch.object(validate_series, "_get", return_value=self._csv("Brazil - Credit to Households and NPISHs")):
+            res = validate_series.valida_bis(self.SERIE_BIS)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["ultima_data"], "2026-Q1")
+
+    def test_nome_diferente_reprova(self):
+        with mock.patch.object(validate_series, "_get", return_value=self._csv("Brazil - Credit to Non-financial corporations")):
+            res = validate_series.valida_bis(self.SERIE_BIS)
+        self.assertFalse(res["ok"])
+        self.assertIn("nome na fonte", res["erro"])
+
+    def test_chave_inexistente_reprova(self):
+        with mock.patch.object(validate_series, "_get", return_value=RespostaFalsa(404)):
+            res = validate_series.valida_bis(self.SERIE_BIS)
+        self.assertFalse(res["ok"])
+
+    def test_corpo_que_nao_e_csv_reprova(self):
+        resp = RespostaFalsa(200)
+        resp.text = "<html>erro</html>"
+        with mock.patch.object(validate_series, "_get", return_value=resp):
+            res = validate_series.valida_bis(self.SERIE_BIS)
+        self.assertFalse(res["ok"])
 
 
 class TestNormalizacaoDeNome(unittest.TestCase):

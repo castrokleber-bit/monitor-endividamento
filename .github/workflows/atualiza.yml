@@ -55,8 +55,6 @@ jobs:
         run: python -m unittest discover -s tests
 
       - name: Valida códigos de série
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python src/validate_series.py
 
       # build_dataset.py sai com 1 se o catálogo ficou inconsistente (série citada e não
@@ -64,8 +62,6 @@ jobs:
       # se a cobertura regrediu — série que tinha dado e sumiu. Nos dois casos o step
       # falha, o job para e NADA é commitado: é o gate contra publicar dado parcial.
       - name: Coleta e consolida
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: |
           python src/build_dataset.py
           python src/build_xlsx.py
@@ -98,9 +94,8 @@ jobs:
               '',
               'Causas prováveis, em ordem de frequência:',
               '- fonte fora do ar ou devolvendo erro mascarado (HTTP 200 com corpo de erro);',
-              '- código de série retirado ou renomeado no SGS;',
-              '- identidade contábil que deixou de fechar após revisão da fonte;',
-              '- `FRED_API_KEY` ausente ou expirada.',
+              '- código de série retirado ou renomeado no SGS ou no BIS;',
+              '- identidade contábil que deixou de fechar após revisão da fonte.',
               '',
               'Esta issue é reaproveitada enquanto estiver aberta. Feche-a quando a',
               'atualização voltar a passar.',

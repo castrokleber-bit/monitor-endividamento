@@ -63,7 +63,7 @@ LEIA_ME = [
         "externa. Não inclui dívida com o comércio nem com fintechs não reguladas.",
     ),
     (
-        "BIS (via FRED)",
+        "BIS",
         "Cobre crédito ao setor de todas as fontes — bancos domésticos, mercado de capitais "
         "e credores externos. Os níveis são estruturalmente mais altos que os do SFN e NÃO "
         "são comparáveis com as demais abas, que cobrem o SFN.",
@@ -148,7 +148,7 @@ LEIA_ME = [
 def _catalogo_completo() -> dict[str, dict]:
     """Catálogo inteiro, incluindo as séries calculadas."""
     series = {}
-    for arquivo in ("series_bcb.yaml", "series_fred.yaml", "derivadas.yaml"):
+    for arquivo in ("series_bcb.yaml", "series_bis.yaml", "derivadas.yaml"):
         for serie in carrega_catalogo(arquivo)["series"]:
             series[serie["serie_id"]] = serie
     return series

@@ -56,7 +56,7 @@ import pandas as pd
 import build_metodologia
 import derivadas
 import fetch_bcb
-import fetch_fred
+import fetch_bis
 import transformacoes
 from comum import (
     COLUNAS,
@@ -75,7 +75,7 @@ from comum import (
     le_cache,
 )
 
-CATALOGOS = {"bcb": "series_bcb.yaml", "fred": "series_fred.yaml"}
+CATALOGOS = {"bcb": "series_bcb.yaml", "bis": "series_bis.yaml"}
 CATALOGO_DERIVADAS = "derivadas.yaml"
 
 # Tolerância do teste que confere a transformação "% do PIB" contra o % do PIB oficial
@@ -89,7 +89,7 @@ TOLERANCIA_PIB_PP = 0.01
 # ---------------------------------------------------------------- coleta
 
 
-def coleta_serie(serie: dict, fonte: str, api_key: str | None) -> tuple[dict | None, dict]:
+def coleta_serie(serie: dict, fonte: str) -> tuple[dict | None, dict]:
     """
     Coleta uma série. Em falha, cai para o cache anterior.
 
@@ -103,14 +103,14 @@ def coleta_serie(serie: dict, fonte: str, api_key: str | None) -> tuple[dict | N
     serie_id = serie["serie_id"]
     base = {
         "serie_id": serie_id,
-        "fonte": fetch_bcb.FONTE if fonte == "bcb" else fetch_fred.FONTE,
+        "fonte": fetch_bcb.FONTE if fonte == "bcb" else fetch_bis.FONTE,
         "codigo_fonte": str(serie["codigo"]),
         "unidade": serie["unidade"],
         "periodicidade": serie.get("periodicidade", "M"),
     }
 
     try:
-        payload = fetch_bcb.coleta(serie) if fonte == "bcb" else fetch_fred.coleta(serie, api_key)
+        payload = fetch_bcb.coleta(serie) if fonte == "bcb" else fetch_bis.coleta(serie)
         grava_cache(serie_id, payload)
         estado, motivo = "ok", None
     except (fetch_bcb.ErroColeta, RuntimeError, ValueError, KeyError) as exc:
@@ -154,7 +154,7 @@ def do_cache(serie: dict, fonte: str) -> tuple[dict | None, dict]:
     serie_id = serie["serie_id"]
     base = {
         "serie_id": serie_id,
-        "fonte": fetch_bcb.FONTE if fonte == "bcb" else fetch_fred.FONTE,
+        "fonte": fetch_bcb.FONTE if fonte == "bcb" else fetch_bis.FONTE,
         "codigo_fonte": str(serie["codigo"]),
         "unidade": serie["unidade"],
         "periodicidade": serie.get("periodicidade", "M"),
@@ -186,13 +186,6 @@ def coleta_tudo(
     fontes: list[str], apenas_cache: bool = False
 ) -> tuple[dict[str, dict], list[dict], dict[str, dict]]:
     """Percorre os catálogos e devolve (payloads, manifesto, metadados do catálogo)."""
-    api_key = None
-    if "fred" in fontes and not apenas_cache:
-        try:
-            api_key = fetch_fred.chave()
-        except fetch_bcb.ErroColeta as exc:
-            print(f"\n!! {exc}\n")
-
     payloads: dict[str, dict] = {}
     manifesto: list[dict] = []
     catalogo: dict[str, dict] = {}
@@ -205,7 +198,7 @@ def coleta_tudo(
             if apenas_cache:
                 payload, entrada = do_cache(serie, fonte)
             else:
-                payload, entrada = coleta_serie(serie, fonte, api_key)
+                payload, entrada = coleta_serie(serie, fonte)
             manifesto.append(entrada)
             if payload is not None:
                 payloads[serie["serie_id"]] = payload
@@ -891,7 +884,7 @@ def main() -> int:
     carrega_env()
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fonte", choices=["bcb", "fred", "todas"], default="todas")
+    ap.add_argument("--fonte", choices=["bcb", "bis", "todas"], default="todas")
     ap.add_argument(
         "--sem-guard",
         action="store_true",
@@ -904,7 +897,7 @@ def main() -> int:
         help="reconstrói os artefatos do cache local, sem ir à rede (uso manual)",
     )
     args = ap.parse_args()
-    fontes = ["bcb", "fred"] if args.fonte == "todas" else [args.fonte]
+    fontes = ["bcb", "bis"] if args.fonte == "todas" else [args.fonte]
 
     anterior = le_manifesto_anterior()  # lido antes de sobrescrever
     payloads, manifesto, catalogo = coleta_tudo(fontes, apenas_cache=args.do_cache)

@@ -52,7 +52,7 @@ class TestPoliticaDeFalha(unittest.TestCase):
 
     def test_coleta_ok_grava_cache_e_marca_ok(self):
         with mock.patch.object(fetch_bcb, "coleta", return_value=PAYLOAD_BOM):
-            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb", None)
+            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb")
 
         self.assertEqual(entrada["status"], "ok")
         self.assertEqual(entrada["n_obs"], 2)
@@ -64,7 +64,7 @@ class TestPoliticaDeFalha(unittest.TestCase):
         comum.grava_cache("serie_teste", PAYLOAD_BOM)
 
         with mock.patch.object(fetch_bcb, "coleta", side_effect=fetch_bcb.ErroColeta("503")):
-            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb", None)
+            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb")
 
         self.assertEqual(entrada["status"], "stale")
         self.assertIn("503", entrada["motivo"])
@@ -74,13 +74,13 @@ class TestPoliticaDeFalha(unittest.TestCase):
         comum.grava_cache("serie_teste", PAYLOAD_BOM)
 
         with mock.patch.object(fetch_bcb, "coleta", side_effect=fetch_bcb.ErroColeta("503")):
-            _, entrada = build_dataset.coleta_serie(SERIE, "bcb", None)
+            _, entrada = build_dataset.coleta_serie(SERIE, "bcb")
 
         self.assertEqual(entrada["ultima_coleta_ok"], PAYLOAD_BOM["coletado_em"])
 
     def test_falha_sem_cache_marca_ausente_e_nao_levanta(self):
         with mock.patch.object(fetch_bcb, "coleta", side_effect=fetch_bcb.ErroColeta("406")):
-            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb", None)
+            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb")
 
         self.assertIsNone(payload)
         self.assertEqual(entrada["status"], "ausente")
@@ -92,7 +92,7 @@ class TestPoliticaDeFalha(unittest.TestCase):
         comum.grava_cache("serie_teste", PAYLOAD_BOM)
 
         with mock.patch.object(fetch_bcb, "coleta", side_effect=RuntimeError("falha de rede")):
-            _, entrada = build_dataset.coleta_serie(SERIE, "bcb", None)
+            _, entrada = build_dataset.coleta_serie(SERIE, "bcb")
 
         self.assertEqual(entrada["status"], "stale")
 
@@ -100,7 +100,7 @@ class TestPoliticaDeFalha(unittest.TestCase):
         comum.caminho_cache("serie_teste").write_text("{ nao é json", encoding="utf-8")
 
         with mock.patch.object(fetch_bcb, "coleta", side_effect=fetch_bcb.ErroColeta("503")):
-            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb", None)
+            payload, entrada = build_dataset.coleta_serie(SERIE, "bcb")
 
         self.assertIsNone(payload)
         self.assertEqual(entrada["status"], "ausente")

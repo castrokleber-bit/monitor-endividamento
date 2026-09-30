@@ -1236,7 +1236,7 @@
       'Atualizado em ' + dados.atualizado_em + '.';
 
     rodape.textContent =
-      'Fonte: BCB/SGS e FRED. Última atualização em ' + dados.atualizado_em + '. Ver Metodologia.';
+      'Fonte: BCB/SGS e BIS. Última atualização em ' + dados.atualizado_em + '. Ver Metodologia.';
 
     if (dados.desatualizadas.length) {
       var aviso = document.getElementById('aviso-global');

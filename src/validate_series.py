@@ -42,6 +42,9 @@ A UNIDADE é registrada no relatório mas NÃO reprova. O SGS escreve "R$ (milh�
 catálogo escreve "R$ milhões", e o catálogo refina "%" em "% do PIB" onde isso é
 informativo. São divergências de grafia e de precisão, não de identidade do código.
 
+As séries do BIS (fonte direta desde 30/09/2026, antes via FRED) passam pelos dois níveis
+numa requisição só: o CSV da API SDMX traz o nome da série em cada linha. Ver `valida_bis`.
+
 Uso:
     python src/validate_series.py                # valida tudo
     python src/validate_series.py --fonte bcb    # só BCB
@@ -53,9 +56,10 @@ Saída: relatório na tela + config/_validacao.json. Sai com código 1 se houver
 from __future__ import annotations
 
 import argparse
+import csv
 import html
+import io
 import json
-import os
 import re
 import sys
 import time
@@ -67,13 +71,13 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from comum import carrega_env, escreve_texto, http_get  # noqa: E402
+from comum import escreve_texto, http_get  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 CONFIG = RAIZ / "config"
 
 SGS_DADOS = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/{n}?formato=json"
-FRED_META = "https://api.stlouisfed.org/fred/series"
+BIS_DADOS = "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{codigo}"
 
 # Metadados por código do SGS: serviço SOAP legado, documentado no cabeçalho deste
 # módulo. É o único endereço público que devolve o nome oficial de um código — a API REST
@@ -293,41 +297,59 @@ def valida_bcb(serie: dict) -> dict:
     return res
 
 
-# ---------------------------------------------------------------- FRED
+# ---------------------------------------------------------------- BIS
 
 
-def valida_fred(serie: dict, api_key: str) -> dict:
+def valida_bis(serie: dict) -> dict:
+    """
+    Níveis 1 e 2 numa requisição só: o CSV do BIS traz o nome da série (TITLE_TS) em
+    cada linha, junto com a observação. Sem serviço de metadados à parte, não há o caso
+    "metadados indisponíveis" do SGS — nome que diverge reprova, sempre.
+    """
     codigo = serie["codigo"]
-    res = {"serie_id": serie["serie_id"], "fonte": "FRED", "codigo": codigo}
+    res = {"serie_id": serie["serie_id"], "fonte": "BIS", "codigo": codigo}
 
     # Mesma proteção de `_observacao_mais_recente`: falha de rede reprova a série, não
-    # derruba o script. O FRED é bem mais estável que o SGS, mas a regra é a mesma.
+    # derruba o script.
     try:
-        resp = _get(FRED_META, params={"series_id": codigo, "api_key": api_key, "file_type": "json"})
+        resp = _get(
+            BIS_DADOS.format(codigo=codigo), params={"format": "csv", "lastNObservations": 1}
+        )
     except (RuntimeError, requests.RequestException) as exc:
         return {**res, "ok": False, "erro": f"falha de rede: {exc}"}
 
-    if resp.status_code == 400:
-        return {**res, "ok": False, "erro": "400 — series_id inexistente no FRED"}
+    if resp.status_code == 404:
+        return {**res, "ok": False, "erro": "404 — chave inexistente no BIS"}
     if resp.status_code != 200:
         return {**res, "ok": False, "erro": f"HTTP {resp.status_code}"}
 
-    try:
-        info = resp.json().get("seriess", [])
-    except ValueError:
-        return {**res, "ok": False, "erro": "resposta não é JSON"}
-    if not info:
-        return {**res, "ok": False, "erro": "série não encontrada"}
+    linhas = list(csv.DictReader(io.StringIO(resp.text)))
+    if not linhas or not {"TIME_PERIOD", "OBS_VALUE", "TITLE_TS"} <= set(linhas[0]):
+        return {**res, "ok": False, "erro": "resposta não é o CSV esperado"}
 
-    s = info[0]
-    return {
-        **res,
-        "ok": True,
-        "nome_oficial": s.get("title"),
-        "unidade_oficial": s.get("units"),
-        "frequencia_oficial": s.get("frequency_short"),
-        "ultima_data": s.get("observation_end"),
-    }
+    ultima = linhas[-1]
+    esperado = serie.get("descricao_esperada")
+    res.update(
+        {
+            "ok": True,
+            "ultima_data": ultima["TIME_PERIOD"],
+            "ultimo_valor": ultima["OBS_VALUE"],
+            "descricao_esperada": esperado,
+            "nome_oficial": ultima["TITLE_TS"],
+            "metadados": "conferido",
+        }
+    )
+    if _normaliza_nome(ultima["TITLE_TS"]) != _normaliza_nome(esperado):
+        return {
+            **res,
+            "ok": False,
+            "erro": (
+                "nome na fonte não é o esperado pelo catálogo — chave errada ou série "
+                f"renomeada no BIS.\n           fonte:    {ultima['TITLE_TS']}\n"
+                f"           catálogo: {esperado}"
+            ),
+        }
+    return res
 
 
 # ---------------------------------------------------------------- relatório
@@ -353,7 +375,7 @@ def imprime(res: dict, esperado: str | None) -> None:
 def series_do_catalogo() -> set[str]:
     """Todo `serie_id` declarado nos catálogos de coleta, independentemente da execução."""
     ids: set[str] = set()
-    for arquivo in ("series_bcb.yaml", "series_fred.yaml"):
+    for arquivo in ("series_bcb.yaml", "series_bis.yaml"):
         cat = yaml.safe_load((CONFIG / arquivo).read_text(encoding="utf-8"))
         ids.update(s["serie_id"] for s in cat["series"])
     return ids
@@ -383,20 +405,17 @@ def relatorio_mesclado(
 
 
 def main() -> int:
-    carrega_env()  # a chave pode vir do ambiente ou de .env, como no build_dataset
-
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fonte", choices=["bcb", "fred", "todas"], default="todas")
+    ap.add_argument("--fonte", choices=["bcb", "bis", "todas"], default="todas")
     ap.add_argument("--so-pendentes", action="store_true", help="apenas séries com validar: true")
     args = ap.parse_args()
 
     catalogos = []
     if args.fonte in ("bcb", "todas"):
         catalogos.append(("bcb", CONFIG / "series_bcb.yaml"))
-    if args.fonte in ("fred", "todas"):
-        catalogos.append(("fred", CONFIG / "series_fred.yaml"))
+    if args.fonte in ("bis", "todas"):
+        catalogos.append(("bis", CONFIG / "series_bis.yaml"))
 
-    fred_key = os.environ.get("FRED_API_KEY")
     resultados, falhas = [], 0
 
     for nome_fonte, caminho in catalogos:
@@ -407,20 +426,8 @@ def main() -> int:
 
         print(f"\n=== {cat['fonte']} — {len(series)} série(s) ===\n")
 
-        if nome_fonte == "fred" and not fred_key:
-            # Pular em silêncio faria o gate aprovar um estado que o princípio 3 proíbe:
-            # série entrando no pipeline sem validação. O erro só apareceria na coleta,
-            # minutos depois. Falha aqui, alto e cedo.
-            print("FALHA — FRED_API_KEY não definida; as séries do FRED não foram validadas.")
-            print("  Em CI: cadastre o Secret de repositório FRED_API_KEY")
-            print("         (Settings > Secrets and variables > Actions > aba Secrets).")
-            print("  Local: exporte a variável ou grave em .env na raiz.")
-            print("  Para validar só o BCB de propósito, use --fonte bcb.\n")
-            falhas += len(series)
-            continue
-
         for s in series:
-            res = valida_bcb(s) if nome_fonte == "bcb" else valida_fred(s, fred_key)
+            res = valida_bcb(s) if nome_fonte == "bcb" else valida_bis(s)
             imprime(res, s.get("descricao_esperada"))
             resultados.append(res)
             falhas += 0 if res["ok"] else 1

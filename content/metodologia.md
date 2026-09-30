@@ -281,8 +281,10 @@ gráfico, exatamente por isso — escalas diferentes em eixos duplos produzem le
 
 O Bank for International Settlements publica, para um conjunto amplo de países, o crédito
 ao setor privado não financeiro em porcentagem do PIB, com metodologia harmonizada que
-permite comparação internacional. Chegam aqui pela redistribuição do Federal Reserve Bank
-of St. Louis (FRED), são trimestrais e saem com defasagem de um a dois trimestres.
+permite comparação internacional. São coletadas diretamente da API de dados do BIS
+(conjunto "Total credit to the non-financial sector"), são trimestrais e saem com
+defasagem de um a dois trimestres. Até 30/09/2026 vinham pela redistribuição do Federal
+Reserve Bank of St. Louis (FRED), que repassa cada divulgação do BIS com atraso adicional.
 
 **Os níveis não são comparáveis com as demais abas.** As séries do BIS medem crédito de
 todas as fontes — bancos domésticos, mercado de capitais e credores externos —, enquanto

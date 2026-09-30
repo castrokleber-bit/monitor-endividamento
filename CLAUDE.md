@@ -131,7 +131,7 @@ Todas as séries são normalizadas para formato longo antes de qualquer outra co
 | `serie_id` | str | slug definido no YAML (ex.: `endividamento_familias_total`) |
 | `data` | date | primeiro dia do período de referência |
 | `valor` | float | valor na unidade original da fonte |
-| `fonte` | str | `BCB/SGS`, `FRED`, `BIS` |
+| `fonte` | str | `BCB/SGS`, `BIS` |
 | `codigo_fonte` | str | código na fonte (ex.: `29037`) |
 | `unidade` | str | `%`, `% do PIB`, `R$ milhões` |
 | `periodicidade` | str | `M`, `T`, `A` |
@@ -202,12 +202,17 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
 - As identidades contábeis do `build_dataset.py` continuam sendo o teste mais forte do
   código: nome certo não garante que a soma das parcelas feche no total.
 
-**FRED** — exige `FRED_API_KEY`. Nunca commitar a chave; ler de variável de ambiente,
-em CI vem de GitHub Secrets. Séries do BIS são servidas pelo FRED e são **trimestrais**,
-com defasagem de um a dois trimestres.
+**BIS** — fonte das séries internacionais, coletadas direto da API SDMX
+(`https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{chave}?format=csv`), sem chave
+de API. Trimestrais, com defasagem de um a dois trimestres. O período vem como `yyyy-Qn`
+e vira o primeiro dia do trimestre; chave inexistente responde `404`. O CSV traz o nome
+oficial (`TITLE_TS`) em cada linha, então o gate confere os dois níveis numa requisição.
 
-**BIS** — alternativa direta via SDMX (`https://stats.bis.org/api/v1`). Usar só se o FRED
-não cobrir a série desejada.
+**FRED — deixou de ser fonte em 30/09/2026.** As mesmas séries do BIS vinham por ele,
+mas o FRED repassa cada divulgação com meses de atraso: naquela data o BIS já publicava o
+1º tri/2026 e o FRED seguia no 4º tri/2025, sem atualização desde 15/06/2026. A troca foi
+pedida pelo autor ao notar o atraso na página. Os códigos antigos estão no fim de
+`config/series_bis.yaml`. Não voltar ao FRED como fonte dessas séries.
 
 ## Identidade visual (obrigatória)
 
