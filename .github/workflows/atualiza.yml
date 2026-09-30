@@ -25,9 +25,9 @@ jobs:
   atualiza:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -45,7 +45,7 @@ jobs:
       # `restore-keys` faz a execução pegar o cache mais recente que existir, já que a
       # chave carrega a data e nunca bate exatamente.
       - name: Cache dos payloads da última coleta
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/_cache
           key: sgs-cache-${{ github.run_id }}
@@ -81,7 +81,7 @@ jobs:
       # uma issue por execução.
       - name: Abre issue se a atualização falhou
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const titulo = 'Atualização automática falhou';
@@ -144,12 +144,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
