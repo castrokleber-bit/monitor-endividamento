@@ -252,7 +252,8 @@ rotulada `pipeline`.
 - [x] **Séries internacionais coletadas direto do BIS desde 30/09/2026**, pela API SDMX,
       sem chave. O FRED, que as redistribuía, estava um trimestre atrás (4º tri/2025,
       sem atualização desde 15/06/2026, com o BIS já no 1º tri/2026). O workflow deixou
-      de usar `secrets.FRED_API_KEY`; o Secret pode ser apagado quando convier
+      de usar `secrets.FRED_API_KEY`, e o Secret foi apagado em 30/09/2026 por decisão
+      do autor. O projeto não tem mais nenhuma chave de API
 - [x] **Variável de repositório `FRED_API_KEY` apagada em 26/09/2026.** Além do Secret,
       existia uma *variável* de mesmo nome com a chave em texto claro, criada em
       30/08/2026. Variável de Actions não é criptografada e a própria documentação do
