@@ -1,5 +1,650 @@
 [
  {
+  "em": "2026-09-30T23:14:57+00:00",
+  "data": "2026-09-30",
+  "n_series": 129,
+  "novas": [],
+  "avancaram": [
+   {
+    "serie_id": "amplo_divida_externa",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_emp_divida_externa",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_emp_emprestimos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_emp_titulos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_emp_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_emprestimos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_fam_divida_externa",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_fam_emprestimos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_fam_titulos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_fam_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_titulos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "amplo_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ativ_agropecuaria",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ativ_industria",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ativ_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ativ_servicos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ativ_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "bis_empresas_br",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_empresas_cl",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_empresas_mx",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_empresas_us",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_familias_br",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_familias_cl",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_familias_mx",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_familias_us",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "bis_privado_br",
+    "de": "2025-10-01",
+    "para": "2026-01-01"
+   },
+   {
+    "serie_id": "comprometimento_amortizacao",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "comprometimento_juros",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "comprometimento_renda_ex_habitacional",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "comprometimento_renda_nsa",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "comprometimento_renda_total",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "conc_direcionado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_direcionado_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_direcionado_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pf_cartao_avista",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pf_consignado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pf_nao_consignado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pf_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pf_veiculos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_acc",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_capital_giro_acima_365d",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_capital_giro_ate_365d",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_duplicatas",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_exportacoes",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_livre_pj_veiculos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "conc_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "endividamento_familias_ex_habitacional",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "endividamento_familias_total",
+    "de": "2026-06-01",
+    "para": "2026-07-01"
+   },
+   {
+    "serie_id": "inad_livre_pf_cartao",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pf_consignado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pf_nao_consignado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pf_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pf_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pf_veiculos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_acc",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_capital_giro_acima_365d",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_capital_giro_ate_365d",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_duplicatas",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_exportacoes",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_livre_pj_veiculos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_pf_cheque_especial",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_porte_grande",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_porte_mpme",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_porte_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_sfn_direcionado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_sfn_livre",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_sfn_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_sfn_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "inad_sfn_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_acucar",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_alimentos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_automobilistica",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_bens_capital",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_construcao",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_embalagens",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_infraestrutura",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_metalurgia",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_mineracao",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_nao_duraveis",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_outros_duraveis",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_papel",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_petroleo",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_quimica",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_siup",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ind_textil",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pf_cartao",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pf_consignado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pf_nao_consignado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pf_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pf_veiculos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_acc",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_capital_giro_acima_365d",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_capital_giro_ate_365d",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_duplicatas",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_exportacoes",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_outros",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "livre_pj_veiculos",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "porte_grande",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "porte_mpme",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "porte_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ref_pib_amplo_emp",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ref_pib_amplo_fam",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ref_pib_amplo_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ref_pib_sfn_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ref_pib_sfn_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "ref_pib_sfn_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_direcionado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_direcionado_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_direcionado_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_livre",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_livre_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_livre_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_pf",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_pj",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "sfn_total",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "taxa_juros_pf_direcionado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "taxa_juros_pf_livre",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "taxa_juros_pj_direcionado",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   },
+   {
+    "serie_id": "taxa_juros_pj_livre",
+    "de": "2026-07-01",
+    "para": "2026-08-01"
+   }
+  ],
+  "revisadas": [],
+  "sumiram": []
+ },
+ {
   "em": "2026-09-26T17:31:39+00:00",
   "data": "2026-09-26",
   "n_series": 129,
