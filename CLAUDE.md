@@ -295,11 +295,28 @@ visível também param. Com `prefers-reduced-motion`, a faixa abre pausada. A or
 é a ordem dos gráficos em `config/abas.yaml`. Na impressão, os gráficos viram coluna.
 
 A transição de rolagem da faixa responde à rotação ou ao leitor; não é "animação de
-entrada" do gráfico, que continua proibida.
+entrada" do gráfico, que continua proibida. Uma barra de progresso fina, da largura dos
+comandos, mostra o tempo até a próxima troca e volta a zero quando a rotação para ou é
+suspensa; com `prefers-reduced-motion` ela não aparece.
+
+**Gráfico expandido (04/10/2026).** Clicar no gráfico, ou no ícone de expandir, abre o
+MESMO cartão em tela cheia, num `<dialog>`, com uma coluna de metodologia ao lado. O
+cartão é movido, não copiado — base, período e download continuam valendo — e um marcador
+guarda o lugar dele na faixa; a rotação para enquanto o diálogo está aberto. A coluna
+não tem texto escrito para ela: são os dois primeiros parágrafos da seção da Metodologia
+apontada pelo "i" (recorte mecânico, com link para a nota inteira), a descrição da base
+exibida, de `config/abas.yaml`, e a ficha de cada série, gerada do catálogo. Não
+escrever resumo ou paráfrase para essa coluna — o princípio 6 vale para ela. Toda saída
+do diálogo (botão, fundo, Esc, link) devolve o cartão diretamente: o evento `close` é
+assíncrono e, com a aba em segundo plano, chegou a não ser entregue.
+
+**Base de abertura (04/10/2026).** Todo gráfico que oferece R$ constantes abre nela
+(`base_padrao: real`). O topo do eixo mostra o mês-base ("R$ bi de ago/2026"), que é
+móvel.
 
 O cartão carrega título, controles e gráfico — **e nada abaixo do gráfico**. Sem nota,
 sem fonte, sem "última observação". A explicação toda vive na aba Metodologia, alcançada
-pelo ícone "i".
+pelo ícone "i", e no resumo da visão expandida.
 
 Abas como pílulas, barra sticky. Aba Metodologia como página editorial, com sumário fixo
 à esquerda.

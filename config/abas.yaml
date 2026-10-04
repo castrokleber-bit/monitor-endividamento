@@ -33,6 +33,9 @@
 # Um gráfico só oferece uma base se TODAS as suas séries a declararem — `confere_bases`
 # em src/build_dataset.py. É por isso que `acum12m` aparecer na lista global não a faz
 # aparecer nos gráficos de saldo.
+#
+# BASE DE ABERTURA (04/10/2026). Todo gráfico que oferece `real` abre em R$ constantes
+# (`base_padrao: real`), a pedido do autor. O mês-base aparece no topo do eixo.
 # ---------------------------------------------------------------------------
 bases:
   - id: nominal
@@ -136,49 +139,49 @@ abas:
         titulo: "Saldo do crédito ampliado ao setor não financeiro"
         series: [amplo_total, amplo_emprestimos, amplo_titulos, amplo_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-credito-ampliado
 
       - id: g2
         titulo: "Saldo do crédito ampliado às empresas"
         series: [amplo_emp_total, amplo_emp_emprestimos, amplo_emp_titulos, amplo_emp_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-credito-ampliado
 
       - id: g3
         titulo: "Saldo do crédito ampliado às famílias"
         series: [amplo_fam_total, amplo_fam_emprestimos, amplo_fam_titulos, amplo_fam_divida_externa]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-credito-ampliado
 
       - id: g4
         titulo: "Saldo do crédito do SFN por origem dos recursos"
         series: [sfn_total, sfn_direcionado, sfn_livre]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-livre-direcionado
 
       - id: g5
         titulo: "Saldo do crédito do SFN por tipo de tomador"
         series: [sfn_total, sfn_pj, sfn_pf]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-credito-sfn
 
       - id: g6
         titulo: "Saldo do crédito direcionado por tipo de tomador"
         series: [sfn_direcionado, sfn_direcionado_pj, sfn_direcionado_pf]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-livre-direcionado
 
       - id: g7
         titulo: "Saldo do crédito livre por tipo de tomador"
         series: [sfn_livre, sfn_livre_pj, sfn_livre_pf]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-livre-direcionado
 
       - id: g8
@@ -203,7 +206,7 @@ abas:
         cores:
           sfn_livre_pj: total
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-modalidades-pj
 
       - id: g9
@@ -220,21 +223,21 @@ abas:
         cores:
           sfn_livre_pf: total
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-modalidades-pf
 
       - id: g14
         titulo: "Saldo do crédito às empresas por porte"
         series: [porte_total, porte_mpme, porte_grande]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-porte
 
       - id: g16
         titulo: "Saldo do crédito às empresas por atividade econômica"
         series: [ativ_total, ativ_agropecuaria, ativ_industria, ativ_servicos, ativ_outros]
         bases: [nominal, real, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-atividade
         # Segundo nível: o seletor troca a linha "Indústria" pelas dezesseis séries que
         # a compõem. As dezesseis somam exatamente 22043 em todos os meses comuns — a
@@ -296,28 +299,28 @@ abas:
         titulo: "Concessões de crédito do SFN por origem dos recursos"
         series: [conc_total, conc_direcionado, conc_livre]
         bases: [nominal, real, acum12m, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-concessoes
 
       - id: g22
         titulo: "Concessões de crédito do SFN por tipo de tomador"
         series: [conc_total, conc_pj, conc_pf]
         bases: [nominal, real, acum12m, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-concessoes
 
       - id: g23
         titulo: "Concessões de crédito direcionado por tipo de tomador"
         series: [conc_direcionado, conc_direcionado_pj, conc_direcionado_pf]
         bases: [nominal, real, acum12m, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-concessoes
 
       - id: g24
         titulo: "Concessões de crédito livre por tipo de tomador"
         series: [conc_livre, conc_livre_pj, conc_livre_pf]
         bases: [nominal, real, acum12m, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-concessoes
 
       - id: g25
@@ -338,7 +341,7 @@ abas:
         cores:
           conc_livre_pj: total
         bases: [nominal, real, acum12m, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-concessoes-modalidades-pj
 
       - id: g26
@@ -355,7 +358,7 @@ abas:
         cores:
           conc_livre_pf: total
         bases: [nominal, real, acum12m, pib, var1m, var12m]
-        base_padrao: nominal
+        base_padrao: real
         metodologia: conceito-concessoes-modalidades-pf
 
   # =========================================================================

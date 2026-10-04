@@ -142,8 +142,12 @@
     return (parseInt(p[0], 10) - anos) + '-' + p[1] + '-' + p[2];
   }
 
-  /* Unidade curta para o topo do eixo. O rótulo longo ("R$ bilhões de ago/2026") não
-     cabe ali e repete o que o tooltip já diz.
+  /* Unidade curta para o topo do eixo. "R$ bilhões" vira "R$ bi".
+
+     Em R$ constantes o mês-base fica no eixo ("R$ bi de ago/2026"): é móvel, muda a cada
+     atualização, e a descrição da base promete que ele aparece ali. Com R$ constantes
+     como base de abertura (04/10/2026), escondê-lo deixaria o leitor sem saber a preços
+     de quando está o número.
 
      O acumulado em 12 meses é a exceção que precisa de caso próprio, e vem ANTES do teste
      genérico de "R$": um fluxo mensal e a sua soma de doze meses têm a mesma unidade e
@@ -152,6 +156,8 @@
   function unidadeCurta(unidade) {
     if (!unidade) return '';
     if (unidade.indexOf('acumulados em 12 meses') >= 0) return 'R$ bi, 12m';
+    var mesBase = /de ([a-z]{3}\/\d{4})$/.exec(unidade);
+    if (unidade.indexOf('R$') >= 0 && mesBase) return 'R$ bi de ' + mesBase[1];
     if (unidade.indexOf('R$') >= 0) return 'R$ bi';
     if (unidade.indexOf('12 meses') >= 0) return '% 12m';
     if (unidade.indexOf('no mês') >= 0) return '% mês';
@@ -720,7 +726,13 @@
 
     var info = iconeInfo(grafico);
     if (info) controles.appendChild(info);
+    var expande = botaoIcone('expande', ICONE.expande, 'Expandir o gráfico');
+    expande.addEventListener('click', function () { abreExpandido(reg); });
+    controles.appendChild(expande);
     controles.appendChild(menuDownload(reg));
+
+    // Clique no próprio gráfico também expande — é o gesto que o leitor tenta primeiro.
+    area.addEventListener('click', function () { if (!reg.expandido) abreExpandido(reg); });
 
     return reg;
   }
@@ -755,6 +767,7 @@
     reg.faixaAtual = faixa;
     reg.opcao = opcoes(reg, series, unidade, tk);
     if (reg.instancia) reg.instancia.setOption(reg.opcao, true);
+    if (reg.expandido) preencheNotas(reg);
   }
 
   function inicializa(reg) {
@@ -800,7 +813,13 @@
       '<rect x="7" y="2" width="2.5" height="8" rx=".75" fill="currentColor"/></svg>',
     toca: '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">' +
       '<path d="M3.5 2.2v7.6a.6.6 0 0 0 .9.5l6-3.8a.6.6 0 0 0 0-1L4.4 1.7a.6.6 0 0 0-.9.5Z" ' +
-      'fill="currentColor"/></svg>'
+      'fill="currentColor"/></svg>',
+    expande: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+      '<path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9 7M2.5 13.5 7 9" stroke="currentColor" ' +
+      'stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    fecha: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+      '<path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1.5" ' +
+      'stroke-linecap="round"/></svg>'
   };
 
   function botaoIcone(classe, svg, rotulo) {
@@ -869,10 +888,26 @@
     c.trilho.setAttribute('aria-live', c.pausado ? 'polite' : 'off');
   }
 
+  /* Barra de progresso: enche em INTERVALO e a troca acontece quando ela fecha. Parada
+     ou suspensa, volta a zero — a contagem recomeça inteira quando a rotação volta, e a
+     barra mostra exatamente isso. */
+  function progresso(c, correndo) {
+    var f = c.progresso;
+    f.style.transition = 'none';
+    f.style.transform = 'scaleX(0)';
+    if (!correndo) return;
+    void f.offsetWidth; // fixa o zero antes de animar, senão o navegador pula direto
+    f.style.transition = 'transform ' + INTERVALO + 'ms linear';
+    f.style.transform = 'scaleX(1)';
+  }
+
   function agenda(c) {
     clearTimeout(c.temporizador);
     c.temporizador = null;
-    if (!c.ativo || c.pausado || c.suspenso || document.hidden || !rolavel(c)) return;
+    var corre = c.ativo && !c.pausado && !c.suspenso && !modalAberto && !document.hidden &&
+      rolavel(c);
+    progresso(c, corre);
+    if (!corre) return;
     c.temporizador = setTimeout(function () {
       avanca(c, 1);
       agenda(c);
@@ -894,17 +929,24 @@
     var pausa = el('button', 'pilula carrossel__pausa');
     pausa.type = 'button';
     var posicao = el('span', 'carrossel__posicao');
-    barra.appendChild(anterior);
-    barra.appendChild(posicao);
-    barra.appendChild(proximo);
-    barra.appendChild(pausa);
+    var comandos = el('div', 'carrossel__comandos');
+    comandos.appendChild(anterior);
+    comandos.appendChild(posicao);
+    comandos.appendChild(proximo);
+    comandos.appendChild(pausa);
+    var trilhaProgresso = el('div', 'carrossel__progresso');
+    trilhaProgresso.setAttribute('aria-hidden', 'true');
+    var progressoFill = el('span');
+    trilhaProgresso.appendChild(progressoFill);
+    barra.appendChild(comandos);
+    barra.appendChild(trilhaProgresso);
 
     caixa.appendChild(trilho);
     caixa.appendChild(barra);
 
     var c = {
       abaId: abaId, caixa: caixa, trilho: trilho, barra: barra, pausa: pausa,
-      posicao: posicao, regs: regs, indice: 0,
+      posicao: posicao, progresso: progressoFill, regs: regs, indice: 0,
       pausado: semMovimento, suspenso: false, ativo: false, temporizador: null
     };
 
@@ -956,6 +998,160 @@
 
   function focoDeTeclado(alvo) {
     try { return !!alvo && alvo.matches(':focus-visible'); } catch (e) { return false; }
+  }
+
+  // ------------------------------------------------------------------ expandido
+
+  /* Clicar num gráfico abre o MESMO cartão em tela cheia, num <dialog>, com uma coluna de
+     metodologia ao lado (decisão de 04/10/2026). O cartão é movido, não copiado: base,
+     período, detalhe e download continuam funcionando, e o que o leitor muda lá dentro
+     vale ao voltar para a faixa. Um marcador do mesmo tamanho guarda o lugar dele.
+
+     A coluna de metodologia NÃO tem texto escrito para ela. Tudo vem do que já existe:
+     os primeiros parágrafos da seção da Metodologia para a qual o "i" aponta, a descrição
+     da base em config/abas.yaml e a ficha de cada série, gerada do catálogo. Resumo, aqui,
+     é recorte mecânico — dois parágrafos e um link para a nota inteira —, nunca paráfrase.
+     Ver o princípio 6 do CLAUDE.md. */
+  var PARAGRAFOS_RESUMO = 2;
+  var modalAberto = false;
+  var dialogo = null;
+
+  function montaDialogo() {
+    var d = el('dialog', 'expandido');
+    d.setAttribute('aria-label', 'Gráfico expandido');
+    var fechar = botaoIcone('expandido__fechar', ICONE.fecha, 'Fechar');
+    fechar.addEventListener('click', fechaDialogo);
+    var corpo = el('div', 'expandido__corpo');
+    var lugar = el('div', 'expandido__grafico');
+    var notas = el('aside', 'expandido__notas');
+    corpo.appendChild(lugar);
+    corpo.appendChild(notas);
+    d.appendChild(fechar);
+    d.appendChild(corpo);
+
+    // Clique no fundo escurecido fecha; clique dentro do conteúdo, não.
+    d.addEventListener('click', function (ev) { if (ev.target === d) fechaDialogo(); });
+    /* Esc dispara `cancel` na hora; o `close` que vem depois é enfileirado e, com a aba
+       em segundo plano, chegou a não ser entregue — o cartão ficava preso no diálogo.
+       Por isso cada saída devolve o cartão diretamente, e o `close` fica só de rede. */
+    d.addEventListener('cancel', function (ev) { ev.preventDefault(); fechaDialogo(); });
+    d.addEventListener('close', fechaExpandido);
+
+    document.body.appendChild(d);
+    dialogo = { elemento: d, lugar: lugar, notas: notas, reg: null, marcador: null };
+  }
+
+  function abreExpandido(reg) {
+    if (!dialogo || modalAberto || typeof dialogo.elemento.showModal !== 'function') return;
+    var marcador = el('div', 'cartao cartao--marcador');
+    marcador.style.height = reg.cartao.offsetHeight + 'px';
+    reg.cartao.replaceWith(marcador);
+    dialogo.lugar.appendChild(reg.cartao);
+    reg.cartao.classList.add('cartao--expandido');
+    reg.expandido = true;
+    dialogo.reg = reg;
+    dialogo.marcador = marcador;
+    modalAberto = true;
+    Object.keys(carrosseis).forEach(function (k) { agenda(carrosseis[k]); });
+
+    dialogo.elemento.showModal();
+    dialogo.notas.scrollTop = 0;
+    // A largura mudou: a folga do rótulo de ponta e o eixo têm de ser recalculados.
+    if (reg.instancia) reg.instancia.resize();
+    desenha(reg);
+  }
+
+  function fechaDialogo() {
+    if (dialogo.elemento.open) dialogo.elemento.close();
+    fechaExpandido();
+  }
+
+  function fechaExpandido() {
+    var reg = dialogo && dialogo.reg;
+    if (!reg) return;
+    reg.cartao.classList.remove('cartao--expandido');
+    dialogo.marcador.replaceWith(reg.cartao);
+    reg.expandido = false;
+    dialogo.reg = null;
+    dialogo.marcador = null;
+    modalAberto = false;
+    if (reg.instancia) reg.instancia.resize();
+    desenha(reg);
+    Object.keys(carrosseis).forEach(function (k) { agenda(carrosseis[k]); });
+  }
+
+  /* Os primeiros parágrafos da seção da Metodologia, copiados do painel já montado — o
+     mesmo texto, com os mesmos negritos, sem uma segunda leitura do markdown. */
+  function resumoDaSecao(ancora) {
+    var titulo = ancora && document.getElementById(ancora);
+    if (!titulo) return [];
+    var saida = [];
+    var no = titulo.nextElementSibling;
+    while (no && saida.length < PARAGRAFOS_RESUMO && !/^(H[1-4]|SECTION)$/.test(no.tagName)) {
+      if (no.tagName === 'P') saida.push(no.cloneNode(true));
+      no = no.nextElementSibling;
+    }
+    return saida;
+  }
+
+  function fichaPorSerie() {
+    var mapa = {};
+    var bloco = (window.MONITOR.metodologia_blocos || []).filter(function (b) {
+      return b.tipo === 'ficha';
+    })[0];
+    if (bloco) bloco.linhas.forEach(function (l) { mapa[l.serie_id] = l; });
+    return mapa;
+  }
+
+  function mesAno(iso) {
+    if (!iso) return '—';
+    var p = String(iso).split('-');
+    return MESES[parseInt(p[1], 10) - 1] + '/' + p[0];
+  }
+
+  function preencheNotas(reg) {
+    var notas = dialogo.notas;
+    notas.innerHTML = '';
+
+    var secao = el('section', 'notas__bloco');
+    secao.appendChild(el('h3', 'notas__titulo', 'Metodologia'));
+    resumoDaSecao(reg.def.metodologia).forEach(function (p) { secao.appendChild(p); });
+    if (reg.def.metodologia) {
+      var link = el('button', 'notas__link', 'Ler a nota completa na Metodologia');
+      link.type = 'button';
+      link.addEventListener('click', function () {
+        fechaDialogo();
+        vaiParaMetodologia(reg.def.metodologia);
+      });
+      secao.appendChild(link);
+    }
+    notas.appendChild(secao);
+
+    var base = (window.MONITOR.bases || []).filter(function (b) { return b.id === reg.base; })[0];
+    if (base && reg.def.bases.length) {
+      var bb = el('section', 'notas__bloco');
+      bb.appendChild(el('h3', 'notas__titulo', 'Base exibida: ' + base.rotulo));
+      bb.appendChild(el('p', null, base.descricao));
+      notas.appendChild(bb);
+    }
+
+    var fichas = fichaPorSerie();
+    var bs = el('section', 'notas__bloco');
+    bs.appendChild(el('h3', 'notas__titulo', 'Séries'));
+    var lista = el('dl', 'notas__series');
+    reg.seriesVisiveis.forEach(function (s) {
+      var f = fichas[s.serie_id] || {};
+      lista.appendChild(el('dt', null, s.rotulo));
+      var dd = el('dd');
+      if (f.nome_oficial) dd.appendChild(el('span', 'notas__nome', f.nome_oficial));
+      var origem = [f.fonte || s.fonte, f.codigo].filter(Boolean).join(' ');
+      dd.appendChild(el('span', null, origem + (f.tabela ? ' · ' + f.tabela : '')));
+      if (f.conversao) dd.appendChild(el('span', null, f.conversao));
+      dd.appendChild(el('span', null, mesAno(f.primeira_obs) + ' a ' + mesAno(f.ultima_obs)));
+      lista.appendChild(dd);
+    });
+    bs.appendChild(lista);
+    notas.appendChild(bs);
   }
 
   // ------------------------------------------------------------------ abas
@@ -1419,6 +1615,7 @@
 
     dados.abas.forEach(function (aba) { registra(aba.id, aba.titulo, montaPainel(aba)); });
     registra(ID_ABA_METODOLOGIA, 'Metodologia', montaMetodologia(dados));
+    if (!dialogo) montaDialogo();
 
     /* Redimensionar muda a largura do cartão e, com ela, a folga do rótulo de ponta.
        `resize()` sozinho manteria a folga antiga. O debounce existe porque redesenhar

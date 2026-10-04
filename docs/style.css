@@ -208,12 +208,36 @@ body {
   scroll-snap-align: start;
 }
 
+/* Grade de uma coluna do tamanho dos comandos: a barra de progresso, embaixo, fica
+   exatamente da largura deles. */
 .carrossel__barra {
+  display: grid;
+  justify-content: center;
+  row-gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.carrossel__comandos {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--s-2);
-  margin-top: var(--s-3);
+}
+
+/* Tempo até a próxima troca. A animação é dirigida por app.js, que zera a barra quando a
+   rotação para ou é suspensa. */
+.carrossel__progresso {
+  height: 2px;
+  background: var(--line);
+  border-radius: var(--r-ctrl);
+  overflow: hidden;
+}
+
+.carrossel__progresso > span {
+  display: block;
+  height: 100%;
+  background: var(--ink-3);
+  transform: scaleX(0);
+  transform-origin: left center;
 }
 
 .carrossel__barra[hidden] { display: none; }
@@ -249,6 +273,12 @@ body {
   gap: var(--s-2);
   margin-left: var(--s-2);
 }
+
+/* O gráfico na faixa é clicável: abre em tela cheia. */
+.trilho .cartao__area { cursor: zoom-in; }
+
+/* Guarda o lugar do cartão enquanto ele está aberto em tela cheia. */
+.cartao--marcador { visibility: hidden; }
 
 /* Em tela estreita dois cartões lado a lado ficam ilegíveis: um por vez. */
 @media (max-width: 760px) {
@@ -469,6 +499,168 @@ select.pilula {
 }
 
 .baixar__item:hover { background: var(--line); color: var(--ink); }
+
+/* Expandir: mesmo desenho do botão de download. */
+.expande {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-btn);
+  transition: color var(--dur), background-color var(--dur);
+}
+
+.expande:hover { color: var(--ink); background: var(--line); }
+
+.cartao--expandido .expande { display: none; }
+
+/* ------------------------------------------------------------------ expandido */
+
+/* O gráfico em tela cheia: o próprio cartão, movido para dentro de um <dialog>, com a
+   coluna de metodologia ao lado. */
+/* `inset`, e não `100vw`: a largura da viewport conta a barra de rolagem da página, e o
+   diálogo saía descentrado. */
+.expandido {
+  position: fixed;
+  inset: var(--s-6);
+  width: auto;
+  height: auto;
+  margin: auto;
+  max-width: 1600px;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+/* A página atrás não rola enquanto o gráfico está aberto. */
+body:has(.expandido[open]) { overflow: hidden; }
+
+.expandido::backdrop {
+  background: color-mix(in srgb, var(--ink, black) 55%, transparent);
+}
+
+.expandido__fechar {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  z-index: 2;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.expandido__fechar:hover { color: var(--ink); border-color: var(--ink-3); }
+
+.expandido__corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--s-6);
+  height: 100%;
+  padding: var(--s-6);
+  padding-top: var(--s-12);
+}
+
+.expandido__grafico { min-width: 0; min-height: 0; display: flex; }
+
+.cartao--expandido { flex: 1; min-height: 0; }
+
+.cartao--expandido .cartao__area { flex: 1; height: auto; min-height: 280px; }
+
+.expandido__notas {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--s-2);
+  font-size: var(--t-controle);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.notas__bloco + .notas__bloco {
+  margin-top: var(--s-6);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.notas__titulo {
+  margin: 0 0 var(--s-2);
+  font-family: var(--f-titulo);
+  font-size: var(--t-cartao);
+  line-height: var(--lh-cartao);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.expandido__notas p { margin: 0 0 var(--s-3); }
+
+.expandido__notas strong { color: var(--ink); font-weight: 600; }
+
+.notas__link {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--f-texto);
+  font-size: var(--t-controle);
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink-3);
+  cursor: pointer;
+}
+
+.notas__series { margin: 0; }
+
+.notas__series dt {
+  margin-top: var(--s-3);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.notas__series dd {
+  margin: var(--s-1) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--t-eixo);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.notas__series .notas__nome { color: var(--ink-2); font-size: var(--t-controle); }
+
+/* Em tela estreita, gráfico em cima e metodologia embaixo, numa rolagem só. */
+@media (max-width: 900px) {
+  .expandido {
+    inset: 0;
+    max-width: none;
+    border-radius: 0;
+    border: none;
+  }
+  .expandido__corpo {
+    display: block;
+    overflow-y: auto;
+    padding: var(--s-4);
+    padding-top: var(--s-12);
+  }
+  .cartao--expandido .cartao__area { flex: none; height: 60vh; }
+  .expandido__notas { overflow: visible; margin-top: var(--s-6); padding-right: 0; }
+}
 
 /* ------------------------------------------------------------------ estados */
 
@@ -733,6 +925,8 @@ select.pilula {
 /* ------------------------------------------------------------------ movimento */
 
 @media (prefers-reduced-motion: reduce) {
+  /* A faixa já abre pausada; se o leitor retomar, a barra encheria de uma vez. */
+  .carrossel__progresso { visibility: hidden; }
   *, *::before, *::after {
     animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
