@@ -277,12 +277,24 @@ folhas de estilo externas, sem JavaScript. Sem rede, a página inteira continua 
 - **Grid horizontal apenas**, no máximo cinco linhas. Sem grid vertical, sem moldura, sem
   título de eixo. A unidade fica no topo do eixo Y.
 - **Sem animação de entrada.** Só a transição de 250ms ao trocar base ou período.
+- **Uma casa decimal em todo número exibido** — eixo, rótulo de ponta e tooltip —,
+  mesmo quando o valor é exato: `120,0`, nunca `120` (decisão de 04/10/2026). É só
+  exibição, em `app.js`: o CSV do gráfico e a planilha XLSX seguem com o valor completo.
 
 ### Layout
 
-Grade de doze colunas; a largura de cada cartão vem de `largura` em `config/abas.yaml`.
-Gráfico de abertura da aba 8/12, de três ou quatro séries 4/12, de modalidade 12/12. O
-front estica o último cartão de uma linha incompleta para fechar as doze colunas.
+**Carrossel, decisão de 04/10/2026** — substitui a grade de doze colunas e o campo
+`largura` de `config/abas.yaml`, que deixou de existir. Cada aba mostra **dois gráficos
+por vez, do mesmo tamanho**, numa faixa com barra de rolagem horizontal abaixo; abaixo de
+760px, um por vez. A cada **10 segundos** a faixa avança uma tela e, no fim, volta ao
+começo. A barra de controle tem anterior, posição ("3–4 de 11"), próximo e Pausar /
+Retomar. Passar à mão pausa a rotação; ponteiro sobre a faixa ou foco de teclado dentro
+dela a suspendem enquanto durarem; aba do navegador em segundo plano e aba do painel não
+visível também param. Com `prefers-reduced-motion`, a faixa abre pausada. A ordem na faixa
+é a ordem dos gráficos em `config/abas.yaml`. Na impressão, os gráficos viram coluna.
+
+A transição de rolagem da faixa responde à rotação ou ao leitor; não é "animação de
+entrada" do gráfico, que continua proibida.
 
 O cartão carrega título, controles e gráfico — **e nada abaixo do gráfico**. Sem nota,
 sem fonte, sem "última observação". A explicação toda vive na aba Metodologia, alcançada

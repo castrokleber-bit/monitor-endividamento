@@ -137,12 +137,15 @@
   <section class="sg-secao">
     <h2>Cartão de gráfico</h2>
     <p>
-      Título à esquerda, controles à direita, gráfico, e nada abaixo dele: sem nota, sem
-      fonte, sem "última observação". As séries se identificam pelo rótulo na ponta da
-      linha, e a unidade fica no topo do eixo.
+      Título em cima, controles embaixo dele, gráfico, e nada abaixo do gráfico: sem nota,
+      sem fonte, sem "última observação". As séries se identificam pelo rótulo na ponta da
+      linha, e a unidade fica no topo do eixo. Dois cartões do mesmo tamanho por tela, numa
+      faixa com rolagem horizontal; a barra abaixo dela pausa a rotação automática e passa
+      à mão. Todo número exibido leva uma casa decimal, inclusive o exato.
     </p>
-    <div class="grade">
-      <section class="cartao" style="--col: 8" data-largura="8">
+    <div class="carrossel">
+    <div class="trilho">
+      <section class="cartao">
         <div class="cartao__topo">
           <h3 class="cartao__titulo">Crédito do SFN por tipo de tomador</h3>
           <div class="cartao__controles">
@@ -168,7 +171,7 @@
         <div class="cartao__area" id="sg-grafico"></div>
       </section>
 
-      <section class="cartao" style="--col: 4" data-largura="4">
+      <section class="cartao">
         <div class="cartao__topo">
           <h3 class="cartao__titulo">Tooltip</h3>
         </div>
@@ -193,6 +196,20 @@
           </div>
         </div>
       </section>
+    </div>
+    <div class="carrossel__barra">
+      <button class="carrossel__seta" type="button" aria-label="Gráficos anteriores">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="carrossel__posicao">1–2 de 11</span>
+      <button class="carrossel__seta" type="button" aria-label="Próximos gráficos">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="pilula carrossel__pausa" type="button" aria-pressed="false">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8" rx=".75" fill="currentColor"/><rect x="7" y="2" width="2.5" height="8" rx=".75" fill="currentColor"/></svg>
+        <span>Pausar</span>
+      </button>
+    </div>
     </div>
   </section>
 
@@ -356,7 +373,7 @@
       splitLine: { lineStyle: { color: tk('--line') } },
       axisLabel: {
         color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'),
-        formatter: function (v) { return v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); }
+        formatter: function (v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
       }
     },
     series: dados.map(function (s) {
@@ -367,7 +384,7 @@
           show: true, color: s.cor, fontSize: 13, fontWeight: 500,
           fontFamily: tk('--f-texto'), distance: 10,
           formatter: function (p) {
-            return p.seriesName + '  ' + p.value[1].toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            return p.seriesName + '  ' + p.value[1].toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
           }
         },
         labelLayout: { moveOverlap: 'shiftY' },

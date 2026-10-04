@@ -104,22 +104,16 @@
 
   // ------------------------------------------------------------------ formatação
 
-  function casasDecimais(unidade) {
-    if (!unidade) return 2;
-    return unidade.indexOf('R$') >= 0 ? 1 : 2;
-  }
+  /* Uma casa decimal em TODO número exibido — eixo, rótulo de ponta e tooltip —, mesmo
+     quando o valor é exato: 120,0, nunca 120. Decisão de 04/10/2026, que substitui a
+     regra anterior (duas casas para %, uma para R$, casas aparadas no eixo). É só
+     exibição: o CSV e a planilha seguem com o valor completo calculado pelo pipeline. */
+  var CASAS = 1;
 
-  function numero(valor, unidade) {
-    var casas = casasDecimais(unidade);
+  function numero(valor) {
     return valor.toLocaleString('pt-BR', {
-      minimumFractionDigits: casas, maximumFractionDigits: casas
+      minimumFractionDigits: CASAS, maximumFractionDigits: CASAS
     });
-  }
-
-  /* No eixo e no rótulo de ponta a precisão cheia vira ruído: 50,00 não diz mais que 50.
-     O tooltip e o CSV seguem com o valor como o pipeline o calculou. */
-  function numeroCurto(valor) {
-    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
   }
 
   function rotuloData(iso, periodicidade) {
@@ -242,7 +236,7 @@
      *
      * Três formas, na ordem de preferência, escolhidas pela largura disponível:
      *
-     *   uma linha    "Total  7.372", o ideal — é o formato que a orientação pede
+     *   uma linha    "Total  7.372,0", o ideal — é o formato que a orientação pede
      *   duas linhas  nome em cima, valor embaixo, quando os dois lado a lado não cabem.
      *                A largura exigida passa a ser a do MAIOR dos dois, não a soma, o
      *                que costuma resolver os cartões estreitos de 4/12
@@ -258,7 +252,7 @@
 
     var partes = series.map(function (s) {
       var ultimo = s.visivel[s.visivel.length - 1];
-      return { id: s.serie_id, nome: s.rotulo, valor: numeroCurto(ultimo[1]) };
+      return { id: s.serie_id, nome: s.rotulo, valor: numero(ultimo[1]) };
     });
     function larguraDe(texto) { return medeTexto(texto, tamanhoRotulo, 500, tk.fTexto); }
 
@@ -326,13 +320,13 @@
           ps.forEach(function (p) {
             var ref = nominais[p.seriesName];
             var extra = (ref && ref.mapa[iso] !== undefined)
-              ? '<span class="tt__ref">de ' + numero(ref.mapa[iso], ref.unidade) + '</span>'
+              ? '<span class="tt__ref">de ' + numero(ref.mapa[iso]) + '</span>'
               : '';
             html += '<div class="tt__linha">'
               + '<span class="tt__marca" style="background:' + p.color + '"></span>'
               + '<span class="tt__nome">' + p.seriesName + '</span>'
               + extra
-              + '<span class="tt__valor">' + numero(p.value[1], unidade) + '</span>'
+              + '<span class="tt__valor">' + numero(p.value[1]) + '</span>'
               + '</div>';
           });
           return html;
@@ -368,7 +362,7 @@
         axisLine: { show: false },
         axisTick: { show: false },
         splitLine: { lineStyle: { color: tk.line, width: 1 } },
-        axisLabel: { color: tk.ink3, fontSize: 12, fontFamily: tk.fTexto, formatter: numeroCurto }
+        axisLabel: { color: tk.ink3, fontSize: 12, fontFamily: tk.fTexto, formatter: numero }
       },
 
       series: series.map(function (s, i) {
@@ -675,9 +669,6 @@
 
   function montaCartao(grafico, abaId) {
     var cartao = el('section', 'cartao');
-    var largura = grafico.largura || 12;
-    cartao.style.setProperty('--col', String(largura));
-    cartao.dataset.largura = String(largura);
 
     var topo = el('div', 'cartao__topo');
     topo.appendChild(el('h3', 'cartao__titulo', grafico.titulo));
@@ -781,32 +772,190 @@
     instancias.push(reg.instancia);
   }
 
-  /* As larguras vêm do catálogo em frações de doze. Quando a soma de uma linha não fecha
-     — porque o próximo cartão é largo demais para o que sobrou, ou porque um gráfico não
-     foi montado —, o último cartão da linha é esticado para não deixar buraco. */
-  function ajustaGrade(abaId) {
-    var linha = [], usado = 0;
-    function aplica(cartao, col) {
-      cartao.style.setProperty('--col', String(col));
-      // A coluna EFETIVA, já contando o estica. É por ela que o CSS decide empilhar os
-      // controles e escolher a altura — `data-largura` guarda só o que o catálogo pediu.
-      cartao.dataset.col = String(col);
+  // ------------------------------------------------------------------ carrossel
+
+  /* Dois gráficos por vez, do mesmo tamanho, numa faixa com barra de rolagem horizontal
+     — decisão de 04/10/2026, que substitui a grade de doze colunas. Em tela estreita o
+     CSS põe um por vez, e tudo aqui é medido, não suposto: quantos cabem na tela sai da
+     largura real dos cartões.
+
+     A cada INTERVALO a faixa avança uma tela e, no fim, volta ao começo. A rotação fica
+     suspensa enquanto o ponteiro está sobre a faixa ou o foco de teclado está dentro
+     dela: um gráfico não pode sair da tela no meio da leitura de um tooltip ou da troca
+     de base. O botão de pausa a desliga de vez, e passar à mão também — quem escolhe ir
+     no próprio ritmo não quer ser atropelado dez segundos depois. Com movimento reduzido
+     pedido pelo sistema, a faixa já abre pausada. */
+  var INTERVALO = 10000;
+  var carrosseis = {};
+
+  var ICONE = {
+    anterior: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+      '<path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    proximo: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
+      '<path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    pausa: '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">' +
+      '<rect x="2.5" y="2" width="2.5" height="8" rx=".75" fill="currentColor"/>' +
+      '<rect x="7" y="2" width="2.5" height="8" rx=".75" fill="currentColor"/></svg>',
+    toca: '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">' +
+      '<path d="M3.5 2.2v7.6a.6.6 0 0 0 .9.5l6-3.8a.6.6 0 0 0 0-1L4.4 1.7a.6.6 0 0 0-.9.5Z" ' +
+      'fill="currentColor"/></svg>'
+  };
+
+  function botaoIcone(classe, svg, rotulo) {
+    var b = el('button', classe);
+    b.type = 'button';
+    b.innerHTML = svg;
+    b.title = rotulo;
+    b.setAttribute('aria-label', rotulo);
+    return b;
+  }
+
+  /* Distância entre o início de dois cartões vizinhos: largura mais vão, sem precisar
+     ler o vão do CSS. */
+  function passoDe(c) {
+    var cs = c.regs.map(function (r) { return r.cartao; });
+    if (cs.length > 1) return cs[1].offsetLeft - cs[0].offsetLeft;
+    return c.trilho.clientWidth || 1;
+  }
+
+  function porTelaDe(c) {
+    return Math.max(1, Math.round(c.trilho.clientWidth / passoDe(c)));
+  }
+
+  function maximoDe(c) {
+    return Math.max(0, c.trilho.scrollWidth - c.trilho.clientWidth);
+  }
+
+  function indiceDe(c) {
+    return Math.round(c.trilho.scrollLeft / passoDe(c));
+  }
+
+  function rolavel(c) {
+    return maximoDe(c) > 1;
+  }
+
+  function vaiPara(c, indice, suave) {
+    var esquerda = Math.min(indice * passoDe(c), maximoDe(c));
+    c.trilho.scrollTo({ left: esquerda, behavior: suave && !semMovimento ? 'smooth' : 'auto' });
+  }
+
+  /* No fim da faixa, volta ao começo; no começo, `anterior` vai ao fim. A última tela de
+     uma aba com número ímpar de gráficos repete um gráfico da tela anterior — a faixa
+     para no fim em vez de mostrar meio cartão vazio. */
+  function avanca(c, sentido) {
+    var k = porTelaDe(c), i = indiceDe(c);
+    var noFim = c.trilho.scrollLeft >= maximoDe(c) - 2;
+    var noInicio = c.trilho.scrollLeft <= 2;
+    if (sentido > 0) vaiPara(c, noFim ? 0 : i + k, true);
+    else vaiPara(c, noInicio ? c.regs.length - k : Math.max(0, i - k), true);
+  }
+
+  function atualizaBarra(c) {
+    var n = c.regs.length, k = porTelaDe(c), i = Math.min(indiceDe(c), Math.max(0, n - k));
+    c.barra.hidden = !rolavel(c);
+    c.posicao.textContent = (k > 1 ? (i + 1) + '–' + Math.min(n, i + k) : String(i + 1)) +
+      ' de ' + n;
+    c.indice = i;
+  }
+
+  function marcaPausa(c) {
+    var rotulo = c.pausado ? 'Retomar' : 'Pausar';
+    c.pausa.innerHTML = (c.pausado ? ICONE.toca : ICONE.pausa) + '<span>' + rotulo + '</span>';
+    c.pausa.setAttribute('aria-label', (c.pausado ? 'Retomar' : 'Pausar') + ' a rotação automática');
+    c.pausa.setAttribute('aria-pressed', c.pausado ? 'true' : 'false');
+    // Rotação em curso não é anunciada a cada troca; parada, a troca é ação do leitor.
+    c.trilho.setAttribute('aria-live', c.pausado ? 'polite' : 'off');
+  }
+
+  function agenda(c) {
+    clearTimeout(c.temporizador);
+    c.temporizador = null;
+    if (!c.ativo || c.pausado || c.suspenso || document.hidden || !rolavel(c)) return;
+    c.temporizador = setTimeout(function () {
+      avanca(c, 1);
+      agenda(c);
+    }, INTERVALO);
+  }
+
+  function montaCarrossel(abaId, regs) {
+    var caixa = el('div', 'carrossel');
+    var trilho = el('div', 'trilho');
+    trilho.tabIndex = 0;
+    trilho.setAttribute('role', 'region');
+    trilho.setAttribute('aria-roledescription', 'carrossel');
+    trilho.setAttribute('aria-label', 'Gráficos desta aba');
+    regs.forEach(function (r) { trilho.appendChild(r.cartao); });
+
+    var barra = el('div', 'carrossel__barra');
+    var anterior = botaoIcone('carrossel__seta', ICONE.anterior, 'Gráficos anteriores');
+    var proximo = botaoIcone('carrossel__seta', ICONE.proximo, 'Próximos gráficos');
+    var pausa = el('button', 'pilula carrossel__pausa');
+    pausa.type = 'button';
+    var posicao = el('span', 'carrossel__posicao');
+    barra.appendChild(anterior);
+    barra.appendChild(posicao);
+    barra.appendChild(proximo);
+    barra.appendChild(pausa);
+
+    caixa.appendChild(trilho);
+    caixa.appendChild(barra);
+
+    var c = {
+      abaId: abaId, caixa: caixa, trilho: trilho, barra: barra, pausa: pausa,
+      posicao: posicao, regs: regs, indice: 0,
+      pausado: semMovimento, suspenso: false, ativo: false, temporizador: null
+    };
+
+    function manual(sentido) {
+      c.pausado = true;
+      marcaPausa(c);
+      agenda(c);
+      avanca(c, sentido);
     }
-    function fecha() {
-      if (!linha.length) return;
-      var ultimo = linha[linha.length - 1];
-      var declarado = parseInt(ultimo.cartao.dataset.largura, 10);
-      aplica(ultimo.cartao, declarado + (12 - usado));
-    }
-    (registros[abaId] || []).forEach(function (reg) {
-      var w = parseInt(reg.cartao.dataset.largura, 10);
-      aplica(reg.cartao, w);
-      if (usado + w > 12) { fecha(); linha = []; usado = 0; }
-      linha.push(reg);
-      usado += w;
-      if (usado === 12) { linha = []; usado = 0; }
+    anterior.addEventListener('click', function () { manual(-1); });
+    proximo.addEventListener('click', function () { manual(1); });
+    pausa.addEventListener('click', function () {
+      c.pausado = !c.pausado;
+      marcaPausa(c);
+      agenda(c);
     });
-    fecha();
+
+    // Setas do teclado com o foco na faixa: uma tela por toque, como os botões.
+    trilho.addEventListener('keydown', function (ev) {
+      if (ev.target !== trilho) return;
+      if (ev.key === 'ArrowRight') { ev.preventDefault(); manual(1); }
+      if (ev.key === 'ArrowLeft') { ev.preventDefault(); manual(-1); }
+    });
+
+    var quadro = null;
+    trilho.addEventListener('scroll', function () {
+      if (quadro) return;
+      quadro = requestAnimationFrame(function () { quadro = null; atualizaBarra(c); });
+    }, { passive: true });
+
+    function suspende(sim) { c.suspenso = sim; agenda(c); }
+    caixa.addEventListener('mouseenter', function () { suspende(true); });
+    caixa.addEventListener('mouseleave', function () {
+      suspende(caixa.contains(document.activeElement) && focoDeTeclado(document.activeElement));
+    });
+    /* Só o foco de TECLADO suspende. O de mouse fica no botão clicado até o próximo
+       clique fora, e prenderia a rotação parada depois de um simples "Retomar". */
+    caixa.addEventListener('focusin', function (ev) { if (focoDeTeclado(ev.target)) suspende(true); });
+    caixa.addEventListener('focusout', function (ev) {
+      if (!caixa.contains(ev.relatedTarget) && !caixa.matches(':hover')) suspende(false);
+    });
+    // No toque não há "sair de cima": cada toque reinicia a contagem.
+    caixa.addEventListener('touchstart', function () { agenda(c); }, { passive: true });
+
+    marcaPausa(c);
+    carrosseis[abaId] = c;
+    return caixa;
+  }
+
+  function focoDeTeclado(alvo) {
+    try { return !!alvo && alvo.matches(':focus-visible'); } catch (e) { return false; }
   }
 
   // ------------------------------------------------------------------ abas
@@ -858,16 +1007,13 @@
     cab.appendChild(controlePeriodoDaAba(aba.id));
     painel.appendChild(cab);
 
-    var grade = el('div', 'grade');
     registros[aba.id] = [];
     aba.graficos.forEach(function (g) {
       var reg = montaCartao(g, aba.id);
-      grade.appendChild(reg.cartao);
       registros[aba.id].push(reg);
       desenha(reg);
     });
-    painel.appendChild(grade);
-    ajustaGrade(aba.id);
+    painel.appendChild(montaCarrossel(aba.id, registros[aba.id]));
     return painel;
   }
 
@@ -880,6 +1026,13 @@
     (registros[id] || []).forEach(function (reg) {
       inicializa(reg);
       if (reg.instancia) reg.instancia.resize();
+    });
+    // Só a faixa da aba visível gira; as outras param onde estavam.
+    Object.keys(carrosseis).forEach(function (abaId) {
+      var c = carrosseis[abaId];
+      c.ativo = abaId === id;
+      if (c.ativo) atualizaBarra(c);
+      agenda(c);
     });
   }
 
@@ -1249,6 +1402,8 @@
     nav.innerHTML = '';
     area.innerHTML = '';
     registros = {}; botoesAba = {}; paineis = {}; instancias = [];
+    Object.keys(carrosseis).forEach(function (k) { clearTimeout(carrosseis[k].temporizador); });
+    carrosseis = {};
 
     function registra(id, titulo, painel) {
       var b = el('button', 'aba-pilula', titulo);
@@ -1276,7 +1431,21 @@
         Object.keys(registros).forEach(function (abaId) {
           registros[abaId].forEach(function (reg) { if (reg.instancia) desenha(reg); });
         });
+        /* A largura dos cartões mudou, e com ela o passo da faixa — e, ao cruzar o
+           limite do celular, quantos cabem por tela. Volta ao cartão em que estava. */
+        Object.keys(carrosseis).forEach(function (abaId) {
+          var c = carrosseis[abaId];
+          if (!c.ativo) return;
+          vaiPara(c, c.indice, false);
+          atualizaBarra(c);
+          agenda(c);
+        });
       }, 180);
+    });
+
+    // Aba do navegador em segundo plano: a rotação para e retoma ao voltar.
+    document.addEventListener('visibilitychange', function () {
+      Object.keys(carrosseis).forEach(function (abaId) { agenda(carrosseis[abaId]); });
     });
 
     /* O modo escuro troca todos os tokens sem recarregar a página. Os gráficos guardam

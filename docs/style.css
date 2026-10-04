@@ -176,27 +176,87 @@ body {
   white-space: nowrap;
 }
 
-/* ------------------------------------------------------------------ grade */
+/* ------------------------------------------------------------------ carrossel */
 
-/* Doze colunas. A largura de cada cartão vem de `largura` em config/abas.yaml, e app.js
-   estica o último cartão de uma linha incompleta para fechar as doze. */
-.grade {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+/* Dois gráficos por vez, do mesmo tamanho, numa faixa com rolagem horizontal (decisão de
+   04/10/2026, que substitui a grade de doze colunas). A rotação de dez segundos vive em
+   app.js; aqui ficam só a faixa, o encaixe e a barra de controle. */
+.carrossel { min-width: 0; }
+
+.trilho {
+  display: flex;
+  /* Sem esticar: a faixa inteira seguiria o cartão mais alto dela — o de atividade
+     econômica, cujo botão de detalhe quebra os controles em duas linhas — e todos os
+     outros ganhariam um vão. A igualdade que importa é a do gráfico, de altura fixa. */
+  align-items: flex-start;
   gap: var(--s-6);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  /* Espaço para a sombra do cartão e para a barra de rolagem não encostar nele. */
+  padding: var(--s-1) 0 var(--s-4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-3) var(--line);
 }
 
-.cartao { grid-column: span var(--col, 12); }
+.trilho::-webkit-scrollbar { height: 8px; }
+.trilho::-webkit-scrollbar-track { background: var(--line); border-radius: var(--r-ctrl); }
+.trilho::-webkit-scrollbar-thumb { background: var(--ink-3); border-radius: var(--r-ctrl); }
 
-/* Rótulo de ponta precisa de ~110px à direita da plotagem. Abaixo de 1100px um cartão
-   de 4/12 não tem largura para isso, então a grade engrossa antes de virar coluna só. */
-@media (max-width: 1099px) {
-  .cartao { grid-column: span min(12, max(var(--col, 12), 6)); }
+.trilho > .cartao {
+  flex: 0 0 calc((100% - var(--s-6)) / 2);
+  scroll-snap-align: start;
+}
+
+.carrossel__barra {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.carrossel__barra[hidden] { display: none; }
+
+.carrossel__seta {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color var(--dur), color var(--dur);
+}
+
+.carrossel__seta:hover { border-color: var(--ink-3); color: var(--ink); }
+
+.carrossel__posicao {
+  min-width: 80px;
+  text-align: center;
+  font-size: var(--t-eixo);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.carrossel__pausa {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: var(--s-2);
+}
+
+/* Em tela estreita dois cartões lado a lado ficam ilegíveis: um por vez. */
+@media (max-width: 760px) {
+  .trilho > .cartao { flex-basis: 100%; }
 }
 
 @media (max-width: 720px) {
   .pagina { padding: var(--s-4); }
-  .cartao { grid-column: span 12; }
   .cabecalho__titulo { font-size: 28px; }
   .abas { margin-left: calc(-1 * var(--s-4)); margin-right: calc(-1 * var(--s-4)); padding-left: var(--s-4); padding-right: var(--s-4); }
 }
@@ -215,12 +275,14 @@ body {
   gap: var(--s-4);
 }
 
+/* Título numa linha, controles na de baixo, em todo cartão. Com dois cartões do mesmo
+   tamanho lado a lado, os controles não cabem ao lado do título, e a mesma disposição
+   nos dois mantém os gráficos alinhados entre si. */
 .cartao__topo {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-4);
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-3);
 }
 
 .cartao__titulo {
@@ -236,41 +298,21 @@ body {
 .cartao__controles {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
-  flex-shrink: 0;
-}
-
-.cartao__area {
-  width: 100%;
-  min-width: 0;
-  height: 320px;
-}
-
-.cartao[data-col="12"] .cartao__area { height: 380px; }
-
-/* Num cartão de quatro colunas os controles não cabem ao lado do título: o seletor de
-   base, o grupo de período, o "i" e o download somam mais que a largura do cartão, e a
-   quebra deixava o ícone de download sozinho numa terceira linha. Abaixo desse limite a
-   linha do título e a dos controles se separam. */
-.cartao[data-col="4"] .cartao__topo,
-.cartao[data-col="5"] .cartao__topo {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--s-3);
-}
-
-.cartao[data-col="4"] .cartao__controles,
-.cartao[data-col="5"] .cartao__controles {
   justify-content: flex-start;
   flex-wrap: wrap;
+  gap: var(--s-2);
   row-gap: var(--s-2);
 }
 
+/* Altura fixa: os dois cartões da tela mostram o gráfico do mesmo tamanho. */
+.cartao__area {
+  width: 100%;
+  min-width: 0;
+  height: 360px;
+}
+
 @media (max-width: 720px) {
-  .cartao__area,
-  .cartao[data-col="12"] .cartao__area { height: 260px; }
-  .cartao__topo { flex-direction: column; align-items: stretch; gap: var(--s-3); }
-  .cartao__controles { justify-content: flex-start; flex-wrap: wrap; row-gap: var(--s-2); }
+  .cartao__area { height: 260px; }
 }
 
 /* ------------------------------------------------------------------ controles */
@@ -701,10 +743,11 @@ select.pilula {
 /* ------------------------------------------------------------------ impressão */
 
 @media print {
-  .abas, .cartao__controles, .painel__periodo, .sumario { display: none !important; }
-  /* O fundo branco vem da redefinição de tokens em tokens.css, não de hex aqui. */
-  .cartao { break-inside: avoid; box-shadow: none; grid-column: 1 !important; }
-  .grade { grid-template-columns: minmax(0, 1fr); }
+  .abas, .cartao__controles, .painel__periodo, .sumario, .carrossel__barra { display: none !important; }
+  /* O fundo branco vem da redefinição de tokens em tokens.css, não de hex aqui. Impresso,
+     o carrossel vira coluna: todos os gráficos, um abaixo do outro. */
+  .trilho { display: block; overflow: visible; padding: 0; }
+  .trilho > .cartao { break-inside: avoid; box-shadow: none; margin-bottom: var(--s-6); }
   .painel[hidden] { display: none; }
   .tabela-envolucro { max-height: none; overflow: visible; }
 }
