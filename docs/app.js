@@ -783,9 +783,9 @@
      suspensa enquanto o ponteiro está sobre a faixa ou o foco de teclado está dentro
      dela: um gráfico não pode sair da tela no meio da leitura de um tooltip ou da troca
      de base. O botão de pausa a desliga de vez, e passar à mão também — quem escolhe ir
-     no próprio ritmo não quer ser atropelado dez segundos depois. Com movimento reduzido
+     no próprio ritmo não quer ser atropelado cinco segundos depois. Com movimento reduzido
      pedido pelo sistema, a faixa já abre pausada. */
-  var INTERVALO = 10000;
+  var INTERVALO = 5000;
   var carrosseis = {};
 
   var ICONE = {

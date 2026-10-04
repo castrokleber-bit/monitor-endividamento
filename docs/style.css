@@ -179,7 +179,7 @@ body {
 /* ------------------------------------------------------------------ carrossel */
 
 /* Dois gráficos por vez, do mesmo tamanho, numa faixa com rolagem horizontal (decisão de
-   04/10/2026, que substitui a grade de doze colunas). A rotação de dez segundos vive em
+   04/10/2026, que substitui a grade de doze colunas). A rotação de cinco segundos vive em
    app.js; aqui ficam só a faixa, o encaixe e a barra de controle. */
 .carrossel { min-width: 0; }
 

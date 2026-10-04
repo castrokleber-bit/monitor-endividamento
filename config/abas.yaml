@@ -108,7 +108,7 @@ inicio_padrao: comum
 # ---------------------------------------------------------------------------
 # LAYOUT EM CARROSSEL (04/10/2026). A grade de doze colunas acabou, e com ela o campo
 # `largura` que cada gráfico declarava aqui. Cada aba mostra DOIS gráficos por vez, do
-# mesmo tamanho, numa faixa com barra de rolagem horizontal; a cada dez segundos a faixa
+# mesmo tamanho, numa faixa com barra de rolagem horizontal; a cada cinco segundos a faixa
 # avança dois gráficos, e o leitor pode pausar e passar à mão. Em tela estreita, um por
 # vez. A ordem dos gráficos na faixa é a ordem desta lista — ela passou a ser a única
 # coisa de layout que o catálogo decide.

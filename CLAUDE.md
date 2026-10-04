@@ -286,8 +286,9 @@ folhas de estilo externas, sem JavaScript. Sem rede, a página inteira continua 
 **Carrossel, decisão de 04/10/2026** — substitui a grade de doze colunas e o campo
 `largura` de `config/abas.yaml`, que deixou de existir. Cada aba mostra **dois gráficos
 por vez, do mesmo tamanho**, numa faixa com barra de rolagem horizontal abaixo; abaixo de
-760px, um por vez. A cada **10 segundos** a faixa avança uma tela e, no fim, volta ao
-começo. A barra de controle tem anterior, posição ("3–4 de 11"), próximo e Pausar /
+760px, um por vez. A cada **5 segundos** a faixa avança uma tela e, no fim, volta ao
+começo — o intervalo começou em 10 e foi reduzido à metade pelo autor no mesmo dia,
+por achar longo demais. A barra de controle tem anterior, posição ("3–4 de 11"), próximo e Pausar /
 Retomar. Passar à mão pausa a rotação; ponteiro sobre a faixa ou foco de teclado dentro
 dela a suspendem enquanto durarem; aba do navegador em segundo plano e aba do painel não
 visível também param. Com `prefers-reduced-motion`, a faixa abre pausada. A ordem na faixa
