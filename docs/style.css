@@ -658,7 +658,12 @@ body:has(.expandido[open]) { overflow: hidden; }
     padding: var(--s-4);
     padding-top: var(--s-12);
   }
-  .cartao--expandido .cartao__area { flex: none; height: 60vh; }
+  /* Menos respiro no cartão: com o de 24px, o ícone de download caía sozinho numa
+     terceira linha de controles num celular de 390px. */
+  .cartao--expandido { padding: var(--s-4); }
+  /* Altura limitada: a plotagem no celular é estreita, e um gráfico muito alto e fino
+     exagera a inclinação das linhas. */
+  .cartao--expandido .cartao__area { flex: none; height: clamp(300px, 50vh, 440px); }
   .expandido__notas { overflow: visible; margin-top: var(--s-6); padding-right: 0; }
 }
 

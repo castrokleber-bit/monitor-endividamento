@@ -236,6 +236,19 @@
     var periodicidade = series[0].periodicidade;
     var base = reg.base;
     var umaSerie = series.length === 1;
+
+    /* Janela exibida, em anos. Acima de três, as marcas do eixo X caem só em virada de
+       ano: sem isso, numa plotagem estreita (celular, visão expandida no celular) o
+       ECharts descia para marcas semestrais e escrevia "Jul" entre os anos. */
+    var primeiraData = null, ultimaData = null;
+    series.forEach(function (s) {
+      if (!s.visivel.length) return;
+      var a = s.visivel[0][0], b = s.visivel[s.visivel.length - 1][0];
+      if (!primeiraData || a < primeiraData) primeiraData = a;
+      if (!ultimaData || b > ultimaData) ultimaData = b;
+    });
+    var ANO_MS = 365.25 * 24 * 3600 * 1000;
+    var anosVisiveis = primeiraData ? (Date.parse(ultimaData) - Date.parse(primeiraData)) / ANO_MS : 0;
     var rotuloMenor = series.length > 5;
 
     /* Texto de cada rótulo de ponta, e a folga que ele exige.
@@ -347,10 +360,23 @@
            anos que se encostavam sem chegar a se sobrepor — saía "201020132016..." como
            um número só. */
         splitNumber: larguraCartao < 460 ? 3 : 5,
+        minInterval: anosVisiveis > 3 ? ANO_MS : undefined,
         axisLine: { show: false },
         axisTick: { show: false },
         splitLine: { show: false },
-        axisLabel: { color: tk.ink3, fontSize: 12, fontFamily: tk.fTexto, hideOverlap: true }
+        axisLabel: {
+          color: tk.ink3, fontSize: 12, fontFamily: tk.fTexto, hideOverlap: true,
+          /* Rótulos em português. O ECharts usa o idioma padrão dele, inglês, nos nomes
+             de mês ("Jul", "Feb") — apareciam no período de 1 ano e em tela estreita.
+             Virada de ano vira o ano; qualquer outra marca, o mês abreviado — e, em
+             janela de mais de três anos, nada: o ECharts põe marcas semestrais entre os
+             anos mesmo com `minInterval` de um ano. */
+          formatter: function (valor) {
+            var d = new Date(valor);
+            if (d.getUTCMonth() === 0) return String(d.getUTCFullYear());
+            return anosVisiveis > 3 ? '' : MESES[d.getUTCMonth()];
+          }
+        }
       },
 
       yAxis: {
