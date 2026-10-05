@@ -8,9 +8,9 @@ Aqui só se implementa. Três operações:
     soma             soma(componentes)
     media_ponderada  Σ(valor_i × peso_i) / Σ(peso_i)
 
-Não confundir com `src/transformacoes.py`. Lá ficam as quatro BASES (R$ correntes,
-R$ constantes, % do PIB, variação em 12 meses), que são jeitos diferentes de exibir uma
-série que já existe. Aqui ficam séries que não existem em fonte nenhuma: a parcela
+Não confundir com `src/transformacoes.py`. Lá ficam as seis BASES (R$ correntes,
+R$ constantes, acumulado em 12 meses, % do PIB, variação mensal e variação em 12 meses),
+que são jeitos diferentes de exibir uma série que já existe. Aqui ficam séries que não existem em fonte nenhuma: a parcela
 "Outros" que fecha a composição de um gráfico de saldo, o total de uma tabela do BCB que
 não tem coluna de total publicada, e a inadimplência agregada por porte.
 
@@ -23,9 +23,15 @@ isso pode ser publicado.
 
 from __future__ import annotations
 
-from comum import agora_iso
-
 OPERACOES = ("residual", "soma", "media_ponderada")
+
+# Quanto um residual pode ficar abaixo de zero sem reprovar, na unidade da fonte (todos
+# os residuais de `config/derivadas.yaml` estão em R$ milhões). O SGS publica cada série
+# arredondada em R$ 1 milhão, de forma independente: com um total e até seis parcelas, o
+# arredondamento sozinho desloca o residual em no máximo 3,5. 5 cobre isso com folga e
+# continua a milhares de vezes do menor residual observado — R$ 25.245 milhões
+# (conc_livre_pf_outros, 05/2020, conferido no cache em 04/10/2026).
+TOLERANCIA_RESIDUAL = 5.0
 
 
 class ErroDerivada(RuntimeError):
@@ -162,7 +168,10 @@ def constroi(
             "codigo_fonte": " / ".join(dict.fromkeys(codigos.values())),
             "unidade": serie["unidade"],
             "periodicidade": payloads[insumos[0]]["periodicidade"],
-            "coletado_em": agora_iso(),
+            # A coleta mais ANTIGA entre os insumos, e não a hora do cálculo: uma derivada
+            # é tão recente quanto o seu insumo mais velho. Com um insumo vindo do cache,
+            # carimbar "agora" faria a série calculada parecer mais nova do que o dado é.
+            "coletado_em": min(payloads[i]["coletado_em"] for i in insumos),
             "obs": obs,
         }
         entradas[serie_id] = {
@@ -177,16 +186,21 @@ def constroi(
     return derivados, entradas
 
 
-def confere_fechamento(
-    config: dict, payloads: dict[str, dict], tolerancia: float = 1e-6
+def confere_residuais(
+    config: dict, payloads: dict[str, dict], tolerancia: float = TOLERANCIA_RESIDUAL
 ) -> list[str]:
     """
-    Verifica que cada residual realmente fecha a composição.
+    Exige que toda parcela residual seja maior ou igual a zero, a menos de `tolerancia`.
 
-    Recalcula `total − soma(componentes) − residual` e exige zero, a menos de erro de
-    ponto flutuante. É a tradução em teste do item do checklist de aceite "cada gráfico
-    de saldo fecha: soma das parcelas exibidas = Total, em todas as datas". Devolve a
-    lista de problemas; vazia quer dizer que fechou.
+    SUBSTITUI a antiga `confere_fechamento`, que recalculava `total − soma − residual` e
+    exigia zero: como o residual é DEFINIDO por essa conta, o teste não podia falhar, e
+    não conferia nada. O que de fato denuncia um erro de catálogo é o sinal. Um residual
+    negativo quer dizer que as parcelas exibidas somam mais que o total — parcela de outra
+    tabela, código trocado, ou o total de cartão no lugar da parcela à vista (ver
+    `config/derivadas.yaml`). Nesses casos o gráfico mostraria uma composição que não
+    existe, e o build para.
+
+    Devolve a lista de problemas, no máximo um por série (a data do pior caso).
     """
     problemas = []
     for serie in config.get("series", []):
@@ -195,11 +209,12 @@ def confere_fechamento(
         serie_id = serie["serie_id"]
         if serie_id not in payloads:
             continue
-        total = dict(payloads[serie["total"]]["obs"])
-        comps = [dict(payloads[c]["obs"]) for c in serie["componentes"]]
-        resid = dict(payloads[serie_id]["obs"])
-        for d, r in resid.items():
-            sobra = total[d] - sum(c[d] for c in comps) - r
-            if abs(sobra) > tolerancia * max(abs(total[d]), 1.0):
-                problemas.append(f"{serie_id}: {d} não fecha por {sobra:.6f}")
+        pior_data, pior = min(
+            ((d, v) for d, v in payloads[serie_id]["obs"]), key=lambda o: o[1]
+        )
+        if pior < -tolerancia:
+            problemas.append(
+                f"{serie_id}: residual negativo ({pior:,.1f}) em {pior_data} — as parcelas "
+                f"exibidas somam mais que o total {serie['total']}"
+            )
     return problemas

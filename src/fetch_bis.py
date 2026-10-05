@@ -19,10 +19,9 @@ import csv
 import io
 from datetime import date
 
-from comum import agora_iso, http_get
-from fetch_bcb import ErroColeta
+from comum import BIS_DADOS, agora_iso, http_get
+from fetch_bcb import CodigoInexistente, ErroColeta, FonteIndisponivel, SerieVazia
 
-BIS_DADOS = "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{codigo}"
 FONTE = "BIS"
 
 
@@ -33,10 +32,13 @@ def parse_periodo_bis(texto: str) -> date:
 
 
 def le_csv(texto: str, serie_id: str) -> list[dict]:
-    """Linhas do CSV do BIS. Levanta ErroColeta se o corpo não for o CSV esperado."""
+    """
+    Linhas do CSV do BIS. Levanta `FonteIndisponivel` se o corpo não for o CSV esperado:
+    resposta 200 com corpo que não é o formato pedido é o erro mascarado, não código errado.
+    """
     linhas = list(csv.DictReader(io.StringIO(texto)))
     if not linhas or "TIME_PERIOD" not in linhas[0] or "OBS_VALUE" not in linhas[0]:
-        raise ErroColeta(f"{serie_id}: resposta do BIS não é o CSV esperado")
+        raise FonteIndisponivel(f"{serie_id}: resposta do BIS não é o CSV esperado")
     return linhas
 
 
@@ -50,7 +52,7 @@ def normaliza_observacoes(linhas: list[dict], serie_id: str) -> list[list]:
         obs.append([parse_periodo_bis(linha["TIME_PERIOD"]).isoformat(), float(bruto)])
 
     if not obs:
-        raise ErroColeta(f"{serie_id}: nenhuma observação com valor numérico")
+        raise SerieVazia(f"{serie_id}: nenhuma observação com valor numérico")
 
     obs.sort(key=lambda o: o[0])
     return obs
@@ -60,9 +62,9 @@ def pede_csv(codigo: str, serie_id: str, **params) -> list[dict]:
     """GET na API SDMX do BIS em CSV. Levanta ErroColeta em qualquer resposta inválida."""
     resp = http_get(BIS_DADOS.format(codigo=codigo), params={"format": "csv", **params})
     if resp.status_code == 404:
-        raise ErroColeta(f"{serie_id}: 404 — chave {codigo} inexistente no BIS")
+        raise CodigoInexistente(f"{serie_id}: 404 — chave {codigo} inexistente no BIS")
     if resp.status_code != 200:
-        raise ErroColeta(f"{serie_id}: HTTP {resp.status_code} no BIS")
+        raise FonteIndisponivel(f"{serie_id}: HTTP {resp.status_code} no BIS")
     return le_csv(resp.text, serie_id)
 
 

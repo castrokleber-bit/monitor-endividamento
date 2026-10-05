@@ -1,0 +1,33 @@
+name: Mantém o cache de payloads
+
+# O GitHub apaga entradas de cache sem acesso há mais de 7 dias. atualiza.yml roda nos
+# dias 1 e 16 — intervalos de 15 e 16 dias —, então sem este workflow a execução agendada
+# começaria sempre sem cache: uma série que falhasse iria para `ausente` em vez de `stale`,
+# o guard de regressão pararia o job e NADA seria publicado. É exatamente o que o
+# princípio 4 do CLAUDE.md quer evitar, e só não tinha acontecido até 04/10/2026 porque
+# havia disparos manuais frequentes.
+#
+# Restaurar o cache conta como acesso e renova o prazo. Duas vezes por semana deixa no
+# máximo quatro dias entre acessos, com folga sobre os sete. Nada é coletado nem gravado.
+on:
+  schedule:
+    - cron: "0 9 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  renova:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Mesmo `path` e mesmo prefixo de chave de atualiza.yml: o cache é do repositório e
+      # do ramo, não do workflow. `fail-on-cache-miss` faz o workflow falhar se o cache já
+      # tiver sumido — é o aviso de que a próxima execução quinzenal será partida fria.
+      - uses: actions/cache/restore@v6
+        with:
+          path: data/_cache
+          key: sgs-cache-renova-${{ github.run_id }}
+          restore-keys: sgs-cache-
+          fail-on-cache-miss: true

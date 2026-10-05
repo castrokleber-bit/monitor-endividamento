@@ -40,6 +40,10 @@
       bg: v('--bg'), surface: v('--surface'),
       ink: v('--ink'), ink2: v('--ink-2'), ink3: v('--ink-3'), line: v('--line'),
       fTexto: v('--f-texto'),
+      /* A sombra do tooltip é a do cartão. O ECharts desenha o tooltip num <div> com
+         estilo inline, que não enxerga `var()` do jeito que o CSS enxerga — por isso o
+         valor resolvido vai pronto, e a impressão, que zera o token, zera a sombra. */
+      sombra: v('--shadow-card') || 'none',
       serie: {
         total: v('--c-total'), pj: v('--c-pj'), pf: v('--c-pf'),
         livre: v('--c-livre'), dir: v('--c-dir'), alerta: v('--c-alerta'),
@@ -110,10 +114,30 @@
      exibição: o CSV e a planilha seguem com o valor completo calculado pelo pipeline. */
   var CASAS = 1;
 
+  /* `signDisplay: 'negative'` tira o sinal do zero arredondado: -0,04 sairia "-0,0", um
+     número que não existe. Navegador que conhece `signDisplay` mas não o valor
+     'negative' lança RangeError; o que não conhece a opção a ignora. Nos dois casos a
+     formatação cai para a forma simples e o sinal do zero é tirado à mão. */
+  var _formatoNumero = null;
   function numero(valor) {
-    return valor.toLocaleString('pt-BR', {
-      minimumFractionDigits: CASAS, maximumFractionDigits: CASAS
-    });
+    if (!_formatoNumero) {
+      var base = { minimumFractionDigits: CASAS, maximumFractionDigits: CASAS };
+      try {
+        _formatoNumero = new Intl.NumberFormat('pt-BR',
+          Object.assign({ signDisplay: 'negative' }, base));
+      } catch (e) {
+        _formatoNumero = new Intl.NumberFormat('pt-BR', base);
+      }
+    }
+    var texto = _formatoNumero.format(valor);
+    return /^[-−]0(,0+)?$/.test(texto) ? texto.slice(1) : texto;
+  }
+
+  /* Número no CSV: o valor inteiro, sem arredondar, com vírgula decimal. O arquivo usa
+     ';' como separador e BOM justamente para abrir direto no Excel em português, e ali
+     um ponto decimal vira texto ou, pior, milhar — 1.5 lido como 15. */
+  function numeroCsv(valor) {
+    return String(valor).replace('.', ',');
   }
 
   function rotuloData(iso, periodicidade) {
@@ -330,7 +354,7 @@
         borderWidth: 1,
         borderRadius: 10,
         padding: [10, 12],
-        extraCssText: 'box-shadow: 0 8px 24px -16px rgba(0,0,0,.4);',
+        extraCssText: 'box-shadow: ' + tk.sombra + ';',
         // Crosshair vertical fino seguindo o mouse.
         axisPointer: { type: 'line', lineStyle: { color: tk.ink3, width: 1, type: 'solid' } },
         formatter: function (ps) {
@@ -474,13 +498,18 @@
       s.visivel.forEach(function (o) { m[o[0]] = o[1]; });
       return m;
     });
-    var base = (window.MONITOR.bases || []).filter(function (b) { return b.id === reg.base; })[0];
+    /* Gráfico sem bases (série já em %) mostra o valor da fonte, mas `reg.base` continua
+       'nominal' por padrão — o cabeçalho diria "R$ correntes" e as colunas levariam
+       `_nominal` numa taxa de inadimplência. Sem bases declaradas, não há base. */
+    var base = reg.def.bases && reg.def.bases.length
+      ? (window.MONITOR.bases || []).filter(function (b) { return b.id === reg.base; })[0]
+      : null;
     var sufixo = base ? base.sufixo : '';
 
     var linhas = [['data'].concat(series.map(function (s) { return s.serie_id + sufixo; })).join(';')];
     ordenadas.forEach(function (d) {
       linhas.push([d].concat(indices.map(function (m) {
-        return m[d] === undefined ? '' : String(m[d]);
+        return m[d] === undefined ? '' : numeroCsv(m[d]);
       })).join(';'));
     });
 
@@ -519,32 +548,102 @@
   /* O PNG usa exatamente os mesmos tokens da tela — o ECharts exporta o que desenhou —
      e recebe título e procedência desenhados em volta, para que a imagem continue
      dizendo o que é e de onde veio depois de sair do site. */
+  /* Quebra um texto em linhas que caibam em `limite`, com a fonte já posta em `ctx`.
+     Palavra que sozinha passa do limite fica numa linha própria; quem chama reduz a
+     fonte nesse caso, em vez de cortar. */
+  function quebraLinhas(ctx, texto, limite) {
+    var linhas = [], atual = '';
+    texto.split(/\s+/).forEach(function (palavra) {
+      var tentativa = atual ? atual + ' ' + palavra : palavra;
+      if (atual && ctx.measureText(tentativa).width > limite) {
+        linhas.push(atual);
+        atual = palavra;
+      } else {
+        atual = tentativa;
+      }
+    });
+    if (atual) linhas.push(atual);
+    return linhas;
+  }
+
+  /* Maior fonte, do tamanho pedido para baixo, em que nenhuma linha passa do limite. Um
+     título longo ("Concessões de crédito livre às empresas por modalidade") num cartão
+     estreito quebra em duas linhas; só se nem assim couber a fonte diminui. */
+  function blocoDeTexto(ctx, texto, limite, tamanho, peso, familia) {
+    var linhas;
+    for (;;) {
+      ctx.font = peso + ' ' + tamanho + 'px ' + familia;
+      linhas = quebraLinhas(ctx, texto, limite);
+      var cabe = linhas.every(function (l) { return ctx.measureText(l).width <= limite; });
+      if (cabe || tamanho <= 12) break;
+      tamanho -= 2;
+    }
+    return { linhas: linhas, fonte: ctx.font, altura: Math.round(tamanho * 1.3) };
+  }
+
+  /* A imagem sai de uma instância TEMPORÁRIA, em canvas, e não da que está na tela. Os
+     gráficos da página usam o renderizador SVG, e nele `getDataURL` devolve SVG em 1x,
+     ignorando `pixelRatio` e `backgroundColor` — o título e a procedência, desenhados
+     para 2x, saíam cortados, e o SVG carregado como <img> perde as fontes da web. A
+     instância temporária tem o tamanho exato da área do cartão, para que a folga do
+     rótulo de ponta, medida para essa largura, continue valendo, e é descartada logo
+     depois. */
   function png(reg) {
-    if (!reg.instancia) return;
+    if (!reg.opcao || typeof echarts === 'undefined') return;
     var tk = tokens();
-    var url = reg.instancia.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: tk.surface });
+    var largura = reg.area.clientWidth || 800;
+    var altura = reg.area.clientHeight || 400;
+
+    var fora = document.createElement('div');
+    fora.setAttribute('aria-hidden', 'true');
+    fora.style.position = 'fixed';
+    fora.style.left = '-10000px';
+    fora.style.top = '0';
+    fora.style.width = largura + 'px';
+    fora.style.height = altura + 'px';
+    document.body.appendChild(fora);
+
+    var url = null, temporaria = null;
+    try {
+      temporaria = echarts.init(fora, null, { renderer: 'canvas', width: largura, height: altura });
+      temporaria.setOption(Object.assign({}, reg.opcao, { animation: false }), true);
+      url = temporaria.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: tk.surface });
+    } finally {
+      if (temporaria) temporaria.dispose();
+      document.body.removeChild(fora);
+    }
+    if (!url) return;
+
     var img = new Image();
     img.onload = function () {
-      var topo = 64, base = 48, margem = 32;
+      var margem = 32, respiro = 20;
       var cv = document.createElement('canvas');
+      var ctx = cv.getContext('2d');
+      var limite = img.width - 2 * margem;
+      var titulo = blocoDeTexto(ctx, reg.def.titulo, limite, 32, 500, tk.fTexto);
+      var rodape = blocoDeTexto(ctx,
+        'Fonte: ' + fonteDe(reg.seriesVisiveis) + ' · Monitor de Crédito e Endividamento',
+        limite, 24, 400, tk.fTexto);
+      var topo = margem + titulo.linhas.length * titulo.altura + respiro;
+      var base = respiro + rodape.linhas.length * rodape.altura + margem;
+
+      // Mudar o tamanho do canvas zera o contexto, fonte inclusive: tudo é reposto depois.
       cv.width = img.width;
       cv.height = img.height + topo + base;
-      var ctx = cv.getContext('2d');
       ctx.fillStyle = tk.surface;
       ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.drawImage(img, 0, topo);
-      ctx.textBaseline = 'middle';
+      ctx.textBaseline = 'top';
 
       ctx.fillStyle = tk.ink;
-      ctx.font = '500 32px ' + tk.fTexto;
-      ctx.fillText(reg.def.titulo, margem, topo / 2);
+      ctx.font = titulo.fonte;
+      titulo.linhas.forEach(function (l, i) { ctx.fillText(l, margem, margem + i * titulo.altura); });
 
       ctx.fillStyle = tk.ink3;
-      ctx.font = '400 24px ' + tk.fTexto;
-      ctx.fillText(
-        'Fonte: ' + fonteDe(reg.seriesVisiveis) + ' · Monitor de Crédito e Endividamento',
-        margem, img.height + topo + base / 2
-      );
+      ctx.font = rodape.fonte;
+      var y0 = img.height + topo + respiro;
+      rodape.linhas.forEach(function (l, i) { ctx.fillText(l, margem, y0 + i * rodape.altura); });
+
       baixaUrl(nomeArquivo(reg.def.titulo, 'png'), cv.toDataURL('image/png'));
     };
     img.src = url;
@@ -638,13 +737,19 @@
     return { caixa: caixa, de: de, ate: ate };
   }
 
-  function iconeInfo(grafico) {
+  function iconeInfo(reg) {
+    var grafico = reg.def;
     if (!grafico.metodologia) return null;
     var b = el('button', 'info', 'i');
     b.type = 'button';
     b.title = 'Nota metodológica';
     b.setAttribute('aria-label', 'Nota metodológica de ' + grafico.titulo);
-    b.addEventListener('click', function () { vaiParaMetodologia(grafico.metodologia); });
+    b.addEventListener('click', function () {
+      /* Dentro do gráfico expandido, a Metodologia abriria ATRÁS do modal, invisível.
+         Fecha antes, como faz o link da coluna de notas. */
+      if (reg.expandido) fechaDialogo();
+      vaiParaMetodologia(grafico.metodologia);
+    });
     return b;
   }
 
@@ -669,8 +774,21 @@
       menu.hidden = true;
       botao.setAttribute('aria-expanded', 'false');
       document.removeEventListener('click', foraDaqui, true);
+      document.removeEventListener('keydown', comEsc, true);
     }
     function foraDaqui(ev) { if (!caixa.contains(ev.target)) fecha(); }
+    /* Esc fecha só o menu. O `preventDefault` impede que a mesma tecla feche também o
+       gráfico expandido quando o menu foi aberto dentro dele: o <dialog> só pede o
+       fechamento se o keydown não tiver sido cancelado. */
+    function comEsc(ev) {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      var focoDentro = caixa.contains(document.activeElement);
+      fecha();
+      if (focoDentro) botao.focus();
+    }
+    reg.fechaMenu = fecha;
     function item(texto, acao) {
       var b = el('button', 'baixar__item', texto);
       b.type = 'button';
@@ -689,7 +807,12 @@
       var abrir = menu.hidden;
       menu.hidden = !abrir;
       botao.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-      if (abrir) document.addEventListener('click', foraDaqui, true);
+      if (abrir) {
+        document.addEventListener('click', foraDaqui, true);
+        document.addEventListener('keydown', comEsc, true);
+      } else {
+        fecha();
+      }
     });
 
     caixa.appendChild(botao);
@@ -750,10 +873,12 @@
       controles.appendChild(alternar);
     }
 
-    var info = iconeInfo(grafico);
+    var info = iconeInfo(reg);
     if (info) controles.appendChild(info);
     var expande = botaoIcone('expande', ICONE.expande, 'Expandir o gráfico');
     expande.addEventListener('click', function () { abreExpandido(reg); });
+    // Para onde o foco volta quando o gráfico expandido fecha.
+    reg.botaoExpande = expande;
     controles.appendChild(expande);
     controles.appendChild(menuDownload(reg));
 
@@ -900,8 +1025,9 @@
   function atualizaBarra(c) {
     var n = c.regs.length, k = porTelaDe(c), i = Math.min(indiceDe(c), Math.max(0, n - k));
     c.barra.hidden = !rolavel(c);
-    c.posicao.textContent = (k > 1 ? (i + 1) + '–' + Math.min(n, i + k) : String(i + 1)) +
-      ' de ' + n;
+    var texto = (k > 1 ? (i + 1) + '–' + Math.min(n, i + k) : String(i + 1)) + ' de ' + n;
+    // Só escreve quando muda: reescrever o mesmo texto numa região viva pode reanunciá-lo.
+    if (c.posicao.textContent !== texto) c.posicao.textContent = texto;
     c.indice = i;
   }
 
@@ -910,8 +1036,10 @@
     c.pausa.innerHTML = (c.pausado ? ICONE.toca : ICONE.pausa) + '<span>' + rotulo + '</span>';
     c.pausa.setAttribute('aria-label', (c.pausado ? 'Retomar' : 'Pausar') + ' a rotação automática');
     c.pausa.setAttribute('aria-pressed', c.pausado ? 'true' : 'false');
-    // Rotação em curso não é anunciada a cada troca; parada, a troca é ação do leitor.
-    c.trilho.setAttribute('aria-live', c.pausado ? 'polite' : 'off');
+    /* Rotação em curso não é anunciada a cada troca; parada, a troca é ação do leitor.
+       A região viva é só o "3–4 de 11", nunca a faixa: dentro dela estão os gráficos, e
+       cada redesenho — tema, largura, fonte que chegou — seria lido em voz alta. */
+    c.posicao.setAttribute('aria-live', c.pausado ? 'polite' : 'off');
   }
 
   /* Barra de progresso: enche em INTERVALO e a troca acontece quando ela fecha. Parada
@@ -955,6 +1083,7 @@
     var pausa = el('button', 'pilula carrossel__pausa');
     pausa.type = 'button';
     var posicao = el('span', 'carrossel__posicao');
+    posicao.setAttribute('aria-atomic', 'true');
     var comandos = el('div', 'carrossel__comandos');
     comandos.appendChild(anterior);
     comandos.appendChild(posicao);
@@ -973,7 +1102,8 @@
     var c = {
       abaId: abaId, caixa: caixa, trilho: trilho, barra: barra, pausa: pausa,
       posicao: posicao, progresso: progressoFill, regs: regs, indice: 0,
-      pausado: semMovimento, suspenso: false, ativo: false, temporizador: null
+      pausado: semMovimento, suspenso: false, ativo: false, temporizador: null,
+      ponteiroDentro: false
     };
 
     function manual(sentido) {
@@ -1004,15 +1134,25 @@
     }, { passive: true });
 
     function suspende(sim) { c.suspenso = sim; agenda(c); }
-    caixa.addEventListener('mouseenter', function () { suspende(true); });
-    caixa.addEventListener('mouseleave', function () {
+    /* Só o ponteiro de MOUSE suspende. No celular o toque dispara um `mouseenter` de
+       compatibilidade e nunca o `mouseleave` correspondente: a faixa ficava suspensa
+       para sempre, e "Retomar" não fazia nada. Pelo `pointerType` o toque fica de fora;
+       o `touchstart` lá embaixo cuida dele. */
+    caixa.addEventListener('pointerenter', function (ev) {
+      if (ev.pointerType !== 'mouse') return;
+      c.ponteiroDentro = true;
+      suspende(true);
+    });
+    caixa.addEventListener('pointerleave', function (ev) {
+      if (ev.pointerType !== 'mouse') return;
+      c.ponteiroDentro = false;
       suspende(caixa.contains(document.activeElement) && focoDeTeclado(document.activeElement));
     });
     /* Só o foco de TECLADO suspende. O de mouse fica no botão clicado até o próximo
        clique fora, e prenderia a rotação parada depois de um simples "Retomar". */
     caixa.addEventListener('focusin', function (ev) { if (focoDeTeclado(ev.target)) suspende(true); });
     caixa.addEventListener('focusout', function (ev) {
-      if (!caixa.contains(ev.relatedTarget) && !caixa.matches(':hover')) suspende(false);
+      if (!caixa.contains(ev.relatedTarget) && !c.ponteiroDentro) suspende(false);
     });
     // No toque não há "sair de cima": cada toque reinicia a contagem.
     caixa.addEventListener('touchstart', function () { agenda(c); }, { passive: true });
@@ -1064,11 +1204,14 @@
     d.addEventListener('close', fechaExpandido);
 
     document.body.appendChild(d);
-    dialogo = { elemento: d, lugar: lugar, notas: notas, reg: null, marcador: null };
+    dialogo = {
+      elemento: d, corpo: corpo, lugar: lugar, notas: notas, reg: null, marcador: null
+    };
   }
 
   function abreExpandido(reg) {
     if (!dialogo || modalAberto || typeof dialogo.elemento.showModal !== 'function') return;
+    if (reg.fechaMenu) reg.fechaMenu();
     var marcador = el('div', 'cartao cartao--marcador');
     marcador.style.height = reg.cartao.offsetHeight + 'px';
     reg.cartao.replaceWith(marcador);
@@ -1078,10 +1221,19 @@
     dialogo.reg = reg;
     dialogo.marcador = marcador;
     modalAberto = true;
-    Object.keys(carrosseis).forEach(function (k) { agenda(carrosseis[k]); });
+    /* O ponteiro agora está sobre o modal, e o foco que estava no botão de expandir saiu
+       da faixa junto com o cartão — sem `focusout`, em alguns navegadores. Nenhum dos
+       dois pode deixar a faixa suspensa: o estado é refeito ao fechar. */
+    Object.keys(carrosseis).forEach(function (k) {
+      carrosseis[k].ponteiroDentro = false;
+      carrosseis[k].suspenso = false;
+      agenda(carrosseis[k]);
+    });
 
+    dialogo.elemento.setAttribute('aria-label', 'Gráfico expandido: ' + reg.def.titulo);
     dialogo.elemento.showModal();
     dialogo.notas.scrollTop = 0;
+    dialogo.corpo.scrollTop = 0;
     // A largura mudou: a folga do rótulo de ponta e o eixo têm de ser recalculados.
     if (reg.instancia) reg.instancia.resize();
     desenha(reg);
@@ -1095,6 +1247,7 @@
   function fechaExpandido() {
     var reg = dialogo && dialogo.reg;
     if (!reg) return;
+    if (reg.fechaMenu) reg.fechaMenu();
     reg.cartao.classList.remove('cartao--expandido');
     dialogo.marcador.replaceWith(reg.cartao);
     reg.expandido = false;
@@ -1103,7 +1256,25 @@
     modalAberto = false;
     if (reg.instancia) reg.instancia.resize();
     desenha(reg);
-    Object.keys(carrosseis).forEach(function (k) { agenda(carrosseis[k]); });
+
+    /* Foco de volta a quem abriu. O <dialog> tenta devolvê-lo sozinho, mas o elemento
+       que tinha o foco antes de abrir — o botão de expandir — foi junto com o cartão
+       para dentro do modal e, no fechamento, estava num elemento oculto: o foco caía no
+       <body>, e quem navega por teclado voltava ao topo da página. Só age se o foco não
+       foi parar em outro lugar de propósito. */
+    var ativo = document.activeElement;
+    if (reg.botaoExpande && (!ativo || ativo === document.body || dialogo.elemento.contains(ativo))) {
+      try { reg.botaoExpande.focus({ preventScroll: true }); } catch (e) { reg.botaoExpande.focus(); }
+    }
+
+    /* Suspensão refeita do zero: só o foco de teclado dentro da faixa a mantém. O
+       ponteiro volta a contar no próximo `pointerenter`. */
+    Object.keys(carrosseis).forEach(function (k) {
+      var c = carrosseis[k];
+      var foco = document.activeElement;
+      c.suspenso = !!foco && c.caixa.contains(foco) && focoDeTeclado(foco);
+      agenda(c);
+    });
   }
 
   /* Os primeiros parágrafos da seção da Metodologia, copiados do painel já montado — o
@@ -1135,8 +1306,13 @@
     return MESES[parseInt(p[1], 10) - 1] + '/' + p[0];
   }
 
+  /* Refeita a cada desenho do cartão expandido, porque a lista de séries depende do
+     período (série sem observação no intervalo sai do gráfico e da lista). Redimensionar,
+     trocar o tema ou a chegada da fonte também redesenham, e jogavam o leitor de volta
+     ao topo das notas no meio da leitura: a posição da rolagem é guardada e reposta. */
   function preencheNotas(reg) {
     var notas = dialogo.notas;
+    var rolagemNotas = notas.scrollTop, rolagemCorpo = dialogo.corpo.scrollTop;
     notas.innerHTML = '';
 
     var secao = el('section', 'notas__bloco');
@@ -1178,6 +1354,8 @@
     });
     bs.appendChild(lista);
     notas.appendChild(bs);
+    notas.scrollTop = rolagemNotas;
+    dialogo.corpo.scrollTop = rolagemCorpo;
   }
 
   // ------------------------------------------------------------------ abas
@@ -1220,6 +1398,7 @@
     painel.id = 'painel-' + aba.id;
     painel.hidden = true;
     painel.setAttribute('role', 'tabpanel');
+    painel.setAttribute('aria-labelledby', idDaAba(aba.id));
 
     var cab = el('div', 'painel__cabecalho');
     var intro = el('div', 'painel__intro');
@@ -1229,25 +1408,53 @@
     cab.appendChild(controlePeriodoDaAba(aba.id));
     painel.appendChild(cab);
 
+    /* Nenhum desenho aqui. Desenhar sem instância só calcularia uma opção que ninguém
+       usa, com largura zero, porque o painel está oculto — todos os gráficos do site
+       calculados e jogados fora na abertura. `inicializa`, chamado por `ativa` quando a aba aparece, é quem desenha
+       pela primeira vez; até lá o cartão não está na tela, e download e expansão, que
+       dependem de `seriesVisiveis` e `opcao`, não são alcançáveis. */
     registros[aba.id] = [];
     aba.graficos.forEach(function (g) {
-      var reg = montaCartao(g, aba.id);
-      registros[aba.id].push(reg);
-      desenha(reg);
+      registros[aba.id].push(montaCartao(g, aba.id));
     });
     painel.appendChild(montaCarrossel(aba.id, registros[aba.id]));
     return painel;
   }
 
+  function idDaAba(id) { return 'aba-pilula-' + id; }
+
+  var abaAtiva = null;
+
+  /* Gráficos que estão de fato na tela: os já iniciados da aba visível e o do modal, se
+     houver. Redimensionar, trocar o tema e a chegada da fonte só redesenham estes; um
+     gráfico de aba oculta mediria largura zero, cairia no valor de reserva e ficaria
+     errado ao aparecer. Esses são redesenhados por `ativa`, quando a aba é mostrada. */
+  function regsNaTela() {
+    var lista = (registros[abaAtiva] || []).filter(function (r) { return r.instancia; });
+    var doModal = dialogo && dialogo.reg;
+    if (doModal && doModal.instancia && lista.indexOf(doModal) < 0) lista.push(doModal);
+    return lista;
+  }
+
   function ativa(id) {
+    abaAtiva = id;
     Object.keys(paineis).forEach(function (outro) {
       var ativo = outro === id;
       paineis[outro].hidden = !ativo;
       botoesAba[outro].setAttribute('aria-selected', ativo ? 'true' : 'false');
+      // Tabindex móvel: só a aba selecionada entra na ordem do Tab; as setas trocam.
+      botoesAba[outro].tabIndex = ativo ? 0 : -1;
     });
+    /* Gráfico já iniciado é redimensionado E redesenhado: enquanto a aba estava oculta,
+       a janela pode ter mudado de largura ou o tema de cor, e nenhum desses eventos
+       redesenha aba oculta. O de primeira vez é desenhado por `inicializa`. */
     (registros[id] || []).forEach(function (reg) {
-      inicializa(reg);
-      if (reg.instancia) reg.instancia.resize();
+      if (reg.instancia) {
+        reg.instancia.resize();
+        desenha(reg);
+      } else {
+        inicializa(reg);
+      }
     });
     // Só a faixa da aba visível gira; as outras param onde estavam.
     Object.keys(carrosseis).forEach(function (abaId) {
@@ -1529,6 +1736,7 @@
     painel.id = 'painel-' + ID_ABA_METODOLOGIA;
     painel.hidden = true;
     painel.setAttribute('role', 'tabpanel');
+    painel.setAttribute('aria-labelledby', idDaAba(ID_ABA_METODOLOGIA));
 
     var grade = el('div', 'metodologia');
     var sumario = el('nav', 'sumario');
@@ -1627,14 +1835,23 @@
     Object.keys(carrosseis).forEach(function (k) { clearTimeout(carrosseis[k].temporizador); });
     carrosseis = {};
 
+    /* As pílulas são um tablist de verdade: cada aba aponta para o seu painel e é
+       nomeada por ele, e as setas esquerda/direita (mais Home e End) andam entre elas,
+       ativando a que recebe o foco. */
+    nav.setAttribute('role', 'tablist');
+    var ordemAbas = [];
     function registra(id, titulo, painel) {
       var b = el('button', 'aba-pilula', titulo);
       b.type = 'button';
+      b.id = idDaAba(id);
       b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', 'false');
+      b.setAttribute('aria-controls', painel.id);
+      b.tabIndex = -1;
       b.addEventListener('click', function () { ativa(id); });
       nav.appendChild(b);
       botoesAba[id] = b;
+      ordemAbas.push(id);
       area.appendChild(painel);
       paineis[id] = painel;
     }
@@ -1643,17 +1860,52 @@
     registra(ID_ABA_METODOLOGIA, 'Metodologia', montaMetodologia(dados));
     if (!dialogo) montaDialogo();
 
+    nav.addEventListener('keydown', function (ev) {
+      var atual = ordemAbas.indexOf(abaAtiva);
+      var n = ordemAbas.length, alvo = null;
+      if (ev.key === 'ArrowRight') alvo = (atual + 1) % n;
+      else if (ev.key === 'ArrowLeft') alvo = (atual - 1 + n) % n;
+      else if (ev.key === 'Home') alvo = 0;
+      else if (ev.key === 'End') alvo = n - 1;
+      if (alvo === null || atual < 0) return;
+      ev.preventDefault();
+      ativa(ordemAbas[alvo]);
+      botoesAba[ordemAbas[alvo]].focus();
+    });
+
     /* Redimensionar muda a largura do cartão e, com ela, a folga do rótulo de ponta.
        `resize()` sozinho manteria a folga antiga. O debounce existe porque redesenhar
-       onze gráficos a cada pixel de arrasto trava a janela. */
-    var temporizador = null;
+       onze gráficos a cada pixel de arrasto trava a janela.
+
+       Três cortes de custo. Evento em que a LARGURA não mudou é ignorado: no celular a
+       barra de endereço some e volta a cada rolagem e dispara `resize` só de altura, e
+       os cartões têm altura fixa. A exceção é o modal, cuja altura acompanha a janela —
+       ali basta um `resize()` da instância, sem redesenho, porque a folga depende só da
+       largura. Os `resize()` de instância saem num único quadro de animação, não um por
+       evento. E só os gráficos na tela entram: os de aba oculta são refeitos por `ativa`
+       quando a aba aparece. */
+    var temporizador = null, quadroResize = null;
+    var larguraJanela = window.innerWidth;
+    function redimensionaNaTela() {
+      if (quadroResize) return;
+      quadroResize = requestAnimationFrame(function () {
+        quadroResize = null;
+        regsNaTela().forEach(function (reg) { reg.instancia.resize(); });
+      });
+    }
     window.addEventListener('resize', function () {
-      instancias.forEach(function (i) { i.resize(); });
+      if (window.innerWidth === larguraJanela) {
+        if (dialogo && dialogo.reg && dialogo.reg.instancia) {
+          var doModal = dialogo.reg;
+          requestAnimationFrame(function () { if (doModal.instancia) doModal.instancia.resize(); });
+        }
+        return;
+      }
+      larguraJanela = window.innerWidth;
+      redimensionaNaTela();
       clearTimeout(temporizador);
       temporizador = setTimeout(function () {
-        Object.keys(registros).forEach(function (abaId) {
-          registros[abaId].forEach(function (reg) { if (reg.instancia) desenha(reg); });
-        });
+        regsNaTela().forEach(desenha);
         /* A largura dos cartões mudou, e com ela o passo da faixa — e, ao cruzar o
            limite do celular, quantos cabem por tela. Volta ao cartão em que estava. */
         Object.keys(carrosseis).forEach(function (abaId) {
@@ -1674,13 +1926,31 @@
     /* O modo escuro troca todos os tokens sem recarregar a página. Os gráficos guardam
        as cores na opção do ECharts, então precisam ser redesenhados na troca. */
     var escuro = window.matchMedia('(prefers-color-scheme: dark)');
-    var aoTrocarTema = function () {
-      Object.keys(registros).forEach(function (abaId) {
-        registros[abaId].forEach(desenha);
-      });
-    };
+    /* Só os da tela: os de aba oculta pegam o tema novo quando `ativa` os redesenha. */
+    var aoTrocarTema = function () { regsNaTela().forEach(desenha); };
     if (escuro.addEventListener) escuro.addEventListener('change', aoTrocarTema);
     else if (escuro.addListener) escuro.addListener(aoTrocarTema);
+
+    /* A folga do rótulo de ponta é medida com a fonte de verdade — mas a Hanken Grotesk
+       chega do Google Fonts com `display=swap`, quase sempre DEPOIS do primeiro desenho.
+       A medida feita com a fonte de reserva fica estreita ou larga demais para o texto
+       que o navegador acaba desenhando. Quando as fontes terminam de carregar, os
+       gráficos na tela são refeitos com a medida certa. Sem rede, ou por file:// sem as
+       fontes, `ready` resolve do mesmo jeito e o redesenho só repete o que já estava. */
+    if (document.fonts && document.fonts.ready) {
+      var quadroFonte = null;
+      var aoCarregarFonte = function () {
+        if (quadroFonte) return;
+        quadroFonte = requestAnimationFrame(function () {
+          quadroFonte = null;
+          regsNaTela().forEach(desenha);
+        });
+      };
+      document.fonts.ready.then(aoCarregarFonte, function () {});
+      if (document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', aoCarregarFonte);
+      }
+    }
 
     if (dados.abas.length) ativa(dados.abas[0].id);
   }

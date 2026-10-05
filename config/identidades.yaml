@@ -1,0 +1,123 @@
+# Identidades contábeis conferidas a cada build — `total = soma(parcelas)`.
+#
+# Nada aqui gera série nem altera dado. Cada entrada é uma soma que a FONTE garante por
+# construção (a mesma tabela publica o total e as aberturas) e que o pipeline confere
+# depois da coleta, em `build_dataset.confere_identidades`. Se não fechar dentro da
+# tolerância, o build para com código 1 e nada é publicado: é o sinal mais forte de que
+# um código do catálogo aponta para outra série, que é o erro que o gate de validação
+# (nome na fonte) sozinho não pega quando o nome também foi copiado errado.
+#
+# Não confundir com `derivadas.yaml`. Lá a soma CRIA uma série que a fonte não publica;
+# aqui as duas pontas da igualdade são publicadas, e a conta só confere.
+#
+# `tolerancia` é ABSOLUTA, na unidade da fonte (todas abaixo em R$ milhões). O SGS
+# publica cada série arredondada em R$ 1 milhão, de forma independente, então o total e a
+# soma das parcelas podem diferir de algumas unidades sem erro nenhum. A conferência é
+# feita em todas as datas em que total e parcelas têm observação.
+#
+# Medido no cache em 04/10/2026, com as séries até 08/2026. A tolerância de 10 cobre a
+# maior divergência observada com folga de cinco vezes e fica abaixo de 0,3% da menor
+# parcela já publicada em qualquer identidade (R$ 4.326 milhões, na abertura da
+# indústria) — trocar uma parcela por outra série desloca a soma em bilhões, não em
+# unidades.
+#
+# Política com dado desatualizado: identidade com algum participante `stale` não é
+# conferida naquela execução (vira aviso). Uma parcela vinda do cache ao lado de um total
+# recém-revisado pela fonte divergiria sem que nenhum código estivesse errado, e reprovar
+# por isso bloquearia a publicação justamente quando a política é publicar com aviso.
+
+identidades:
+
+  # ---------------------------------------------------------------- saldo do SFN
+  # Tabelas 2 a 5. 234 meses comuns, 03/2007 a 08/2026. Divergência máxima observada:
+  # 2 R$ milhões nas quatro (arredondamento independente na fonte).
+
+  - id: saldo_sfn_por_tomador
+    total: sfn_total
+    parcelas: [sfn_pj, sfn_pf]
+    tolerancia: 10   # máx. observado 2 (06/2010)
+
+  - id: saldo_sfn_por_origem
+    total: sfn_total
+    parcelas: [sfn_livre, sfn_direcionado]
+    tolerancia: 10   # máx. observado 2 (06/2010)
+
+  - id: saldo_livre_por_tomador
+    total: sfn_livre
+    parcelas: [sfn_livre_pj, sfn_livre_pf]
+    tolerancia: 10   # máx. observado 2 (09/2009)
+
+  - id: saldo_direcionado_por_tomador
+    total: sfn_direcionado
+    parcelas: [sfn_direcionado_pj, sfn_direcionado_pf]
+    tolerancia: 10   # máx. observado 2 (05/2010)
+
+  # ---------------------------------------------------------------- concessões
+  # Tabelas 2 a 5. 186 meses comuns, 03/2011 a 08/2026. Divergência máxima observada:
+  # 1 R$ milhão nas quatro.
+
+  - id: concessao_por_tomador
+    total: conc_total
+    parcelas: [conc_pj, conc_pf]
+    tolerancia: 10   # máx. observado 1
+
+  - id: concessao_por_origem
+    total: conc_total
+    parcelas: [conc_livre, conc_direcionado]
+    tolerancia: 10   # máx. observado 1
+
+  - id: concessao_livre_por_tomador
+    total: conc_livre
+    parcelas: [conc_livre_pj, conc_livre_pf]
+    tolerancia: 10   # máx. observado 1
+
+  - id: concessao_direcionado_por_tomador
+    total: conc_direcionado
+    parcelas: [conc_direcionado_pj, conc_direcionado_pf]
+    tolerancia: 10   # máx. observado 1
+
+  # ---------------------------------------------------------------- crédito ampliado
+  # Tabela 1. 164 meses comuns, 01/2013 a 08/2026. Exatas em todos os meses (divergência
+  # 0): a fonte soma as parcelas já arredondadas. A tolerância fica em 10 mesmo assim,
+  # para que uma mudança de arredondamento na fonte não pare o build sem erro de código.
+
+  - id: ampliado_total
+    total: amplo_total
+    parcelas: [amplo_emprestimos, amplo_titulos, amplo_divida_externa]
+    tolerancia: 10   # máx. observado 0
+
+  - id: ampliado_empresas
+    total: amplo_emp_total
+    parcelas: [amplo_emp_emprestimos, amplo_emp_titulos, amplo_emp_divida_externa]
+    tolerancia: 10   # máx. observado 0
+
+  - id: ampliado_familias
+    total: amplo_fam_total
+    parcelas: [amplo_fam_emprestimos, amplo_fam_titulos, amplo_fam_divida_externa]
+    tolerancia: 10   # máx. observado 0
+
+  # ---------------------------------------------------------------- indústria
+  # Tabela 24. As dezesseis aberturas do seletor "Detalhar indústria" (G16) somam o
+  # total da indústria (22043) — é a afirmação de `config/abas.yaml` que dispensa uma
+  # parcela residual nessa abertura. 175 meses comuns, 02/2012 a 08/2026, exata (0).
+
+  - id: industria_por_segmento
+    total: ativ_industria
+    parcelas:
+      - ind_siup
+      - ind_construcao
+      - ind_alimentos
+      - ind_acucar
+      - ind_textil
+      - ind_papel
+      - ind_petroleo
+      - ind_metalurgia
+      - ind_quimica
+      - ind_bens_capital
+      - ind_automobilistica
+      - ind_mineracao
+      - ind_infraestrutura
+      - ind_outros_duraveis
+      - ind_embalagens
+      - ind_nao_duraveis
+    tolerancia: 10   # máx. observado 0

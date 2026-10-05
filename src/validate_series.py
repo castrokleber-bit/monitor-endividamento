@@ -71,13 +71,14 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from comum import escreve_texto, http_get  # noqa: E402
-
-RAIZ = Path(__file__).resolve().parent.parent
-CONFIG = RAIZ / "config"
-
-SGS_DADOS = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/{n}?formato=json"
-BIS_DADOS = "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{codigo}"
+from comum import (  # noqa: E402
+    BIS_DADOS,
+    CONFIG,
+    PAUSA,
+    SGS_ULTIMOS,
+    escreve_texto,
+    http_get,
+)
 
 # Metadados por código do SGS: serviço SOAP legado, documentado no cabeçalho deste
 # módulo. É o único endereço público que devolve o nome oficial de um código — a API REST
@@ -93,13 +94,25 @@ SGS_METADADOS_ENVELOPE = (
     "</getUltimoValorXML></soapenv:Body></soapenv:Envelope>"
 )
 
-TIMEOUT = 30
+# O intervalo entre chamadas (`PAUSA`, 1,2s) vem de `comum`, o mesmo da coleta. Subiu de
+# 0,7s para 1,2s em 19/09/2026, junto com o catálogo que foi de 42 para 108 séries: a
+# validação passou de ~35 para 103 requisições em rajada contínua, e o ritmo que servia
+# para a lista curta passou a ser recusado. O SGS tolera rajada curta e estrangula longa.
 
-# Intervalo entre chamadas. Subiu de 0,7s para 1,2s em 19/09/2026, junto com o catálogo
-# que foi de 42 para 108 séries: a validação passou de ~35 para 103 requisições em
-# rajada contínua, e o ritmo que servia para a lista curta passou a ser recusado. O SGS
-# tolera rajada curta e estrangula rajada longa.
-PAUSA = 1.2
+# Disjuntor: quantas séries SEGUIDAS da mesma fonte podem reprovar por "a fonte não
+# respondeu" antes de o gate desistir daquela fonte. O CLAUDE.md descreve a assinatura de
+# fonte fora do ar como o BLOCO CONTÍGUO de séries vizinhas falhando; cinco seguidas, cada
+# uma depois de ~14s de retry, já é esse bloco. Sem o disjuntor, uma queda do SGS no meio
+# da execução custava todas as séries restantes x 4 tentativas x backoff — horas de CI
+# para chegar à mesma conclusão. Código errado (406, série vazia) e nome divergente NÃO
+# contam: provam que a fonte respondeu, e zeram a contagem.
+LIMITE_FALHAS_SEGUIDAS = 5
+
+# Valores de `tipo_falha` no relatório. Só as falhas do tipo FONTE alimentam o disjuntor.
+FALHA_FONTE = "fonte"
+FALHA_CODIGO = "codigo"
+FALHA_NOME = "nome"
+FALHA_NAO_VALIDADO = "nao_validado"
 
 # Tentativas por série diante de uma resposta que não serve — erro mascarado (200 com
 # corpo que não é JSON), 400, 5xx ou falha de rede. Ver `_observacao_mais_recente`.
@@ -128,7 +141,9 @@ def _get(url: str, **kwargs) -> requests.Response:
 # ---------------------------------------------------------------- BCB / SGS
 
 
-def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None]:
+def _observacao_mais_recente(
+    codigo: int | str,
+) -> tuple[dict | None, str | None, str | None]:
     """
     Última observação da série, com retry sobre tudo o que o SGS faz sob carga.
 
@@ -149,12 +164,15 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
     erro persistir nas quatro tentativas, a série reprova do mesmo jeito: o gate continua
     com dentes.
 
-    Devolve (observação, erro). Um dos dois é None.
+    Devolve (observação, erro, tipo_falha). Com observação, os dois últimos são None. O
+    tipo é `FALHA_CODIGO` para 406 e série vazia — a fonte respondeu — e `FALHA_FONTE`
+    para todo o resto, que é o que o disjuntor de `valida_fonte` conta.
     """
     ultimo_erro = "sem resposta"
+    tipo = FALHA_FONTE
     for tentativa in range(TENTATIVAS_VALIDACAO):
         try:
-            resp = _get(SGS_DADOS.format(codigo=codigo, n=1))
+            resp = _get(SGS_ULTIMOS.format(codigo=codigo, n=1))
         except (RuntimeError, requests.RequestException) as exc:
             # `comum.http_get` levanta RuntimeError depois de esgotar as tentativas de
             # rede. Sem este `except`, um único timeout derrubava o SCRIPT INTEIRO com
@@ -163,12 +181,14 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
             # conseguir dizer QUAIS séries falharam; morrer na primeira não é um gate,
             # é um acidente.
             ultimo_erro = f"falha de rede: {exc}"
+            tipo = FALHA_FONTE
             if tentativa < TENTATIVAS_VALIDACAO - 1:
                 time.sleep(ESPERAS_VALIDACAO[tentativa])
             continue
 
         if resp.status_code == 406:
-            return None, "406 — código inexistente ou inválido no SGS"
+            return None, "406 — código inexistente ou inválido no SGS", FALHA_CODIGO
+        tipo = FALHA_FONTE
         if resp.status_code != 200:
             # Inclui 400, que o SGS usa para estrangular rajada longa — não só 429, como
             # o CLAUDE.md supunha. Repetir é o tratamento certo; `comum.http_get` não
@@ -183,13 +203,20 @@ def _observacao_mais_recente(codigo: int | str) -> tuple[dict | None, str | None
                 dados = None
             else:
                 if isinstance(dados, list) and dados:
-                    return dados[-1], None
-                ultimo_erro = "série sem observações"
+                    return dados[-1], None, None
+                if isinstance(dados, list):
+                    # Lista vazia é a fonte respondendo que não há dado: falha do código,
+                    # não da fonte. Continua sendo repetida, porque sob carga o SGS às
+                    # vezes devolve lista vazia para uma série que tem dado.
+                    ultimo_erro = "série sem observações"
+                    tipo = FALHA_CODIGO
+                else:
+                    ultimo_erro = "payload não é lista de observações"
 
         if tentativa < TENTATIVAS_VALIDACAO - 1:
             time.sleep(ESPERAS_VALIDACAO[tentativa])
 
-    return None, ultimo_erro
+    return None, ultimo_erro, tipo
 
 
 def _normaliza_nome(texto: str | None) -> str:
@@ -256,9 +283,9 @@ def valida_bcb(serie: dict) -> dict:
     codigo = serie["codigo"]
     res = {"serie_id": serie["serie_id"], "fonte": "BCB/SGS", "codigo": codigo}
 
-    ultima, erro = _observacao_mais_recente(codigo)
+    ultima, erro, tipo = _observacao_mais_recente(codigo)
     if erro is not None:
-        return {**res, "ok": False, "erro": erro}
+        return {**res, "ok": False, "erro": erro, "tipo_falha": tipo}
 
     esperado = serie.get("descricao_esperada")
     res.update(
@@ -288,6 +315,7 @@ def valida_bcb(serie: dict) -> dict:
         return {
             **res,
             "ok": False,
+            "tipo_falha": FALHA_NOME,
             "erro": (
                 "nome na fonte não é o esperado pelo catálogo — código errado ou série "
                 f"renomeada no SGS.\n           fonte:    {meta['nome']}\n"
@@ -316,16 +344,26 @@ def valida_bis(serie: dict) -> dict:
             BIS_DADOS.format(codigo=codigo), params={"format": "csv", "lastNObservations": 1}
         )
     except (RuntimeError, requests.RequestException) as exc:
-        return {**res, "ok": False, "erro": f"falha de rede: {exc}"}
+        return {**res, "ok": False, "erro": f"falha de rede: {exc}", "tipo_falha": FALHA_FONTE}
 
     if resp.status_code == 404:
-        return {**res, "ok": False, "erro": "404 — chave inexistente no BIS"}
+        return {
+            **res,
+            "ok": False,
+            "erro": "404 — chave inexistente no BIS",
+            "tipo_falha": FALHA_CODIGO,
+        }
     if resp.status_code != 200:
-        return {**res, "ok": False, "erro": f"HTTP {resp.status_code}"}
+        return {**res, "ok": False, "erro": f"HTTP {resp.status_code}", "tipo_falha": FALHA_FONTE}
 
     linhas = list(csv.DictReader(io.StringIO(resp.text)))
     if not linhas or not {"TIME_PERIOD", "OBS_VALUE", "TITLE_TS"} <= set(linhas[0]):
-        return {**res, "ok": False, "erro": "resposta não é o CSV esperado"}
+        return {
+            **res,
+            "ok": False,
+            "erro": "resposta não é o CSV esperado",
+            "tipo_falha": FALHA_FONTE,
+        }
 
     ultima = linhas[-1]
     esperado = serie.get("descricao_esperada")
@@ -343,6 +381,7 @@ def valida_bis(serie: dict) -> dict:
         return {
             **res,
             "ok": False,
+            "tipo_falha": FALHA_NOME,
             "erro": (
                 "nome na fonte não é o esperado pelo catálogo — chave errada ou série "
                 f"renomeada no BIS.\n           fonte:    {ultima['TITLE_TS']}\n"
@@ -404,6 +443,46 @@ def relatorio_mesclado(
     return list(por_id.values())
 
 
+def valida_fonte(nome_fonte: str, series: list[dict]) -> list[dict]:
+    """
+    Valida as séries de uma fonte, na ordem do catálogo, com disjuntor.
+
+    Depois de `LIMITE_FALHAS_SEGUIDAS` reprovações seguidas do tipo FONTE, para de ir à
+    rede: as séries restantes saem como "não validadas (fonte fora do ar)" e reprovam,
+    sem gastar quatro tentativas com backoff em cada uma. O gate falha do mesmo jeito —
+    só falha em minutos, e dizendo quais códigos ficaram sem conferência.
+    """
+    valida = valida_bcb if nome_fonte == "bcb" else valida_bis
+    resultados: list[dict] = []
+    seguidas = 0
+    for i, s in enumerate(series):
+        if seguidas >= LIMITE_FALHAS_SEGUIDAS:
+            restantes = series[i:]
+            print(
+                f"\n!! {seguidas} falhas seguidas da fonte — disjuntor aberto. "
+                f"{len(restantes)} série(s) não validada(s) (fonte fora do ar).\n"
+            )
+            for r in restantes:
+                res = {
+                    "serie_id": r["serie_id"],
+                    "fonte": "BCB/SGS" if nome_fonte == "bcb" else "BIS",
+                    "codigo": r["codigo"],
+                    "ok": False,
+                    "erro": "não validado (fonte fora do ar)",
+                    "tipo_falha": FALHA_NAO_VALIDADO,
+                }
+                imprime(res, r.get("descricao_esperada"))
+                resultados.append(res)
+            break
+
+        res = valida(s)
+        imprime(res, s.get("descricao_esperada"))
+        resultados.append(res)
+        seguidas = seguidas + 1 if res.get("tipo_falha") == FALHA_FONTE else 0
+        time.sleep(PAUSA)
+    return resultados
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fonte", choices=["bcb", "bis", "todas"], default="todas")
@@ -416,7 +495,7 @@ def main() -> int:
     if args.fonte in ("bis", "todas"):
         catalogos.append(("bis", CONFIG / "series_bis.yaml"))
 
-    resultados, falhas = [], 0
+    resultados: list[dict] = []
 
     for nome_fonte, caminho in catalogos:
         cat = yaml.safe_load(caminho.read_text(encoding="utf-8"))
@@ -425,13 +504,10 @@ def main() -> int:
             series = [s for s in series if s.get("validar")]
 
         print(f"\n=== {cat['fonte']} — {len(series)} série(s) ===\n")
+        resultados += valida_fonte(nome_fonte, series)
 
-        for s in series:
-            res = valida_bcb(s) if nome_fonte == "bcb" else valida_bis(s)
-            imprime(res, s.get("descricao_esperada"))
-            resultados.append(res)
-            falhas += 0 if res["ok"] else 1
-            time.sleep(PAUSA)
+    falhas = sum(0 if r["ok"] else 1 for r in resultados)
+    nao_validadas = [r for r in resultados if r.get("tipo_falha") == FALHA_NAO_VALIDADO]
 
     caminho_relatorio = CONFIG / "_validacao.json"
     anterior = []
@@ -444,13 +520,24 @@ def main() -> int:
     escreve_texto(
         caminho_relatorio,
         json.dumps(
-            relatorio_mesclado(anterior, resultados, series_do_catalogo()),
+            # Série não validada fica FORA da mescla: o relatório anterior dela continua
+            # sendo a última evidência real, e "não sei" não deve apagar "conferi".
+            relatorio_mesclado(
+                anterior,
+                [r for r in resultados if r.get("tipo_falha") != FALHA_NAO_VALIDADO],
+                series_do_catalogo(),
+            ),
             ensure_ascii=False,
             indent=2,
         ),
     )
 
     print(f"\n{len(resultados)} série(s) verificada(s), {falhas} falha(s).")
+    if nao_validadas:
+        print(
+            f"{len(nao_validadas)} não validada(s) — a fonte parou de responder: "
+            + ", ".join(str(r["codigo"]) for r in nao_validadas)
+        )
     print("Relatório salvo em config/_validacao.json")
     if falhas:
         print("\nCorrija os códigos com falha no YAML antes de rodar a coleta.")

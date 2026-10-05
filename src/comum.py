@@ -27,9 +27,38 @@ CONTENT = RAIZ / "content"
 # Formato canônico — ordem das colunas definida em CLAUDE.md.
 COLUNAS = ["serie_id", "data", "valor", "fonte", "codigo_fonte", "unidade", "periodicidade"]
 
+# Endereços das fontes. Ficam aqui, num lugar só, porque a coleta (`fetch_*.py`) e o gate
+# (`validate_series.py`) consultam as mesmas APIs; duas cópias do mesmo endereço divergem
+# no dia em que a fonte mudar de caminho.
+SGS_TUDO = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json"
+SGS_JANELA = (
+    "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
+    "?formato=json&dataInicial={inicio}&dataFinal={fim}"
+)
+SGS_ULTIMOS = (
+    "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/{n}?formato=json"
+)
+BIS_DADOS = "https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{codigo}"
+
 TIMEOUT = 30
-PAUSA = 0.7  # intervalo mínimo entre chamadas — o SGS devolve 429 sob rajada
+
+# Intervalo entre chamadas, o mesmo na coleta e na validação. Subiu de 0,7s para 1,2s em
+# 19/09/2026, quando o catálogo foi de 42 para 108 séries: com mais de cem requisições em
+# rajada contínua, o SGS passou a estrangular o ritmo antigo. 1,2s é o valor que o
+# CLAUDE.md registra como seguro para esse volume.
+PAUSA = 1.2
+
 TENTATIVAS = 4
+
+
+class ErroDeRede(RuntimeError):
+    """
+    A fonte não respondeu depois de todas as tentativas de `http_get`.
+
+    Subclasse de RuntimeError para que todo `except RuntimeError` já existente continue
+    pegando. Existe para que quem conta falhas seguidas de uma fonte (o disjuntor da
+    coleta e o da validação) distinga "a fonte não respondeu" de "o código está errado".
+    """
 
 
 # ---------------------------------------------------------------- ambiente
@@ -70,23 +99,28 @@ def http_get(url: str, metodo: str = "get", **kwargs: Any) -> requests.Response:
     """
     Requisição com retry e backoff exponencial. Repete em 429 e em 5xx.
 
+    Esgotadas as tentativas, levanta `ErroDeRede` com o último status HTTP ou a última
+    exceção de rede na mensagem — é o que aparece no `motivo` do manifesto.
+
     `metodo` existe por um único caso: o serviço de metadados do SGS é SOAP e só atende
     POST (ver `validate_series._metadados`). Uma segunda função de HTTP daria duas
     políticas de retry no projeto, que é o problema que esta função já foi criada para
     resolver. O padrão continua sendo GET.
     """
-    ultima_excecao: Exception | None = None
+    ultimo = "sem resposta"
     for tentativa in range(TENTATIVAS):
         try:
             resp = requests.request(metodo, url, timeout=TIMEOUT, **kwargs)
-            if resp.status_code == 429 or 500 <= resp.status_code < 600:
-                time.sleep(2**tentativa)
-                continue
-            return resp
         except requests.RequestException as exc:  # rede instável
-            ultima_excecao = exc
+            ultimo = f"{type(exc).__name__}: {exc}"
+        else:
+            if resp.status_code != 429 and not 500 <= resp.status_code < 600:
+                return resp
+            ultimo = f"HTTP {resp.status_code}"
+        # Sem espera depois da última tentativa: não há o que esperar, e o erro sai já.
+        if tentativa < TENTATIVAS - 1:
             time.sleep(2**tentativa)
-    raise RuntimeError(f"falha de rede em {url}: {ultima_excecao}")
+    raise ErroDeRede(f"falha de rede em {url}: {ultimo} após {TENTATIVAS} tentativas")
 
 
 # ---------------------------------------------------------------- catálogos

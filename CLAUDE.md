@@ -38,6 +38,12 @@ Autoria: Kleber Pacheco de Castro.
    `actions/cache` — a pasta não é versionada, e sem esse passo cada execução seria
    partida fria: série que falha vai direto para `ausente` e derruba o guard de
    regressão, em vez de virar `stale`. Não remover o passo de cache.
+   O GitHub APAGA cache sem acesso há mais de 7 dias e a coleta é quinzenal, então
+   `.github/workflows/mantem-cache.yml` restaura o cache duas vezes por semana só para
+   renová-lo (04/10/2026). Não remover esse workflow: sem ele o passo de cache acima fica
+   sem efeito na execução agendada. Cache cujo `codigo_fonte` diverge do código atual do
+   catálogo não é reaproveitado — a série vai para `ausente` em vez de publicar como
+   `stale` o dado de um código antigo.
 5. **Front sem build step.** HTML + ECharts via CDN. Tem que abrir por `file://` e
    servido em GitHub Pages, com o mesmo código.
 6. **Nenhum texto interpretativo gerado por IA.** Este é um painel de dados: ele
@@ -166,7 +172,16 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
   séries de uma vez precisa reavaliar isso. Em 26/09/2026 o catálogo foi a 113 códigos
   do BCB e a validação passou a fazer DUAS requisições por série — dados e metadados —,
   e 1,2s continuou bastando: as duas vão para hosts diferentes (`api.bcb.gov.br` e
-  `www3.bcb.gov.br`), então a rajada que o SGS estrangula não dobrou.
+  `www3.bcb.gov.br`), então a rajada que o SGS estrangula não dobrou. Desde 04/10/2026
+  há uma constante só, `comum.PAUSA` = 1,2s, usada também pela coleta (que ainda estava
+  em 0,7s, ritmo que o próprio histórico acima registra como estrangulado).
+- **Disjuntor (04/10/2026).** Depois de 5 falhas de REDE seguidas na mesma fonte — a
+  assinatura do bloco contíguo —, a coleta para de ir à rede e serve o resto daquela
+  fonte do cache, como `stale` com motivo "disjuntor aberto"; a validação para e reprova
+  o resto como "não validado (fonte fora do ar)". Código inexistente (406/404), série
+  vazia e nome divergente NÃO contam: são erro de código, não da fonte. Sem isso uma
+  queda do SGS custava horas de timeout e retry antes de cair no cache. O workflow tem
+  ainda tetos de tempo por step.
 - Resposta pode vir como HTML de erro com status 200. Validar que o payload é lista de
   dicts — e REPETIR, porque esse é o sinal de que a API está sob carga, não de que o
   código está errado. `comum.http_get` não consegue fazer isso sozinho: para ele, 200 foi
@@ -199,8 +214,20 @@ Nunca converter unidade sem registrar a regra em `config/` e em `content/metodol
   e menos estável que a API REST, então a política é assimétrica de propósito: nome que
   DIVERGE reprova; serviço que não responde apenas avisa. Sem isso o gate viraria ponto
   único de falha capaz de bloquear a atualização de dados corretos.
-- As identidades contábeis do `build_dataset.py` continuam sendo o teste mais forte do
-  código: nome certo não garante que a soma das parcelas feche no total.
+- As identidades contábeis continuam sendo o teste mais forte do código: nome certo não
+  garante que a soma das parcelas feche no total. Até 04/10/2026 a única conferência
+  (`confere_fechamento`) era tautológica — refazia a mesma conta que tinha gerado o
+  residual e não podia falhar. Agora são duas, ambas bloqueantes (código 1):
+  `derivadas.confere_residuais` exige todo residual ≥ 0 (com tolerância), e
+  `build_dataset.confere_identidades` confere as somas publicadas pela própria fonte,
+  declaradas em `config/identidades.yaml` com tolerância absoluta e o máximo observado
+  anotado. Identidade com participante `stale` vira aviso, não bloqueio.
+- **Ordem do build (04/10/2026):** checagens de configuração ANTES da coleta (erro de
+  YAML falha em segundos, sem ir à rede); residuais, identidades e guard de regressão
+  ANTES de escrever qualquer artefato. Se o guard bloqueia, nada é escrito — antes o
+  manifesto regredido era gravado, e a segunda execução passava comparando consigo
+  mesma. Com `--fonte bcb|bis`, a outra fonte vem do cache, para os artefatos saírem
+  completos.
 
 **BIS** — fonte das séries internacionais, coletadas direto da API SDMX
 (`https://stats.bis.org/api/v2/data/dataflow/BIS/WS_TC/2.0/{chave}?format=csv`), sem chave
@@ -352,7 +379,10 @@ e tooltip, lendo os mesmos `tokens.css` e `style.css` do site. Fora do menu e co
 
 ## Convenções de código
 
-- Python 3.11+, `requests`, `pandas`, `pyyaml`, `openpyxl`, `pyarrow`.
+- Python 3.11 (a versão do CI), `requests`, `pandas`, `numpy`, `pyyaml`, `openpyxl`,
+  `pyarrow`, com versões EXATAS em `requirements.txt` desde 04/10/2026: um major novo
+  podia quebrar a execução agendada, e o parquet mudava de binário entre a máquina local
+  e o CI com os mesmos dados. Atualizar versão é decisão deliberada.
 - Type hints em funções públicas. Docstrings curtas em português.
 - Nenhuma dependência de front além do ECharts via CDN (versão pinada) e das duas
   famílias do Google Fonts. Nenhuma delas pode ser necessária para a página funcionar.
@@ -362,7 +392,9 @@ e tooltip, lendo os mesmos `tokens.css` e `style.css` do site. Fora do menu e co
   residual, soma e média ponderada, mais a coerência do YAML de produção;
   `tests/test_resiliencia.py`, a política de falha, o guard de regressão, o guard de
   `agregacao` e a coerência da aba de concessões; `tests/test_validacao.py`, os dois
-  níveis do gate e a normalização de nome.
+  níveis do gate e a normalização de nome. As checagens de configuração rodam sobre o
+  catálogo de produção em teste offline, e o disjuntor, o guard antes da escrita e as
+  identidades têm testes sintéticos.
 - `python src/build_dataset.py --do-cache` reconstrói os artefatos a partir do cache
   local, sem rede. É o jeito de iterar no front, na Metodologia ou na planilha sem repetir
   as 122 requisições. Uso manual: no CI a coleta é sempre real.

@@ -1,5 +1,14 @@
-requests>=2.31
-pandas>=2.2
-pyyaml>=6.0
-openpyxl>=3.1
-pyarrow>=15.0
+# Versões EXATAS, fixadas em 04/10/2026 com o que o CI instalava naquela data.
+#
+# Antes eram só limites inferiores (>=). Dois problemas: um major novo de pandas, pyarrow
+# ou openpyxl podia quebrar a execução quinzenal sem nenhuma mudança de código; e
+# data/series.parquet mudava de binário a cada alternância entre a máquina local e o CI
+# com os MESMOS dados, porque o parquet grava a versão do pandas nos metadados.
+# numpy entra aqui, apesar de ser dependência indireta, pelo mesmo motivo.
+# Atualizar é decisão deliberada: trocar as versões, rodar os testes e um build completo.
+requests==2.34.2
+pandas==3.0.6
+numpy==2.4.6
+pyyaml==6.0.3
+openpyxl==3.1.5
+pyarrow==25.0.1

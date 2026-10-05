@@ -68,9 +68,9 @@ class TestResidual(unittest.TestCase):
         """
         Componentes que somam mais que o total produzem residual negativo.
 
-        Não é para acontecer, mas se acontecer o número tem de aparecer como está: zerar
-        em silêncio esconderia um erro de catálogo — uma série no gráfico errado, por
-        exemplo — que o leitor veria como composição que não fecha.
+        Não é para acontecer, mas se acontecer o número tem de sair como está: zerar em
+        silêncio esconderia um erro de catálogo — uma série no gráfico errado, por
+        exemplo. Quem recusa a publicação é `confere_residuais`, que vê o sinal negativo.
         """
         total = [["2026-01-01", 100.0]]
         a = [["2026-01-01", 130.0]]
@@ -162,16 +162,67 @@ class TestConstroi(unittest.TestCase):
         with self.assertRaises(derivadas.ErroDerivada):
             derivadas.constroi(self.config, self.payloads, {})
 
-    def test_confere_fechamento_aprova_o_residual_correto(self):
+    def test_coletado_em_e_o_do_insumo_mais_antigo(self):
+        """Derivada é tão recente quanto o seu insumo mais velho, não a hora do cálculo."""
+        self.payloads["a"]["coletado_em"] = "2026-08-01T00:00:00+00:00"
         novos, _ = derivadas.constroi(self.config, self.payloads, {})
-        self.payloads.update(novos)
-        self.assertEqual(derivadas.confere_fechamento(self.config, self.payloads), [])
+        self.assertEqual(novos["resto"]["coletado_em"], "2026-08-01T00:00:00+00:00")
 
-    def test_confere_fechamento_pega_residual_adulterado(self):
-        novos, _ = derivadas.constroi(self.config, self.payloads, {})
-        novos["resto"]["obs"] = [["2026-01-01", 69.0]]
-        self.payloads.update(novos)
-        self.assertTrue(derivadas.confere_fechamento(self.config, self.payloads))
+
+class TestConfereResiduais(unittest.TestCase):
+    """
+    Residual negativo reprova o build.
+
+    Substitui o antigo teste de `confere_fechamento`, que recalculava o próprio residual
+    e conferia que `total − parcelas − residual` dava zero — verdadeiro por definição, e
+    portanto incapaz de pegar qualquer erro.
+    """
+
+    CONFIG = {
+        "series": [
+            {
+                "serie_id": "resto",
+                "operacao": "residual",
+                "total": "t",
+                "componentes": ["a"],
+                "unidade": "R$ milhões",
+            },
+            {"serie_id": "soma_x", "operacao": "soma", "componentes": ["a"], "unidade": "R$ milhões"},
+        ]
+    }
+
+    def test_residual_positivo_passa(self):
+        payloads = {"resto": _payload("resto", [["2026-01-01", 70.0], ["2026-02-01", 0.0]])}
+        self.assertEqual(derivadas.confere_residuais(self.CONFIG, payloads), [])
+
+    def test_negativo_dentro_da_tolerancia_de_arredondamento_passa(self):
+        payloads = {"resto": _payload("resto", [["2026-01-01", -derivadas.TOLERANCIA_RESIDUAL]])}
+        self.assertEqual(derivadas.confere_residuais(self.CONFIG, payloads), [])
+
+    def test_residual_negativo_reprova_com_a_data_do_pior_caso(self):
+        """O caso real que isto pega: o total de cartão no lugar da parcela à vista."""
+        obs = [["2026-01-01", 10.0], ["2026-02-01", -3000.0], ["2026-03-01", -20.0]]
+        problemas = derivadas.confere_residuais(self.CONFIG, {"resto": _payload("resto", obs)})
+        self.assertEqual(len(problemas), 1)
+        self.assertIn("resto", problemas[0])
+        self.assertIn("2026-02-01", problemas[0])
+
+    def test_construido_de_parcelas_maiores_que_o_total_reprova(self):
+        """De ponta a ponta: o residual é calculado e a conferência o recusa."""
+        payloads = {
+            "t": _payload("t", [["2026-01-01", 100.0]]),
+            "a": _payload("a", [["2026-01-01", 130.0]]),
+        }
+        novos, _ = derivadas.constroi(self.CONFIG, payloads, {})
+        self.assertTrue(derivadas.confere_residuais(self.CONFIG, {**payloads, **novos}))
+
+    def test_so_confere_residuais(self):
+        """Soma negativa não é assunto desta conferência — nem existe no catálogo."""
+        payloads = {"soma_x": _payload("soma_x", [["2026-01-01", -50.0]])}
+        self.assertEqual(derivadas.confere_residuais(self.CONFIG, payloads), [])
+
+    def test_residual_ausente_e_ignorado(self):
+        self.assertEqual(derivadas.confere_residuais(self.CONFIG, {}), [])
 
 
 class TestCatalogoReal(unittest.TestCase):

@@ -9,7 +9,7 @@ desatualize, as partes factuais dela são GERADAS do catálogo a cada build:
     ficha        uma linha por série: código, nome na fonte, tabela de origem, unidade
                  original, unidade exibida, conversão, cobertura, gráficos em que aparece
     derivadas    a fórmula explícita de cada residual, soma e média ponderada
-    transformacoes  as quatro bases, o mês-base vigente do deflator e o vintage do PIB
+    transformacoes  as seis bases, o mês-base vigente do deflator e o vintage do PIB
     historico    o que mudou em relação à execução anterior
 
 O texto humano — o que o monitor é, os conceitos, as limitações — continua em
@@ -136,7 +136,7 @@ def bloco_derivadas(config_derivadas: dict, entradas: dict[str, dict]) -> dict:
 
 def bloco_transformacoes(bases: list[dict], ctx, pib_ultima: str | None) -> dict:
     """
-    As quatro bases, com o mês-base vigente do deflator e o vintage do PIB.
+    As seis bases, com o mês-base vigente do deflator e o vintage do PIB.
 
     Os dois são móveis: mudam a cada atualização. Escrever isso à mão na Metodologia
     daria um texto errado na semana seguinte, que é exatamente o motivo de a aba ser

@@ -160,7 +160,7 @@ def le_payload() -> dict:
 
     A planilha precisa das séries JÁ transformadas, e quem as calcula é
     `src/build_dataset.py`. Recalcular aqui seria uma segunda implementação das mesmas
-    quatro fórmulas — exatamente o que o pipeline evita. Então a planilha consome o
+    seis fórmulas — exatamente o que o pipeline evita. Então a planilha consome o
     mesmo payload que a página consome: uma fonte só para os dois artefatos.
     """
     caminho = DOCS / "dados.js"
@@ -261,6 +261,9 @@ def tabela_da_base(payload: dict, base: str, sufixo: str) -> pd.DataFrame:
     if not colunas:
         return pd.DataFrame()
     tabela = pd.DataFrame(colunas).sort_index()
+    # O payload traz a data como texto ISO; a planilha precisa de data de verdade, como
+    # nas abas temáticas (`para_largo`), para o Excel ordenar, filtrar e plotar.
+    tabela.index = pd.to_datetime(tabela.index).date
     tabela.index.name = "data"
     return tabela.reset_index()
 

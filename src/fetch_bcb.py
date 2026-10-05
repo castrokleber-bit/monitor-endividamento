@@ -27,13 +27,7 @@ import re
 import time
 from datetime import date, datetime
 
-from comum import PAUSA, agora_iso, http_get
-
-SGS_TUDO = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json"
-SGS_JANELA = (
-    "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
-    "?formato=json&dataInicial={inicio}&dataFinal={fim}"
-)
+from comum import PAUSA, SGS_JANELA, SGS_TUDO, agora_iso, http_get
 
 FONTE = "BCB/SGS"
 
@@ -53,11 +47,38 @@ TENTATIVAS_PAYLOAD = 4
 # janela de estrangulamento do SGS. Backoff curto não adianta contra throttling.
 ESPERAS_PAYLOAD = (2, 4, 8)
 
-_MILHAR = re.compile(r"^-?\d{1,3}(\.\d{3})+$")
+# Separador de milhar SEM vírgula: exige DOIS ou mais grupos de ponto ("2.731.513"). Um
+# ponto só nunca é lido como milhar sem vírgula na string — ver `parse_valor_bcb`.
+_MILHAR_SEM_VIRGULA = re.compile(r"^-?\d{1,3}(\.\d{3}){2,}$")
+# Formato brasileiro com vírgula decimal: milhar opcional, em grupos de três ("1.234,56").
+_BRASILEIRO = re.compile(r"^-?(\d{1,3}(\.\d{3})+|\d+),\d+$")
 
 
 class ErroColeta(RuntimeError):
     """Falha determinística de coleta de uma série."""
+
+
+class CodigoInexistente(ErroColeta):
+    """
+    A fonte respondeu e disse que o código não existe (406 no SGS, 404 no BIS).
+
+    É falha do CATÁLOGO, não da fonte: repetir não adianta, cair para janelas não adianta,
+    e o disjuntor da coleta não conta esta falha como sinal de fonte fora do ar.
+    """
+
+
+class SerieVazia(ErroColeta):
+    """A fonte respondeu com um payload válido, mas sem nenhuma observação numérica."""
+
+
+class FonteIndisponivel(ErroColeta):
+    """
+    A fonte não entregou resposta utilizável depois de todas as tentativas.
+
+    Cobre o estrangulamento do SGS nas suas três formas (400, 429 e 200 com HTML) e o
+    erro mascarado que persiste. É o que o disjuntor da coleta conta — junto com
+    `comum.ErroDeRede` — para decidir que a fonte caiu.
+    """
 
 
 # ---------------------------------------------------------------- parsing
@@ -74,19 +95,25 @@ def parse_valor_bcb(texto: str) -> float:
 
     O SGS não é consistente no separador decimal. A regra aplicada é determinística:
 
-      1. há vírgula  -> vírgula é o decimal e ponto é separador de milhar ("1.234,56");
-      2. sem vírgula, mas o ponto forma grupos de três ("2.731.513") -> milhar, remove;
-      3. caso contrário o ponto é o decimal ("49.75") e a string passa direto.
+      1. há vírgula  -> formato brasileiro completo exigido ("1.234,56", "0,5"): vírgula é
+         o decimal e ponto é milhar. Vírgula fora desse formato levanta ValueError;
+      2. sem vírgula, com DOIS ou mais grupos de três após ponto ("2.731.513") -> milhar;
+      3. caso contrário o ponto é o decimal ("49.75", "0.125", "12.345").
 
-    A regra do item 3 é o que impede a corrupção silenciosa do caso mais comum: aplicar
-    `.replace(".", "")` cegamente transformaria 49.75 em 4975.
+    O item 3 é o que impede a corrupção silenciosa do caso mais comum: aplicar
+    `.replace(".", "")` cegamente transformaria 49.75 em 4975. Até 04/10/2026 a regra 2
+    aceitava UM grupo só, e "0.125" virava 125 — um ponto sozinho é ambíguo, e o SGS usa
+    ponto como decimal em todas as séries do catálogo (conferido no `ultimo_valor` cru de
+    `config/_validacao.json`: nenhum código devolve ponto de milhar). Na dúvida, decimal.
     """
     s = texto.strip()
     if not s:
         raise ValueError("valor vazio")
     if "," in s:
+        if not _BRASILEIRO.match(s):
+            raise ValueError(f"valor com vírgula fora do formato brasileiro: {texto!r}")
         s = s.replace(".", "").replace(",", ".")
-    elif _MILHAR.match(s):
+    elif _MILHAR_SEM_VIRGULA.match(s):
         s = s.replace(".", "")
     return float(s)
 
@@ -101,7 +128,7 @@ def normaliza_payload(dados: object, serie_id: str) -> list[list]:
     if not isinstance(dados, list):
         raise ErroColeta(f"{serie_id}: resposta não é lista (provável erro mascarado com HTTP 200)")
     if not dados:
-        raise ErroColeta(f"{serie_id}: série sem observações")
+        raise SerieVazia(f"{serie_id}: série sem observações")
     if not all(isinstance(d, dict) for d in dados):
         raise ErroColeta(f"{serie_id}: itens do payload não são objetos")
 
@@ -113,7 +140,7 @@ def normaliza_payload(dados: object, serie_id: str) -> list[list]:
         obs.append([parse_data_bcb(item["data"]).isoformat(), parse_valor_bcb(str(bruto))])
 
     if not obs:
-        raise ErroColeta(f"{serie_id}: nenhuma observação com valor numérico")
+        raise SerieVazia(f"{serie_id}: nenhuma observação com valor numérico")
 
     obs.sort(key=lambda o: o[0])
     return obs
@@ -141,7 +168,8 @@ def _pede_json(url: str, serie_id: str, onde: str) -> list | None:
     Três resultados possíveis:
       lista  -> o payload, podendo ser vazio
       None   -> 404, que no SGS significa "intervalo sem dado" e não erro
-      exceção -> 406 (código inexistente) ou falha que persistiu nas tentativas
+      exceção -> `CodigoInexistente` (406), `FonteIndisponivel` (falha que persistiu
+                 nas tentativas) ou `comum.ErroDeRede` (rede fora, vinda de `http_get`)
 
     O retry existe porque o SGS, sob carga, responde 200 com uma página HTML de erro no
     corpo. `comum.http_get` não consegue repetir nesse caso — para ele, 200 foi sucesso.
@@ -161,7 +189,7 @@ def _pede_json(url: str, serie_id: str, onde: str) -> list | None:
         if resp.status_code == 404:
             return None
         if resp.status_code == 406:
-            raise ErroColeta(f"{serie_id}: 406 — código inexistente ou inválido no SGS")
+            raise CodigoInexistente(f"{serie_id}: 406 — código inexistente ou inválido no SGS")
         if resp.status_code != 200:
             # Inclui 400, que o SGS usa para estrangular rajada longa — não só 429.
             ultimo = f"HTTP {resp.status_code}"
@@ -180,7 +208,7 @@ def _pede_json(url: str, serie_id: str, onde: str) -> list | None:
         if tentativa < TENTATIVAS_PAYLOAD - 1:
             time.sleep(ESPERAS_PAYLOAD[tentativa])
 
-    raise ErroColeta(f"{serie_id}: {ultimo} em {onde}")
+    raise FonteIndisponivel(f"{serie_id}: {ultimo} em {onde}")
 
 
 def _baixa_aberto(codigo: int | str, serie_id: str) -> list[dict]:
@@ -213,9 +241,9 @@ def _baixa(codigo: int | str, periodicidade: str, serie_id: str) -> list[dict]:
     if periodicidade != "D":
         try:
             return _baixa_aberto(codigo, serie_id)
-        except ErroColeta as exc:
-            if "406" in str(exc):
-                raise  # código inexistente: janela nenhuma vai salvar
+        except CodigoInexistente:
+            raise  # código inexistente: janela nenhuma vai salvar
+        except ErroColeta:
             print(f"         .. {serie_id}: consulta aberta falhou, tentando por janelas")
             time.sleep(PAUSA)
 

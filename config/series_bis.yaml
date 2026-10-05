@@ -28,9 +28,9 @@ series:
   # ---------------------------------------------------------------
   # BIS — dívida por setor, % do PIB, comparável entre países
   #
-  # `pais` é metadado de identidade visual: a série com pais: BR tem de ser a primeira
-  # de qualquer gráfico que a contenha, para receber a primeira cor da paleta (o azul
-  # institucional). `build_dataset.py` falha o build se a ordem for invertida.
+  # `pais` é metadado descritivo. A cor de cada curva vem do campo `cor` (o Brasil é
+  # `total`), não da posição da série no gráfico, desde a direção visual de 19/09/2026;
+  # por isso não há mais verificação de ordem em `build_dataset.py`.
   # ---------------------------------------------------------------
   - serie_id: bis_familias_br
     codigo: "Q.BR.H.A.M.770.A"

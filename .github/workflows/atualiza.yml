@@ -15,15 +15,27 @@ on:
     - cron: "0 21 1,16 * *"
   workflow_dispatch:
 
-permissions:
-  contents: write
-  issues: write
-  pages: write
-  id-token: write
+# Uma execução por vez. Sem isto, um disparo manual durante o cron fazia as duas
+# commitarem: o push da segunda era recusado (non-fast-forward), o job falhava e abria
+# um falso alarme na issue, e os dois deploys do Pages podiam colidir. A segunda espera
+# a primeira terminar, em vez de cancelá-la no meio de um commit.
+concurrency:
+  group: atualiza-dados
+  cancel-in-progress: false
+
+# Permissões por job, não no workflow: o job de coleta instala pacotes de terceiros e não
+# precisa publicar no Pages; o de publicação não precisa escrever no repositório.
+permissions: {}
 
 jobs:
   atualiza:
     runs-on: ubuntu-latest
+    # Teto do job inteiro. Os steps têm tetos próprios, menores; este é a última trava
+    # para o limite padrão de seis horas do GitHub nunca ser atingido.
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      issues: write
     steps:
       - uses: actions/checkout@v7
 
@@ -43,7 +55,10 @@ jobs:
       # causa; isto é a rede de segurança para quando a fonte cair de verdade.
       #
       # `restore-keys` faz a execução pegar o cache mais recente que existir, já que a
-      # chave carrega a data e nunca bate exatamente.
+      # chave carrega o id da execução e nunca bate exatamente.
+      #
+      # O GitHub APAGA cache sem acesso há mais de 7 dias, e este workflow roda a cada
+      # 15. Quem mantém o cache vivo entre uma execução e outra é mantem-cache.yml.
       - name: Cache dos payloads da última coleta
         uses: actions/cache@v6
         with:
@@ -54,14 +69,20 @@ jobs:
       - name: Testa as transformações
         run: python -m unittest discover -s tests
 
+      # Tetos por step (04/10/2026): com o SGS engolindo conexões, cada série custava
+      # minutos de timeout e retry, e a execução podia levar horas antes de falhar. O
+      # disjuntor de src/ corta isso; os tetos garantem que nada passe deles.
       - name: Valida códigos de série
+        timeout-minutes: 30
         run: python src/validate_series.py
 
       # build_dataset.py sai com 1 se o catálogo ficou inconsistente (série citada e não
-      # declarada, residual que não fecha, % do PIB divergindo do oficial do BCB) e com 2
-      # se a cobertura regrediu — série que tinha dado e sumiu. Nos dois casos o step
+      # declarada, residual negativo, identidade de config/identidades.yaml que não
+      # fecha, % do PIB divergindo do oficial do BCB) e com 2 se a cobertura regrediu —
+      # série que tinha dado e sumiu. Nos dois casos nenhum artefato é escrito, o step
       # falha, o job para e NADA é commitado: é o gate contra publicar dado parcial.
       - name: Coleta e consolida
+        timeout-minutes: 45
         run: |
           python src/build_dataset.py
           python src/build_xlsx.py
@@ -71,16 +92,26 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # docs/ recebe dados.js e a planilha porque o Pages publica só essa pasta.
-          git add data/ docs/dados.js docs/monitor_endividamento.xlsx
+          # index.html entra porque build_dataset.carimba_versao() reaplica o `?v=<hash>`
+          # dos estáticos: se alguém fez push de app.js sem rodar o build, o carimbo
+          # velho seria publicado com o JS novo — a combinação que já deixou a página
+          # em branco. Quando o carimbo está certo, o arquivo não muda e nada entra.
+          git add data/ docs/dados.js docs/monitor_endividamento.xlsx docs/index.html
           git diff --staged --quiet || git commit -m "dados: atualização automática $(date -u +%Y-%m-%d)"
+          # Um push humano pode ter chegado durante a coleta. O commit do bot só toca os
+          # artefatos gerados, então o rebase é limpo; se não for, o step falha alto.
+          git pull --rebase origin main
           git push
 
       # Falha de coleta não pode passar em silêncio: o painel continuaria no ar com o
       # snapshot anterior e ninguém saberia. A issue é aberta uma vez e reaproveitada
       # enquanto estiver aberta, para que uma fonte fora do ar por uma semana não gere
       # uma issue por execução.
+      # `cancelled()` cobre o estouro do teto do job, que cancela em vez de falhar — sem
+      # isso a falha mais longa de todas seria a única a passar em silêncio. O custo é
+      # que um cancelamento manual também comenta na issue.
       - name: Abre issue se a atualização falhou
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/github-script@v9
         with:
           script: |
@@ -140,6 +171,11 @@ jobs:
     needs: atualiza
     if: vars.PUBLICAR_PAGES == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

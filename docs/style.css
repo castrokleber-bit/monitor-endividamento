@@ -545,8 +545,11 @@ select.pilula {
 /* A página atrás não rola enquanto o gráfico está aberto. */
 body:has(.expandido[open]) { overflow: hidden; }
 
+/* Sem cor de reserva: o ::backdrop herda as propriedades personalizadas do elemento nos
+   navegadores atuais, e uma reserva literal seria cor fora de tokens.css. Onde não
+   herda, o fundo fica transparente — o modal continua opaco e utilizável. */
 .expandido::backdrop {
-  background: color-mix(in srgb, var(--ink, black) 55%, transparent);
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
 }
 
 .expandido__fechar {

@@ -6,7 +6,7 @@ mascarado (HTML com status 200, `{"erro":{}}`, lista vazia), a paginação por j
 o CSV do BIS com trimestre `yyyy-Qn` e valor vazio, e o formato longo canônico.
 
 Renomeado de test_transformacoes.py em 19/09/2026, quando nasceu `src/transformacoes.py`
-e o nome antigo passou a apontar para a coisa errada. As quatro bases do seletor são
+e o nome antigo passou a apontar para a coisa errada. As seis bases do seletor são
 testadas em tests/test_bases.py.
 
 Uso:
@@ -43,6 +43,29 @@ class TestValorBcb(unittest.TestCase):
 
     def test_ponto_e_milhar_quando_forma_grupos_de_tres(self):
         self.assertEqual(fetch_bcb.parse_valor_bcb("2.731.513"), 2731513.0)
+
+    def test_um_ponto_so_com_tres_casas_e_decimal(self):
+        """
+        Um ponto sozinho é ambíguo; sem vírgula na string, é decimal.
+
+        Até 04/10/2026 "0.125" virava 125 e "12.345" virava 12345: a regra de milhar
+        aceitava um grupo só. O SGS usa ponto como decimal em todo o catálogo.
+        """
+        self.assertEqual(fetch_bcb.parse_valor_bcb("0.125"), 0.125)
+        self.assertEqual(fetch_bcb.parse_valor_bcb("12.345"), 12.345)
+        self.assertEqual(fetch_bcb.parse_valor_bcb("-4.125"), -4.125)
+
+    def test_um_ponto_so_com_virgula_e_milhar(self):
+        self.assertEqual(fetch_bcb.parse_valor_bcb("12.345,6"), 12345.6)
+
+    def test_milhar_com_varios_grupos_e_negativo(self):
+        self.assertEqual(fetch_bcb.parse_valor_bcb("-1.234.567"), -1234567.0)
+
+    def test_virgula_fora_do_formato_brasileiro_falha(self):
+        """Vírgula com milhar mal formado não é adivinhada: levanta."""
+        for texto in ("1,234.56", "12.34,5", "1,2,3"):
+            with self.assertRaises(ValueError, msg=texto):
+                fetch_bcb.parse_valor_bcb(texto)
 
     def test_inteiro_simples(self):
         self.assertEqual(fetch_bcb.parse_valor_bcb("2731513"), 2731513.0)

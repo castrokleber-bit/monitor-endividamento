@@ -274,7 +274,7 @@
     ['Controle', '--f-texto', 15, 500, 'R$ constantes · 10a · Personalizar'],
     ['Valor no tooltip', '--f-texto', 14, 600, '7.372,2'],
     ['Rótulo de ponta', '--f-texto', 13, 500, 'Pessoas jurídicas  2.731,5'],
-    ['Rótulo de eixo', '--f-texto', 12, 400, '0 · 2.000 · 4.000 · 6.000']
+    ['Rótulo de eixo', '--f-texto', 12, 400, '0,0 · 2.000,0 · 4.000,0']
   ];
   var alvoTipos = document.getElementById('sg-tipos');
   TIPOS.forEach(function (t) {
@@ -343,65 +343,114 @@
     return pontos;
   }
 
-  var dados = [
-    { nome: 'Total', cor: tk('--c-total'), largura: 2.5, dados: serie(3000, 0.022, 40), papel: 'total' },
-    { nome: 'Pessoas jurídicas', cor: tk('--c-pj'), largura: 1.5, dados: serie(1300, 0.018, 20) },
-    { nome: 'Pessoas físicas', cor: tk('--c-pf'), largura: 1.5, dados: serie(1700, 0.025, 25) }
-  ];
+  /* Mesmas regras de formatação de app.js — uma casa decimal em todo número, sem o
+     "-0,0", e eixo X em português —, copiadas e não importadas: esta página não carrega
+     app.js. Quem mudar a formatação lá muda aqui também. */
+  var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var formato;
+  try {
+    formato = new Intl.NumberFormat('pt-BR',
+      { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'negative' });
+  } catch (e) {
+    formato = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+  function numero(v) {
+    var t = formato.format(v);
+    return /^[-\u2212]0(,0+)?$/.test(t) ? t.slice(1) : t;
+  }
 
-  echarts.init(document.getElementById('sg-grafico'), null, { renderer: 'svg' }).setOption({
-    useUTC: true,
-    backgroundColor: 'transparent',
-    textStyle: { fontFamily: tk('--f-texto') },
-    animation: false,
-    grid: { left: 2, right: 118, top: 28, bottom: 4, containLabel: true },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: tk('--surface'), borderColor: tk('--line'), borderWidth: 1,
-      borderRadius: 10, padding: [10, 12],
-      axisPointer: { type: 'line', lineStyle: { color: tk('--ink-3'), width: 1 } }
-    },
-    xAxis: {
-      type: 'time', axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
-      axisLabel: { color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), hideOverlap: true }
-    },
-    yAxis: {
-      type: 'value', scale: true, splitNumber: 4,
-      name: 'R$ bi', nameLocation: 'end', nameGap: 12,
-      nameTextStyle: { color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), align: 'left' },
-      axisLine: { show: false }, axisTick: { show: false },
-      splitLine: { lineStyle: { color: tk('--line') } },
-      axisLabel: {
-        color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'),
-        formatter: function (v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
-      }
-    },
-    series: dados.map(function (s) {
-      return {
-        name: s.nome, type: 'line', color: s.cor, showSymbol: false,
-        lineStyle: { width: s.largura, cap: 'round' },
-        endLabel: {
-          show: true, color: s.cor, fontSize: 13, fontWeight: 500,
-          fontFamily: tk('--f-texto'), distance: 10,
-          formatter: function (p) {
-            return p.seriesName + '  ' + p.value[1].toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var DADOS = [
+    { nome: 'Total', token: '--c-total', largura: 2.5, dados: serie(3000, 0.022, 40), papel: 'total' },
+    { nome: 'Pessoas jurídicas', token: '--c-pj', largura: 1.5, dados: serie(1300, 0.018, 20) },
+    { nome: 'Pessoas físicas', token: '--c-pf', largura: 1.5, dados: serie(1700, 0.025, 25) }
+  ];
+  var ANO_MS = 365.25 * 24 * 3600 * 1000;
+  var primeira = DADOS[0].dados[0][0], ultima = DADOS[0].dados[DADOS[0].dados.length - 1][0];
+  var anosVisiveis = (Date.parse(ultima) - Date.parse(primeira)) / ANO_MS;
+
+  var grafico = echarts.init(document.getElementById('sg-grafico'), null, { renderer: 'svg' });
+
+  /* As cores são lidas a cada desenho, como no site: o modo escuro troca os tokens sem
+     recarregar, e a opção do ECharts guarda as cores de quando foi montada. */
+  function desenha() {
+    grafico.setOption({
+      useUTC: true,
+      backgroundColor: 'transparent',
+      textStyle: { fontFamily: tk('--f-texto') },
+      animation: false,
+      grid: { left: 2, right: 118, top: 28, bottom: 4, containLabel: true },
+      tooltip: {
+        trigger: 'axis', confine: true,
+        backgroundColor: tk('--surface'), borderColor: tk('--line'), borderWidth: 1,
+        borderRadius: 10, padding: [10, 12],
+        extraCssText: 'box-shadow: ' + (tk('--shadow-card') || 'none') + ';',
+        axisPointer: { type: 'line', lineStyle: { color: tk('--ink-3'), width: 1 } },
+        formatter: function (ps) {
+          var d = new Date(ps[0].value[0]);
+          var html = '<div class="tt__data">' + MESES[d.getUTCMonth()] + '/' + d.getUTCFullYear() + '</div>';
+          ps.forEach(function (p) {
+            html += '<div class="tt__linha">'
+              + '<span class="tt__marca" style="background:' + p.color + '"></span>'
+              + '<span class="tt__nome">' + p.seriesName + '</span>'
+              + '<span class="tt__valor">' + numero(p.value[1]) + '</span>'
+              + '</div>';
+          });
+          return html;
+        }
+      },
+      xAxis: {
+        type: 'time', minInterval: anosVisiveis > 3 ? ANO_MS : undefined,
+        axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
+        axisLabel: {
+          color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), hideOverlap: true,
+          // Virada de ano vira o ano; outra marca, o mês — e nada em janela de mais de três anos.
+          formatter: function (valor) {
+            var d = new Date(valor);
+            if (d.getUTCMonth() === 0) return String(d.getUTCFullYear());
+            return anosVisiveis > 3 ? '' : MESES[d.getUTCMonth()];
           }
-        },
-        labelLayout: { moveOverlap: 'shiftY' },
-        emphasis: { focus: 'series' },
-        blur: { lineStyle: { opacity: .25 }, label: { opacity: .25 } },
-        markPoint: {
-          silent: true, symbol: 'circle', symbolSize: s.papel ? 6 : 9,
-          itemStyle: s.papel
-            ? { color: s.cor }
-            : { color: tk('--surface'), borderColor: s.cor, borderWidth: 1.5 },
-          label: { show: false },
-          data: [{ coord: s.dados[s.dados.length - 1] }]
-        },
-        data: s.dados
-      };
-    })
-  });
+        }
+      },
+      yAxis: {
+        type: 'value', scale: true, splitNumber: 4,
+        name: 'R$ bi', nameLocation: 'end', nameGap: 12,
+        nameTextStyle: { color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), align: 'left' },
+        axisLine: { show: false }, axisTick: { show: false },
+        splitLine: { lineStyle: { color: tk('--line') } },
+        axisLabel: { color: tk('--ink-3'), fontSize: 12, fontFamily: tk('--f-texto'), formatter: numero }
+      },
+      series: DADOS.map(function (s) {
+        var cor = tk(s.token);
+        return {
+          name: s.nome, type: 'line', color: cor, showSymbol: false,
+          lineStyle: { width: s.largura, cap: 'round' },
+          endLabel: {
+            show: true, color: cor, fontSize: 13, fontWeight: 500,
+            fontFamily: tk('--f-texto'), distance: 10,
+            formatter: function (p) { return p.seriesName + '  ' + numero(p.value[1]); }
+          },
+          labelLayout: { moveOverlap: 'shiftY' },
+          emphasis: { focus: 'series' },
+          blur: { lineStyle: { opacity: .25 }, label: { opacity: .25 } },
+          markPoint: {
+            silent: true, symbol: 'circle', symbolSize: s.papel ? 6 : 9,
+            itemStyle: s.papel
+              ? { color: cor }
+              : { color: tk('--surface'), borderColor: cor, borderWidth: 1.5 },
+            label: { show: false },
+            data: [{ coord: s.dados[s.dados.length - 1] }]
+          },
+          data: s.dados
+        };
+      })
+    }, true);
+  }
+  desenha();
+
+  var escuro = window.matchMedia('(prefers-color-scheme: dark)');
+  if (escuro.addEventListener) escuro.addEventListener('change', desenha);
+  else if (escuro.addListener) escuro.addListener(desenha);
+  window.addEventListener('resize', function () { grafico.resize(); });
 })();
 </script>
 </body>

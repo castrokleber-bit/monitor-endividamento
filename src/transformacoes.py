@@ -125,7 +125,7 @@ def aplica_marcador(texto: str | None, data_base: str | None) -> str | None:
     return texto.replace(MARCADOR_BASE, rotulo_mes(data_base))
 
 
-# ---------------------------------------------------------------- as quatro bases
+# ---------------------------------------------------------------- as seis bases
 
 
 def _divisor_exato(fator: float) -> int | None:
@@ -164,7 +164,7 @@ def real(obs: list[list], fator: float, indice: dict[str, float], data_base: str
 
     Mês do saldo sem IPCA correspondente fica de fora — o deflator não cobre aquele mês
     e preenchê-lo exigiria estimativa. Por construção, o valor real do mês-base é igual
-    ao nominal do mês-base, que é o que `tests/test_transformacoes.py` verifica.
+    ao nominal do mês-base, que é o que `tests/test_bases.py` verifica.
     """
     if data_base not in indice:
         raise ErroTransformacao(f"mês-base {data_base} fora do deflator")

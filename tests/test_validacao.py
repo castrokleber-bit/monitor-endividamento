@@ -159,10 +159,6 @@ class TestRetryDoErroMascarado(unittest.TestCase):
         self.assertEqual(get.call_count, 2)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestRetryNaColeta(unittest.TestCase):
     """
     A mesma política de retry, no caminho da COLETA.
@@ -226,6 +222,19 @@ class TestRetryNaColeta(unittest.TestCase):
         with self._com([erro_da_27703] * n):
             with self.assertRaises(self.fetch_bcb.ErroColeta):
                 self.fetch_bcb._baixa_aberto(27703, "inad_porte_mpme")
+
+    def test_406_na_consulta_aberta_nao_cai_para_janelas(self):
+        """Código inexistente é `CodigoInexistente`: janela nenhuma vai salvar."""
+        with self._com([RespostaFalsa(406)] + [BOM] * 10) as get:
+            with self.assertRaises(self.fetch_bcb.CodigoInexistente):
+                self.fetch_bcb._baixa(99999, "M", "serie_x")
+        self.assertEqual(get.call_count, 1)
+
+    def test_estrangulamento_persistente_e_fonte_indisponivel(self):
+        n = self.fetch_bcb.TENTATIVAS_PAYLOAD
+        with self._com([RespostaFalsa(400)] * n):
+            with self.assertRaises(self.fetch_bcb.FonteIndisponivel):
+                self.fetch_bcb._pede_json("url", "s", "onde")
 
     def test_janela_boa_depois_de_janela_vazia_entra_no_resultado(self):
         janelas = len(self.fetch_bcb._janelas())
@@ -441,3 +450,86 @@ class TestNormalizacaoDeNome(unittest.TestCase):
             validate_series._normaliza_nome(None),
             validate_series._normaliza_nome("Concessões de crédito - Total"),
         )
+
+
+
+class TestDisjuntorDaValidacao(unittest.TestCase):
+    """
+    Fonte fora do ar no meio da validação: depois de N reprovações seguidas por "a fonte
+    não respondeu", o gate para de ir à rede e reprova o resto como não validado.
+
+    O que NÃO pode abrir o disjuntor: código errado (406, série vazia) e nome divergente.
+    Esses provam que a fonte respondeu.
+    """
+
+    N = validate_series.LIMITE_FALHAS_SEGUIDAS
+
+    def setUp(self):
+        mock.patch.object(validate_series.time, "sleep").start()
+        mock.patch.object(validate_series, "_metadados", return_value=METADADOS_OK).start()
+        self.addCleanup(mock.patch.stopall)
+        self.series = [dict(SERIE, serie_id=f"s{i}", codigo=1000 + i) for i in range(self.N + 3)]
+
+    def test_rede_fora_abre_e_poupa_as_restantes(self):
+        erro = RuntimeError("falha de rede")
+        with mock.patch.object(validate_series, "_get", side_effect=erro) as get:
+            res = validate_series.valida_fonte("bcb", self.series)
+
+        self.assertEqual(len(res), len(self.series))  # uma linha por série, sempre
+        self.assertTrue(all(not r["ok"] for r in res))
+        self.assertEqual(get.call_count, self.N * validate_series.TENTATIVAS_VALIDACAO)
+        nao = [r for r in res if r["tipo_falha"] == validate_series.FALHA_NAO_VALIDADO]
+        self.assertEqual([r["serie_id"] for r in nao], ["s5", "s6", "s7"])
+        self.assertIn("fonte fora do ar", nao[0]["erro"])
+
+    def test_406_nao_conta_para_o_disjuntor(self):
+        with mock.patch.object(validate_series, "_get", return_value=RespostaFalsa(406)) as get:
+            res = validate_series.valida_fonte("bcb", self.series)
+        self.assertEqual(get.call_count, len(self.series))
+        self.assertTrue(all(r["tipo_falha"] == validate_series.FALHA_CODIGO for r in res))
+
+    def test_serie_vazia_e_falha_de_codigo(self):
+        with mock.patch.object(validate_series, "_get", return_value=VAZIO):
+            res = validate_series.valida_bcb(SERIE)
+        self.assertEqual(res["tipo_falha"], validate_series.FALHA_CODIGO)
+
+    def test_nome_divergente_nao_conta(self):
+        outro = ({"nome": "Outra série", "unidade": "%", "periodicidade": "M"}, None)
+        with mock.patch.object(validate_series, "_metadados", return_value=outro), \
+                mock.patch.object(validate_series, "_get", return_value=BOM) as get:
+            res = validate_series.valida_fonte("bcb", self.series)
+        self.assertEqual(get.call_count, len(self.series))
+        self.assertTrue(all(r["tipo_falha"] == validate_series.FALHA_NOME for r in res))
+
+    def test_serie_boa_no_meio_zera_a_contagem(self):
+        falha = [RespostaFalsa(503)] * validate_series.TENTATIVAS_VALIDACAO
+        respostas = falha * (self.N - 1) + [BOM] + falha * 3
+        with mock.patch.object(validate_series, "_get", side_effect=respostas):
+            res = validate_series.valida_fonte("bcb", self.series[: self.N + 3])
+        self.assertFalse(any(r.get("tipo_falha") == validate_series.FALHA_NAO_VALIDADO for r in res))
+
+    def test_bis_fora_do_ar_tambem_abre(self):
+        series = [{"serie_id": f"b{i}", "codigo": f"Q.X.{i}"} for i in range(self.N + 2)]
+        with mock.patch.object(
+            validate_series, "_get", return_value=RespostaFalsa(503)
+        ) as get:
+            res = validate_series.valida_fonte("bis", series)
+        self.assertEqual(get.call_count, self.N)
+        self.assertEqual(
+            sum(r["tipo_falha"] == validate_series.FALHA_NAO_VALIDADO for r in res), 2
+        )
+
+    def test_nao_validada_nao_apaga_a_evidencia_anterior(self):
+        """
+        `main` deixa a série não validada FORA da mescla do relatório: "não sei" não pode
+        sobrescrever "conferi". Aqui se testa o filtro que `main` aplica.
+        """
+        anterior = [{"serie_id": "s0", "ok": True, "ultima_data": "01/07/2026"}]
+        nao = {"serie_id": "s0", "ok": False, "tipo_falha": validate_series.FALHA_NAO_VALIDADO}
+        novos = [r for r in [nao] if r.get("tipo_falha") != validate_series.FALHA_NAO_VALIDADO]
+        mesclado = validate_series.relatorio_mesclado(anterior, novos, {"s0"})
+        self.assertTrue(mesclado[0]["ok"])
+
+
+if __name__ == "__main__":
+    unittest.main()

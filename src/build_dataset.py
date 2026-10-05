@@ -13,9 +13,9 @@ Por que `docs/dados.js` e não um `fetch()` de JSON: a página tem de abrir por 
 e servida no GitHub Pages com o mesmo código. Sob `file://` o navegador bloqueia
 `fetch()` de arquivo local; um `<script src>` carrega nos dois casos.
 
-ONDE AS TRANSFORMAÇÕES SÃO FEITAS. Aqui, em Python, e não no navegador. As quatro bases
-do seletor (R$ correntes, R$ constantes, % do PIB, variação em 12 meses) são calculadas
-no pipeline e viajam prontas no payload. Calcular no front economizaria tamanho de
+ONDE AS TRANSFORMAÇÕES SÃO FEITAS. Aqui, em Python, e não no navegador. As seis bases
+do seletor (R$ correntes, R$ constantes, acumulado em 12 meses, % do PIB, variação mensal
+e variação em 12 meses) são calculadas no pipeline e viajam prontas no payload. Calcular no front economizaria tamanho de
 arquivo, mas duplicaria a fórmula — uma cópia em Python para a planilha, outra em
 JavaScript para o gráfico — e duas implementações da mesma regra divergem. O CLAUDE.md
 é explícito: a camada de dados é determinística e o front não interpreta dado.
@@ -24,13 +24,19 @@ Política de falha. Uma série problemática nunca derruba o build das outras:
 
   - fonte caiu, há cache      -> `status: stale`, com `ultima_coleta_ok` no manifesto
   - fonte caiu, não há cache  -> `status: ausente`; a série fica fora dos artefatos
-  - em ambos os casos os artefatos são escritos e o processo sai com 0
+  - cache de outro código     -> descartado; sem coleta nova, a série vai para `ausente`
+  - fonte caiu em BLOCO       -> disjuntor: depois de `LIMITE_FALHAS_SEGUIDAS` falhas de
+                                 rede seguidas, o resto daquela fonte vem do cache sem
+                                 mais tentativas (ver `coleta_tudo`)
+  - em todos esses casos o processo segue, e os artefatos são escritos se o guard deixar
 
 O que protege a publicação é o guard de regressão: se uma série que tinha dado na
-execução anterior some, o processo escreve tudo mas sai com código 2, para o CI parar
-antes do commit.
+execução anterior some, o processo sai com código 2 SEM ESCREVER artefato nenhum. Até
+04/10/2026 ele escrevia tudo antes de conferir — e o `manifest.json` já regredido virava a
+referência da execução seguinte, que passava. O guard só bloqueava uma vez.
 
-Códigos de saída: 0 ok | 1 configuração inconsistente | 2 regressão de cobertura.
+Códigos de saída: 0 ok | 1 configuração ou identidade inconsistente | 2 regressão de
+cobertura.
 
 Uso:
     python src/build_dataset.py
@@ -42,6 +48,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import re
@@ -63,6 +70,7 @@ from comum import (
     DATA,
     DOCS,
     PAUSA,
+    ErroDeRede,
     agora_brasilia,
     agora_iso,
     carrega_abas,
@@ -77,6 +85,7 @@ from comum import (
 
 CATALOGOS = {"bcb": "series_bcb.yaml", "bis": "series_bis.yaml"}
 CATALOGO_DERIVADAS = "derivadas.yaml"
+CATALOGO_IDENTIDADES = "identidades.yaml"
 
 # Tolerância do teste que confere a transformação "% do PIB" contra o % do PIB oficial
 # do BCB, em pontos percentuais. A fonte publica com duas casas decimais, então metade
@@ -85,50 +94,44 @@ CATALOGO_DERIVADAS = "derivadas.yaml"
 # 0,005 pp. Qualquer coisa acima disso é diferença de vintage do PIB, e o build para.
 TOLERANCIA_PIB_PP = 0.01
 
+# Disjuntor da coleta: quantas séries SEGUIDAS da mesma fonte podem falhar por "a fonte
+# não respondeu" antes de a coleta parar de ir à rede para aquela fonte. O CLAUDE.md
+# descreve a assinatura de fonte fora do ar como o BLOCO CONTÍGUO de séries vizinhas
+# falhando, quando as mesmas passavam minutos antes. Cinco seguidas, cada uma depois do
+# retry inteiro de `http_get` e de `_pede_json` mais a queda para janelas, já é esse
+# bloco — e sem o disjuntor uma queda do SGS no meio da execução custava horas de CI,
+# série por série, para chegar ao mesmo cache. Código errado (406/404, série vazia) NÃO
+# conta: prova que a fonte respondeu, e zera a contagem.
+LIMITE_FALHAS_SEGUIDAS = 5
+
+# O que conta como "a fonte não respondeu". `ErroDeRede` vem de `comum.http_get` ao
+# esgotar as tentativas; `FonteIndisponivel`, de quem conhece o formato esperado e viu o
+# estrangulamento persistir (400, 429, 200 com HTML).
+FALHAS_DE_FONTE = (ErroDeRede, fetch_bcb.FonteIndisponivel)
+
 
 # ---------------------------------------------------------------- coleta
 
 
-def coleta_serie(serie: dict, fonte: str) -> tuple[dict | None, dict]:
-    """
-    Coleta uma série. Em falha, cai para o cache anterior.
-
-    Nunca levanta: uma série problemática não pode derrubar o build das outras.
-    Devolve (payload, entrada_do_manifesto), com `status`:
-
-      ok       coleta nova bem-sucedida
-      stale    a fonte falhou e o cache anterior foi reutilizado
-      ausente  a fonte falhou e não há cache — a série fica fora dos artefatos
-    """
-    serie_id = serie["serie_id"]
-    base = {
-        "serie_id": serie_id,
+def _base_manifesto(serie: dict, fonte: str) -> dict:
+    """Campos de identificação de uma série no manifesto, comuns a todo status."""
+    return {
+        "serie_id": serie["serie_id"],
         "fonte": fetch_bcb.FONTE if fonte == "bcb" else fetch_bis.FONTE,
         "codigo_fonte": str(serie["codigo"]),
         "unidade": serie["unidade"],
         "periodicidade": serie.get("periodicidade", "M"),
     }
 
-    try:
-        payload = fetch_bcb.coleta(serie) if fonte == "bcb" else fetch_bis.coleta(serie)
-        grava_cache(serie_id, payload)
-        estado, motivo = "ok", None
-    except (fetch_bcb.ErroColeta, RuntimeError, ValueError, KeyError) as exc:
-        payload = le_cache(serie_id)
-        if payload is None:
-            return None, {
-                **base,
-                "status": "ausente",
-                "motivo": str(exc),
-                "ultima_coleta_ok": None,
-                "n_obs": 0,
-            }
-        estado, motivo = "stale", str(exc)
 
+def _entrada(base: dict, payload: dict | None, status: str, motivo: str | None) -> dict:
+    """Entrada do manifesto. Sem payload, a série é `ausente` e não tem cobertura."""
+    if payload is None:
+        return {**base, "status": "ausente", "motivo": motivo, "ultima_coleta_ok": None, "n_obs": 0}
     obs = payload["obs"]
-    return payload, {
+    return {
         **base,
-        "status": estado,
+        "status": status,
         "motivo": motivo,
         "ultima_coleta_ok": payload["coletado_em"],
         "coletado_em": payload["coletado_em"],
@@ -139,66 +142,149 @@ def coleta_serie(serie: dict, fonte: str) -> tuple[dict | None, dict]:
     }
 
 
-def do_cache(serie: dict, fonte: str) -> tuple[dict | None, dict]:
+def le_cache_coerente(serie: dict) -> tuple[dict | None, str | None]:
+    """
+    Cache desta série, se ele for DESTE código. Devolve (payload, motivo_da_recusa).
+
+    O cache é indexado por `serie_id`, não por código. Quando o catálogo troca o código de
+    uma série — correção de um código errado, por exemplo —, o arquivo antigo continua lá
+    com o dado do código anterior. Reaproveitá-lo numa queda da fonte publicaria, sob o
+    código novo, a série velha que acabou de ser corrigida. Cache de outro código é
+    descartado, e sem coleta nova a série vai para `ausente`: o guard decide o resto.
+    """
+    payload = le_cache(serie["serie_id"])
+    if payload is None:
+        return None, "sem cache local"
+    no_cache = str(payload.get("codigo_fonte"))
+    if no_cache != str(serie["codigo"]):
+        return None, (
+            f"cache descartado: foi coletado do código {no_cache}, e o catálogo agora "
+            f"declara {serie['codigo']}"
+        )
+    if not payload.get("obs"):
+        return None, "cache sem observações"
+    return payload, None
+
+
+def _do_cache_stale(serie: dict, fonte: str, motivo: str) -> tuple[dict | None, dict]:
+    """Falha de coleta: reaproveita o cache como `stale`, ou marca `ausente` sem ele."""
+    payload, recusa = le_cache_coerente(serie)
+    if payload is None:
+        motivo = f"{motivo}; {recusa}"
+        return None, _entrada(_base_manifesto(serie, fonte), None, "ausente", motivo)
+    return payload, _entrada(_base_manifesto(serie, fonte), payload, "stale", motivo)
+
+
+def _coleta(serie: dict, fonte: str) -> tuple[dict | None, dict, bool]:
+    """
+    `coleta_serie`, mais um terceiro valor: a falha foi da FONTE (rede, estrangulamento)?
+
+    É o que o disjuntor de `coleta_tudo` conta. Sucesso e falha de código devolvem False.
+    """
+    try:
+        payload = fetch_bcb.coleta(serie) if fonte == "bcb" else fetch_bis.coleta(serie)
+    except Exception as exc:  # noqa: BLE001 — ver docstring de `coleta_serie`
+        motivo = f"{type(exc).__name__}: {exc}"
+        payload, entrada = _do_cache_stale(serie, fonte, motivo)
+        return payload, entrada, isinstance(exc, FALHAS_DE_FONTE)
+    grava_cache(serie["serie_id"], payload)
+    return payload, _entrada(_base_manifesto(serie, fonte), payload, "ok", None), False
+
+
+def coleta_serie(serie: dict, fonte: str) -> tuple[dict | None, dict]:
+    """
+    Coleta uma série. Em falha, cai para o cache anterior.
+
+    Nunca levanta: uma série problemática não pode derrubar o build das outras. A rede de
+    proteção é `Exception`, de propósito — um `TypeError` num payload inesperado ou um
+    `KeyError` num CSV que mudou de coluna são tão "falha desta série" quanto um 503, e
+    o nome da exceção vai para o `motivo` do manifesto para não se perder.
+
+    Devolve (payload, entrada_do_manifesto), com `status`:
+
+      ok       coleta nova bem-sucedida
+      stale    a fonte falhou e o cache anterior (do mesmo código) foi reutilizado
+      ausente  a fonte falhou e não há cache utilizável — a série fica fora dos artefatos
+    """
+    payload, entrada, _ = _coleta(serie, fonte)
+    return payload, entrada
+
+
+def do_cache(serie: dict, fonte: str, motivo: str | None = None) -> tuple[dict | None, dict]:
     """
     Reconstrói uma série a partir do cache, sem tocar na rede.
 
     Usado por `--do-cache`, que existe para iterar no front, no texto da Metodologia ou
-    na planilha sem repetir a coleta inteira — são cento e oito requisições com pausa
-    entre elas, e nenhuma delas muda quando o que mudou foi um arquivo em docs/.
+    na planilha sem repetir a coleta inteira — são mais de cem requisições com pausa
+    entre elas, e nenhuma delas muda quando o que mudou foi um arquivo em docs/. Usado
+    também para as fontes FORA do recorte de `--fonte`, com `motivo` dizendo isso.
 
     O status resultante é `ok`, não `stale`: o dado é o mesmo que a última coleta trouxe,
     e marcá-lo como desatualizado poria um aviso falso na página. O que a flag não faz é
     buscar dado novo — por isso ela é de uso manual e não aparece no CI.
     """
-    serie_id = serie["serie_id"]
-    base = {
-        "serie_id": serie_id,
-        "fonte": fetch_bcb.FONTE if fonte == "bcb" else fetch_bis.FONTE,
-        "codigo_fonte": str(serie["codigo"]),
-        "unidade": serie["unidade"],
-        "periodicidade": serie.get("periodicidade", "M"),
-    }
-    payload = le_cache(serie_id)
+    payload, recusa = le_cache_coerente(serie)
     if payload is None:
-        return None, {
-            **base,
-            "status": "ausente",
-            "motivo": "sem cache local (--do-cache não vai à rede)",
-            "ultima_coleta_ok": None,
-            "n_obs": 0,
-        }
-    obs = payload["obs"]
-    return payload, {
-        **base,
-        "status": "ok",
-        "motivo": None,
-        "ultima_coleta_ok": payload["coletado_em"],
-        "coletado_em": payload["coletado_em"],
-        "inicio": obs[0][0],
-        "ultima_data": obs[-1][0],
-        "ultimo_valor": obs[-1][1],
-        "n_obs": len(obs),
-    }
+        return None, _entrada(
+            _base_manifesto(serie, fonte),
+            None,
+            "ausente",
+            f"{recusa} (--do-cache não vai à rede)" if motivo is None else f"{motivo}; {recusa}",
+        )
+    return payload, _entrada(_base_manifesto(serie, fonte), payload, "ok", motivo)
 
 
 def coleta_tudo(
     fontes: list[str], apenas_cache: bool = False
 ) -> tuple[dict[str, dict], list[dict], dict[str, dict]]:
-    """Percorre os catálogos e devolve (payloads, manifesto, metadados do catálogo)."""
+    """
+    Percorre TODOS os catálogos e devolve (payloads, manifesto, metadados do catálogo).
+
+    Só as fontes em `fontes` vão à rede; as demais vêm do cache, como em `--do-cache`. É
+    o que torna `--fonte bcb` seguro: antes, a execução parcial escrevia artefatos só com
+    as séries do BCB, o guard via as do BIS como sumidas, e a página perdia uma fonte
+    inteira se alguém usasse `--sem-guard`. Agora os artefatos saem sempre completos, e o
+    guard compara o catálogo inteiro — uma série da fonte não coletada sem cache aparece
+    como `ausente` e bloqueia, como deve.
+
+    Disjuntor: depois de `LIMITE_FALHAS_SEGUIDAS` falhas de FONTE seguidas, as séries
+    restantes daquela fonte vêm do cache como `stale`, sem nova tentativa de rede.
+    """
     payloads: dict[str, dict] = {}
     manifesto: list[dict] = []
     catalogo: dict[str, dict] = {}
 
-    for fonte in fontes:
+    for fonte in CATALOGOS:
         cat = carrega_catalogo(CATALOGOS[fonte])
-        print(f"\n=== {cat['fonte']} — {len(cat['series'])} série(s) ===\n")
+        vai_a_rede = fonte in fontes and not apenas_cache
+        recorte = (
+            None
+            if fonte in fontes
+            else f"fora do recorte --fonte {'/'.join(fontes)}: reconstruída do cache"
+        )
+        sufixo = "" if vai_a_rede else " (do cache)"
+        print(f"\n=== {cat['fonte']} — {len(cat['series'])} série(s){sufixo} ===\n")
+        seguidas = 0
         for serie in cat["series"]:
             catalogo[serie["serie_id"]] = serie
-            if apenas_cache:
-                payload, entrada = do_cache(serie, fonte)
+            if not vai_a_rede:
+                payload, entrada = do_cache(serie, fonte, recorte)
+            elif seguidas >= LIMITE_FALHAS_SEGUIDAS:
+                payload, entrada = _do_cache_stale(
+                    serie,
+                    fonte,
+                    f"não coletada: disjuntor aberto após {seguidas} falhas de rede "
+                    f"seguidas em {cat['fonte']}",
+                )
             else:
-                payload, entrada = coleta_serie(serie, fonte)
+                payload, entrada, falha_de_fonte = _coleta(serie, fonte)
+                seguidas = seguidas + 1 if falha_de_fonte else 0
+                if seguidas == LIMITE_FALHAS_SEGUIDAS:
+                    print(
+                        f"         !! {seguidas} falhas de rede seguidas em {cat['fonte']} — "
+                        "disjuntor aberto, o resto desta fonte vem do cache"
+                    )
+                time.sleep(PAUSA)
             manifesto.append(entrada)
             if payload is not None:
                 payloads[serie["serie_id"]] = payload
@@ -211,8 +297,6 @@ def coleta_tudo(
             print(f"[{marca}] {serie['serie_id']:<38} {detalhe}")
             if entrada["status"] == "stale":
                 print(f"         !! usando cache anterior — {entrada['motivo']}")
-            if not apenas_cache:
-                time.sleep(PAUSA)
 
     return payloads, manifesto, catalogo
 
@@ -239,11 +323,19 @@ def deriva_tudo(
     config = carrega_catalogo(CATALOGO_DERIVADAS)
     print(f"\n=== Derivadas — {len(config.get('series', []))} declarada(s) ===\n")
     novos, entradas = derivadas.constroi(config, payloads, catalogo)
+    estados = {m["serie_id"]: m for m in manifesto}
 
     for serie_id, payload in novos.items():
         obs = payload["obs"]
         payloads[serie_id] = payload
         catalogo[serie_id] = entradas[serie_id]
+        # A derivada HERDA o pior status dos insumos e a coleta boa mais antiga entre
+        # eles. Se uma parcela veio do cache, o residual que dela depende está tão
+        # desatualizado quanto ela — marcá-lo `ok` esconderia o aviso da página
+        # justamente na série calculada, que o leitor não tem como rastrear sozinho.
+        insumos = [estados[i] for i in entradas[serie_id]["insumos"] if i in estados]
+        velhos = [m["serie_id"] for m in insumos if m["status"] == "stale"]
+        coletas = [m["ultima_coleta_ok"] for m in insumos if m.get("ultima_coleta_ok")]
         manifesto.append(
             {
                 "serie_id": serie_id,
@@ -251,9 +343,9 @@ def deriva_tudo(
                 "codigo_fonte": payload["codigo_fonte"],
                 "unidade": payload["unidade"],
                 "periodicidade": payload["periodicidade"],
-                "status": "ok",
-                "motivo": None,
-                "ultima_coleta_ok": payload["coletado_em"],
+                "status": "stale" if velhos else "ok",
+                "motivo": f"insumo desatualizado: {', '.join(velhos)}" if velhos else None,
+                "ultima_coleta_ok": min(coletas) if coletas else payload["coletado_em"],
                 "coletado_em": payload["coletado_em"],
                 "inicio": obs[0][0],
                 "ultima_data": obs[-1][0],
@@ -261,7 +353,8 @@ def deriva_tudo(
                 "n_obs": len(obs),
             }
         )
-        print(f"[CALC ] {serie_id:<38} {len(obs):>5} obs  até {obs[-1][0]}")
+        marca = "CALC*" if velhos else "CALC "
+        print(f"[{marca}] {serie_id:<38} {len(obs):>5} obs  até {obs[-1][0]}")
 
     return config, entradas
 
@@ -414,7 +507,7 @@ def monta_payload(
 ) -> dict:
     """Monta o payload que a página consome: abas, gráficos, séries e procedência."""
     estados = {m["serie_id"]: m for m in manifesto}
-    config = carrega_abas()
+    config = config_abas()
     inicio_padrao = config.get("inicio_padrao", "comum")
     # Ver a nota sobre dado preliminar no cabeçalho de config/series_bcb.yaml.
     prefixo_preliminar = carrega_catalogo(CATALOGOS["bcb"]).get("prefixo_tabela_preliminar")
@@ -628,32 +721,55 @@ def catalogo_completo() -> dict[str, dict]:
     return series
 
 
+@functools.lru_cache(maxsize=1)
+def config_abas() -> dict:
+    """
+    `config/abas.yaml`, lido UMA vez por execução.
+
+    Antes, cada `confere_*` e cada montagem relia o arquivo do disco — sete leituras do
+    mesmo YAML num build. Quem usa o resultado só lê: nenhum chamador muta o dicionário.
+    """
+    return carrega_abas()
+
+
+def ids_do_grafico(grafico: dict) -> list[str]:
+    """
+    Toda série que um gráfico pode desenhar: as de `series` e as do `detalhe` (o segundo
+    nível do seletor, como a abertura da indústria). Na ordem de abas.yaml.
+    """
+    ids = list(grafico["series"])
+    detalhe = grafico.get("detalhe")
+    if detalhe:
+        ids += list(detalhe["por"])
+    return ids
+
+
+def _graficos():
+    """(aba, gráfico) de todas as abas, na ordem de abas.yaml."""
+    for aba in config_abas()["abas"]:
+        for grafico in aba.get("graficos", []):
+            yield aba, grafico
+
+
 def graficos_por_serie() -> dict[str, list[str]]:
     """Para cada série, os títulos dos gráficos em que ela aparece. Vai para a ficha."""
     mapa: dict[str, list[str]] = {}
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            ids = list(grafico["series"])
-            detalhe = grafico.get("detalhe")
-            if detalhe:
-                ids += list(detalhe["por"])
-            for serie_id in ids:
-                mapa.setdefault(serie_id, []).append(grafico["titulo"])
+    for _, grafico in _graficos():
+        for serie_id in ids_do_grafico(grafico):
+            mapa.setdefault(serie_id, []).append(grafico["titulo"])
     return mapa
 
 
 def confere_referencias(catalogo: dict[str, dict]) -> list[str]:
     """Aponta séries citadas em abas.yaml que não existem no catálogo de séries."""
     faltantes = []
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            ids = list(grafico["series"])
-            detalhe = grafico.get("detalhe")
-            if detalhe:
-                ids += list(detalhe["por"]) + [detalhe["substitui"]]
-            for serie_id in ids:
-                if serie_id not in catalogo:
-                    faltantes.append(f"{aba['id']}/{grafico['id']}: {serie_id}")
+    for aba, grafico in _graficos():
+        ids = ids_do_grafico(grafico)
+        if grafico.get("detalhe"):
+            ids.append(grafico["detalhe"]["substitui"])
+        for serie_id in ids:
+            if serie_id not in catalogo:
+                faltantes.append(f"{aba['id']}/{grafico['id']}: {serie_id}")
     return faltantes
 
 
@@ -666,21 +782,15 @@ def confere_bases(catalogo: dict[str, dict]) -> list[str]:
     mesmo tempo, nunca a algumas.
     """
     problemas = []
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            ids = list(grafico["series"])
-            detalhe = grafico.get("detalhe")
-            if detalhe:
-                ids += list(detalhe["por"])
-            for base in grafico.get("bases") or []:
-                faltam = [
-                    s for s in ids if base not in (catalogo.get(s, {}).get("bases") or [])
-                ]
-                if faltam:
-                    problemas.append(
-                        f"{aba['id']}/{grafico['id']}: base {base!r} pedida mas não "
-                        f"declarada em {', '.join(faltam)}"
-                    )
+    for aba, grafico in _graficos():
+        ids = ids_do_grafico(grafico)
+        for base in grafico.get("bases") or []:
+            faltam = [s for s in ids if base not in (catalogo.get(s, {}).get("bases") or [])]
+            if faltam:
+                problemas.append(
+                    f"{aba['id']}/{grafico['id']}: base {base!r} pedida mas não "
+                    f"declarada em {', '.join(faltam)}"
+                )
     return problemas
 
 
@@ -720,22 +830,17 @@ def confere_agregacao(catalogo: dict[str, dict]) -> list[str]:
                 "acumular doze meses só faz sentido para fluxo (agregacao: fluxo)"
             )
 
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            ids = list(grafico["series"])
-            detalhe = grafico.get("detalhe")
-            if detalhe:
-                ids += list(detalhe["por"])
-            vistas = {
-                catalogo.get(s, {}).get("agregacao", transformacoes.AGREGACAO_PADRAO)
-                for s in ids
-                if s in catalogo
-            }
-            if len(vistas) > 1:
-                problemas.append(
-                    f"{aba['id']}/{grafico['id']}: mistura séries de "
-                    f"{' e '.join(sorted(vistas))} no mesmo gráfico"
-                )
+    for aba, grafico in _graficos():
+        vistas = {
+            catalogo.get(s, {}).get("agregacao", transformacoes.AGREGACAO_PADRAO)
+            for s in ids_do_grafico(grafico)
+            if s in catalogo
+        }
+        if len(vistas) > 1:
+            problemas.append(
+                f"{aba['id']}/{grafico['id']}: mistura séries de "
+                f"{' e '.join(sorted(vistas))} no mesmo gráfico"
+            )
     return problemas
 
 
@@ -748,19 +853,14 @@ def confere_segmento(catalogo: dict[str, dict]) -> list[str]:
     para dizer a quem aquele número se refere.
     """
     problemas = []
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            ids = list(grafico["series"])
-            detalhe = grafico.get("detalhe")
-            if detalhe:
-                ids += list(detalhe["por"])
-            for serie_id in ids:
-                segmento = catalogo.get(serie_id, {}).get("segmento")
-                if segmento not in ("familia", "empresa", "ambos"):
-                    problemas.append(
-                        f"{aba['id']}/{grafico['id']}: {serie_id} tem "
-                        f"segmento={segmento!r}, precisa ser familia, empresa ou ambos"
-                    )
+    for aba, grafico in _graficos():
+        for serie_id in ids_do_grafico(grafico):
+            segmento = catalogo.get(serie_id, {}).get("segmento")
+            if segmento not in ("familia", "empresa", "ambos"):
+                problemas.append(
+                    f"{aba['id']}/{grafico['id']}: {serie_id} tem "
+                    f"segmento={segmento!r}, precisa ser familia, empresa ou ambos"
+                )
     return problemas
 
 
@@ -777,14 +877,13 @@ def confere_ancoras() -> list[str]:
     texto = carrega_metodologia()
     ancoras = set(re.findall(r"\{#([a-z0-9-]+)\}", texto))
     problemas = []
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            alvo = grafico.get("metodologia")
-            if alvo and alvo not in ancoras:
-                problemas.append(
-                    f"{aba['id']}/{grafico['id']}: ícone \"i\" aponta para {alvo!r}, "
-                    "que não existe em content/metodologia.md"
-                )
+    for aba, grafico in _graficos():
+        alvo = grafico.get("metodologia")
+        if alvo and alvo not in ancoras:
+            problemas.append(
+                f"{aba['id']}/{grafico['id']}: ícone \"i\" aponta para {alvo!r}, "
+                "que não existe em content/metodologia.md"
+            )
     return problemas
 
 
@@ -805,27 +904,113 @@ def confere_marcadores() -> list[str]:
     ]
 
 
-def confere_brasil_primeiro(catalogo: dict[str, dict]) -> list[str]:
-    """
-    Garante que a série do Brasil seja a primeira de todo gráfico que a contenha.
+def carrega_identidades() -> list[dict]:
+    """As identidades contábeis declaradas em `config/identidades.yaml`."""
+    return carrega_catalogo(CATALOGO_IDENTIDADES).get("identidades") or []
 
-    A regra de identidade visual manda o Brasil na primeira cor da paleta. O front
-    atribui cor pela ordem das séries, então a regra se cumpre pela ordenação em
-    abas.yaml — e esta verificação existe para que ela não dependa de alguém lembrar.
+
+def confere_identidades_config(
+    catalogo: dict[str, dict], identidades: list[dict]
+) -> list[str]:
+    """
+    Coerência de `config/identidades.yaml` com o catálogo — sem dado, antes da coleta.
+
+    Exige id único, total e parcelas existentes no catálogo, tolerância numérica não
+    negativa, e a mesma unidade em todos os membros: somar R$ milhões com % daria uma
+    identidade que nunca fecha, e o erro só apareceria depois de toda a coleta.
     """
     problemas = []
-    for aba in carrega_abas()["abas"]:
-        for grafico in aba.get("graficos", []):
-            paises = [catalogo.get(s, {}).get("pais") for s in grafico["series"]]
-            if "BR" not in paises or paises[0] == "BR":
-                continue
-            posicao = paises.index("BR")
-            problemas.append(
-                f"{aba['id']}/{grafico['id']}: a série do Brasil "
-                f"({grafico['series'][posicao]}) está na posição {posicao + 1} e "
-                "precisa ser a primeira, para receber a primeira cor da paleta"
-            )
+    vistos: set[str] = set()
+    for ident in identidades:
+        iid = ident.get("id", "?")
+        if iid in vistos:
+            problemas.append(f"{iid}: id repetido")
+        vistos.add(iid)
+        membros = [ident.get("total"), *(ident.get("parcelas") or [])]
+        if len(membros) < 3:
+            problemas.append(f"{iid}: precisa de um total e de ao menos duas parcelas")
+        faltam = [m for m in membros if m not in catalogo]
+        if faltam:
+            problemas.append(f"{iid}: série inexistente no catálogo: {', '.join(map(str, faltam))}")
+            continue
+        tolerancia = ident.get("tolerancia")
+        if isinstance(tolerancia, bool) or not isinstance(tolerancia, (int, float)) or tolerancia < 0:
+            problemas.append(f"{iid}: tolerancia={tolerancia!r}, precisa ser número >= 0")
+        unidades = {catalogo[m].get("unidade") for m in membros}
+        if len(unidades) > 1:
+            problemas.append(f"{iid}: mistura unidades {sorted(map(str, unidades))}")
     return problemas
+
+
+def confere_identidades(
+    identidades: list[dict], payloads: dict[str, dict], manifesto: list[dict]
+) -> tuple[list[str], list[str]]:
+    """
+    Confere `total = soma(parcelas)` em todas as datas comuns. Devolve (problemas, avisos).
+
+    É o teste mais forte do catálogo, como diz o CLAUDE.md: nome certo na fonte não
+    garante que a soma das parcelas feche no total. Um código trocado por outro da mesma
+    tabela passa no gate de validação se o nome também foi copiado errado — e aqui não
+    passa, porque desloca a soma em bilhões.
+
+    Problema é a identidade que não fecha dentro da `tolerancia` declarada (absoluta, na
+    unidade da fonte), com a data do pior caso. Aviso é a identidade não conferida:
+    algum membro ausente nesta execução (o guard de regressão cuida disso) ou `stale` —
+    ver a política com dado desatualizado no cabeçalho de `config/identidades.yaml`.
+    """
+    status = {m["serie_id"]: m["status"] for m in manifesto}
+    problemas: list[str] = []
+    avisos: list[str] = []
+    for ident in identidades:
+        membros = [ident["total"], *ident["parcelas"]]
+        fora = [m for m in membros if m not in payloads]
+        velhos = [m for m in membros if status.get(m) == "stale"]
+        if fora or velhos:
+            motivo = f"ausente: {', '.join(fora)}" if fora else f"desatualizada: {', '.join(velhos)}"
+            avisos.append(f"identidade {ident['id']} não conferida — {motivo}")
+            continue
+
+        total = dict(payloads[ident["total"]]["obs"])
+        parcelas = [dict(payloads[p]["obs"]) for p in ident["parcelas"]]
+        datas = sorted(set(total).intersection(*parcelas))
+        if not datas:
+            avisos.append(f"identidade {ident['id']} não conferida — sem data comum")
+            continue
+        pior_data, pior = max(
+            ((d, total[d] - sum(p[d] for p in parcelas)) for d in datas),
+            key=lambda o: abs(o[1]),
+        )
+        if abs(pior) > float(ident["tolerancia"]):
+            problemas.append(
+                f"{ident['id']}: {ident['total']} − ({' + '.join(ident['parcelas'])}) = "
+                f"{pior:,.1f} em {pior_data}, acima da tolerância de {ident['tolerancia']}"
+            )
+    return problemas, avisos
+
+
+def confere_configuracao(catalogo: dict[str, dict]) -> list[tuple[str, list[str]]]:
+    """
+    Todas as verificações que só leem `config/` e `content/` — nenhuma precisa de dado.
+
+    Rodam ANTES da coleta, em `main`: um typo de YAML falha em segundos, e não depois de
+    mais de cem requisições. Devolve (título, problemas) por verificação; o build para na
+    primeira com problema. `tests/test_resiliencia.py` roda a mesma lista sobre o
+    catálogo de produção, sem rede.
+
+    Não há mais verificação de ordem "Brasil primeiro": a cor de cada série vem do campo
+    `cor` do catálogo desde 19/09/2026, e não da posição no gráfico.
+    """
+    return [
+        ("abas.yaml cita série inexistente no catálogo:", confere_referencias(catalogo)),
+        ("base pedida por um gráfico e não declarada pela série:", confere_bases(catalogo)),
+        ("série em gráfico sem `segmento` no catálogo:", confere_segmento(catalogo)),
+        ("estoque e fluxo incoerentes (campo `agregacao`):", confere_agregacao(catalogo)),
+        ('ícone "i" apontando para âncora inexistente:', confere_ancoras()),
+        (
+            "config/identidades.yaml incoerente com o catálogo:",
+            confere_identidades_config(catalogo, carrega_identidades()),
+        ),
+    ]
 
 
 def confere_pib_oficial(
@@ -880,6 +1065,35 @@ def _falha(titulo: str, itens: list[str]) -> None:
         print(f"  {item}")
 
 
+def le_estado_anterior() -> dict:
+    """`data/estado.json` da execução anterior, ou {} se não houver ou estiver corrompido."""
+    caminho = DATA / "estado.json"
+    if not caminho.exists():
+        return {}
+    try:
+        return json.loads(caminho.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+
+
+def ultima_coleta_ok(manifesto: list[dict], apenas_cache: bool, anterior: str | None) -> str | None:
+    """
+    Quando foi a última coleta que trouxe dado novo da rede.
+
+    É agora só se esta execução foi à rede E ao menos uma série coletada voltou `ok`.
+    `--do-cache` não coleta nada, e uma execução em que tudo caiu para o cache também
+    não: nos dois casos vale a data da execução anterior. Carimbar "agora" faria a página
+    anunciar uma atualização que não houve.
+    """
+    if apenas_cache:
+        return anterior
+    coletou = any(
+        m["status"] == "ok" and m.get("fonte") != "Derivado" and not m.get("motivo")
+        for m in manifesto
+    )
+    return agora_iso() if coletou else anterior
+
+
 def main() -> int:
     carrega_env()
 
@@ -899,19 +1113,11 @@ def main() -> int:
     args = ap.parse_args()
     fontes = ["bcb", "bis"] if args.fonte == "todas" else [args.fonte]
 
-    anterior = le_manifesto_anterior()  # lido antes de sobrescrever
-    payloads, manifesto, catalogo = coleta_tudo(fontes, apenas_cache=args.do_cache)
-    config_derivadas, entradas_derivadas = deriva_tudo(payloads, catalogo, manifesto)
-
+    # ------------------------------------------------------------- configuração
+    # Antes da coleta: nada aqui depende de dado, e um typo de YAML tem de falhar em
+    # segundos, não depois de cento e tantas requisições.
     completo = catalogo_completo()
-    for titulo, problemas in (
-        ("abas.yaml cita série inexistente no catálogo:", confere_referencias(completo)),
-        ("base pedida por um gráfico e não declarada pela série:", confere_bases(completo)),
-        ("série em gráfico sem `segmento` no catálogo:", confere_segmento(completo)),
-        ("estoque e fluxo incoerentes (campo `agregacao`):", confere_agregacao(completo)),
-        ("identidade visual: Brasil não está na primeira posição.", confere_brasil_primeiro(completo)),
-        ('ícone "i" apontando para âncora inexistente:', confere_ancoras()),
-    ):
+    for titulo, problemas in confere_configuracao(completo):
         if problemas:
             _falha(titulo, problemas)
             return 1
@@ -920,9 +1126,23 @@ def main() -> int:
     for aviso in confere_marcadores():
         print(f"  aviso: {aviso}")
 
-    nao_fecha = derivadas.confere_fechamento(config_derivadas, payloads)
-    if nao_fecha:
-        _falha("parcela residual não fecha no total publicado:", nao_fecha[:20])
+    # ------------------------------------------------------------- coleta
+    anterior = le_manifesto_anterior()  # lido antes de qualquer escrita
+    estado_anterior = le_estado_anterior()
+    payloads, manifesto, catalogo = coleta_tudo(fontes, apenas_cache=args.do_cache)
+    config_derivadas, entradas_derivadas = deriva_tudo(payloads, catalogo, manifesto)
+
+    # ------------------------------------------------------------- conferências de dado
+    negativos = derivadas.confere_residuais(config_derivadas, payloads)
+    if negativos:
+        _falha("parcela residual negativa — as parcelas somam mais que o total:", negativos)
+        return 1
+
+    nao_fecham, avisos_identidade = confere_identidades(carrega_identidades(), payloads, manifesto)
+    for aviso in avisos_identidade:
+        print(f"  aviso: {aviso}")
+    if nao_fecham:
+        _falha("identidade contábil não fecha (provável código errado no catálogo):", nao_fecham)
         return 1
 
     ctx = transformacoes.Contexto(payloads, catalogo)
@@ -930,6 +1150,27 @@ def main() -> int:
     if divergencias:
         _falha("% do PIB calculado não reproduz o oficial do BCB:", divergencias)
         return 1
+
+    # ------------------------------------------------------------- guard de regressão
+    # ANTES de escrever qualquer artefato. Se escrevesse primeiro, o manifest.json já
+    # regredido viraria a referência da próxima execução, que passaria — o guard só
+    # bloqueava uma vez. Bloqueado, nada é escrito: nem data/, nem docs/dados.js, nem o
+    # histórico, nem o carimbo do index.html. (O cache de data/_cache/ já foi atualizado
+    # durante a coleta, e deve: é dado bom, e é ele que ampara a próxima queda.)
+    bloqueios, avisos = verifica_regressao(manifesto, anterior, set(completo))
+    for aviso in avisos:
+        print(f"  aviso: {aviso}")
+    if bloqueios:
+        print("\nREGRESSÃO DE COBERTURA:")
+        for b in bloqueios:
+            print(f"  {b}")
+        if not args.sem_guard:
+            print(
+                "Nenhum artefato foi escrito. Rode de novo quando a fonte voltar, ou use "
+                "--sem-guard se a perda for esperada."
+            )
+            return 2
+        print("--sem-guard: escrevendo assim mesmo.")
 
     transformadas = transforma_tudo(payloads, catalogo, ctx)
 
@@ -942,7 +1183,7 @@ def main() -> int:
 
     blocos = [
         build_metodologia.bloco_fontes(manifesto, catalogo, agora_brasilia()),
-        build_metodologia.bloco_transformacoes(carrega_abas()["bases"], ctx, pib_ultima),
+        build_metodologia.bloco_transformacoes(config_abas()["bases"], ctx, pib_ultima),
         build_metodologia.bloco_derivadas(config_derivadas, entradas_derivadas),
         build_metodologia.bloco_ficha(manifesto, catalogo, graficos_por_serie()),
         build_metodologia.bloco_historico(historico),
@@ -963,7 +1204,9 @@ def main() -> int:
     grava_json(
         DATA / "estado.json",
         {
-            "ultima_coleta_ok": agora_iso(),
+            "ultima_coleta_ok": ultima_coleta_ok(
+                manifesto, args.do_cache, estado_anterior.get("ultima_coleta_ok")
+            ),
             "atualizado_em": agora_brasilia(),
             "proxima_coleta": build_metodologia.proxima_coleta(),
             "base_deflator": ctx.data_base,
@@ -1001,20 +1244,6 @@ def main() -> int:
         "Escrito: data/series.parquet, data/series.json, data/manifest.json, "
         "data/historico.json, data/estado.json, docs/dados.js"
     )
-
-    bloqueios, avisos = verifica_regressao(manifesto, anterior, set(completo))
-    for aviso in avisos:
-        print(f"  aviso: {aviso}")
-    if bloqueios:
-        print("\nREGRESSÃO DE COBERTURA — os artefatos foram escritos, mas NÃO devem subir:")
-        for b in bloqueios:
-            print(f"  {b}")
-        if args.sem_guard:
-            print("--sem-guard: seguindo assim mesmo.")
-            return 0
-        print("Rode de novo quando a fonte voltar, ou use --sem-guard se a perda for esperada.")
-        return 2
-
     return 0
 
 
